@@ -1,0 +1,58 @@
+"use client";
+
+import { useState } from "react";
+import type { SectionOutput } from "@/lib/types";
+
+interface Props {
+  companyName: string;
+  sections: SectionOutput[];
+}
+
+/**
+ * POSTs the SAME computed SectionOutput[] the preview renders to /api/pptx
+ * and downloads the result — one source object, two outputs. Download goes
+ * through a blob + anchor click (window.open would lose the POST body).
+ */
+export default function ExportButton({ companyName, sections }: Props) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function exportPptx() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/pptx", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ companyName, sections }),
+      });
+      if (!res.ok) throw new Error(`export failed (${res.status})`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download =
+        res.headers.get("Content-Disposition")?.match(/filename="(.+)"/)?.[1] ??
+        "proposal.pptx";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "export failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-3">
+      <button
+        onClick={exportPptx}
+        disabled={busy || sections.length === 0}
+        className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white shadow-card transition-opacity hover:opacity-90 disabled:opacity-50"
+      >
+        {busy ? "Exporting…" : "Export to PowerPoint"}
+      </button>
+      {error && <span className="text-sm text-red-600">{error}</span>}
+    </div>
+  );
+}

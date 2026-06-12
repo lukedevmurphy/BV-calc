@@ -1,0 +1,211 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Core domain types — the contract every layer imports.
+// Everything here must stay plain JSON (no Dates, classes, functions):
+// SectionOutput is the wire format three times over (web render, /api/pptx
+// POST body, Neon jsonb column).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Economic figures are never scalars — every monetary/quantity figure carries
+ *  a low/base/high band. */
+export interface Ranged {
+  low: number;
+  base: number;
+  high: number;
+  unit?: string;
+}
+
+/** One point on an adoption/usage ramp. Values are 0..1 fractions for
+ *  adoptionBreadth, or relative multipliers for usageDepth. */
+export interface RampPoint {
+  year: number;
+  low: number;
+  base: number;
+  high: number;
+}
+
+export interface ModelMixEntry {
+  id: string;
+  /** User-editable display name. Never referenced by logic. */
+  label: string;
+  inputPricePerMTok: number; // USD per 1M input tokens — user-editable
+  outputPricePerMTok: number; // USD per 1M output tokens — user-editable
+  sharePct: number; // 0..100, share of task volume routed to this model
+}
+
+/**
+ * The shared scenario object — set once, read by every economic section.
+ * Two-dimensional ramp: breadth (how many adopt) × depth (how heavily each
+ * adopter consumes). Changing any field must re-flow Cost, Business Value,
+ * and Forecast consistently.
+ */
+export interface ScenarioAssumptions {
+  /** Total addressable users at the company/team. */
+  targetUserCount: number;
+  /** Dimension 1: fraction of target users active, ramped by year. */
+  adoptionBreadth: RampPoint[];
+  /** Dimension 2: consumption-intensity multiplier per adopter, by year. */
+  usageDepth: RampPoint[];
+  avgTasksPerActiveUserPerMonth: Ranged;
+  avgTokensPerTask: { input: number; output: number };
+  modelMix: ModelMixEntry[];
+  /** Fully loaded employee cost ($/hr) — drives bottom-up value. */
+  loadedHourlyCost: Ranged;
+  /** One-time enablement/services cost. Without a fixed component, value and
+   *  cost are both linear in adoption and break-even degenerates to
+   *  "month 1 or never" — this makes the break-even period meaningful. */
+  implementationCost: Ranged;
+  /** Default 3. */
+  horizonYears: number;
+}
+
+// ── Company & enrichment ─────────────────────────────────────────────────────
+
+export interface KeyValue {
+  label: string;
+  value: string;
+}
+
+export interface CompanyProfile {
+  name: string;
+  domain?: string;
+  industry?: string;
+  employeeCount?: number;
+  revenueModel?: string;
+  /** e.g. from a 10-K — mocked for now. */
+  financialHighlights?: KeyValue[];
+  /** Provenance, even when mocked. */
+  sourceNotes?: string;
+}
+
+export interface EnrichmentProvider {
+  enrich(companyName: string): Promise<CompanyProfile>;
+}
+
+// ── Use cases ────────────────────────────────────────────────────────────────
+
+export type UseCaseTag =
+  // where AI helps
+  | "automation"
+  | "augmentation"
+  | "agency"
+  // the 4 D's competency lens
+  | "delegation"
+  | "description"
+  | "discernment"
+  | "diligence";
+
+export interface UseCase {
+  id: string;
+  label: string;
+  industry: string;
+  personaHint?: string;
+  /** Default sizing knobs the value/cost sections consume. */
+  hoursSavedPerInstance?: Ranged;
+  instancesPerMonthPerUser?: Ranged;
+  tags?: UseCaseTag[];
+}
+
+// ── SectionOutput — the keystone object every module returns ────────────────
+
+export type SectionKind =
+  | "executive_summary"
+  | "problem"
+  | "current_state"
+  | "future_state"
+  | "product"
+  | "use_case_persona"
+  | "business_value"
+  | "proposal"
+  | "cost"
+  | "forecast"
+  | "roadmap"
+  | "next_steps";
+
+export interface TableData {
+  columns: string[];
+  rows: (string | number)[][];
+}
+
+export interface ChartPoint {
+  x: number | string;
+  y: number;
+}
+
+export interface ChartSeries {
+  name: string;
+  points: ChartPoint[];
+  /** Hint for axis/tooltip formatting in both renderers. */
+  format?: "currency" | "number" | "percent";
+}
+
+export interface BandedPoint {
+  x: number | string;
+  low: number;
+  base: number;
+  high: number;
+}
+
+/** For ranged forecasts — rendered as a funnel (narrow near-term, widening). */
+export interface BandedSeries {
+  name: string;
+  points: BandedPoint[];
+  format?: "currency" | "number" | "percent";
+}
+
+export interface SectionOutput {
+  id: string;
+  kind: SectionKind;
+  title: string;
+  subtitle?: string;
+  /** Short, slide-ready phrases — NOT paragraphs. */
+  bullets?: string[];
+  /** Optional 1–3 sentence framing, used sparingly. */
+  narrative?: string;
+  /** Callout numbers. */
+  stats?: KeyValue[];
+  table?: TableData;
+  charts?: ChartSeries[];
+  bandedCharts?: BandedSeries[];
+  /** Goes into pptx notes; hidden in web preview by default. */
+  speakerNotes?: string;
+  /** Named economic outputs other sections can reference. */
+  rangedFigures?: Record<string, Ranged>;
+  /** Human-readable list of which assumptions fed this section — auditability. */
+  assumptionsUsed?: string[];
+  order: number;
+  enabled: boolean;
+}
+
+// ── Module contract ──────────────────────────────────────────────────────────
+
+export interface ProposalContext {
+  company: CompanyProfile;
+  assumptions: ScenarioAssumptions;
+  selectedUseCases: UseCase[];
+  /** For sections that summarize others (exec summary runs last). */
+  priorSections: Partial<Record<SectionKind, SectionOutput>>;
+}
+
+/** v1 modules are all synchronous & pure so they can run in the browser for
+ *  live reflow; the Promise arm exists so a future async (AI-backed) module
+ *  slots in without an interface change. */
+export type SectionModule = (
+  ctx: ProposalContext,
+) => SectionOutput | Promise<SectionOutput>;
+
+// ── Persistence shape (one jsonb column in Neon) ─────────────────────────────
+
+export interface SectionConfigEntry {
+  kind: SectionKind;
+  order: number;
+  enabled: boolean;
+}
+
+export interface ProposalPayload {
+  company: CompanyProfile;
+  assumptions: ScenarioAssumptions;
+  selectedUseCaseIds: string[];
+  sectionConfig: SectionConfigEntry[];
+  /** Last computed snapshot — fast load/share; recomputed live after edit. */
+  sections: SectionOutput[];
+}

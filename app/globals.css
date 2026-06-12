@@ -5,34 +5,35 @@
   --font-serif: var(--font-tiempos), Georgia, "Times New Roman", serif;
 }
 
-/* Claude-editorial palette: warm cream canvas, soft paper surfaces, near-black
-   warm ink, terracotta accent. The PPTX exporter mirrors these hex values in
-   lib/pptx/slide-builders.ts — keep the two in sync. */
+/* Palette from the Executive Business Case design template: ivory canvas,
+   cream cards, warm ink, Anthropic clay accent. The PPTX exporter mirrors
+   these hex values in lib/pptx/slide-builders.ts — keep the two in sync. */
 :root {
-  --bg-canvas: #f0eee6;
-  --bg-surface: #faf9f5;
-  --bg-muted: #e9e4d8;
+  --bg-canvas: #faf9f5; /* ivory */
+  --bg-surface: #f0ede4; /* cream */
+  --bg-muted: #eae6da; /* cream-2 */
 
-  --border-default: #dcd5c8;
-  --border-strong: #c9c1b0;
+  --border-default: #e2decf;
+  --border-strong: #d3cebc;
 
-  --text-primary: #1f1e1d;
-  --text-secondary: #5e5a52;
-  --text-tertiary: #8a857b;
+  --text-primary: #1a1915; /* ink */
+  --text-secondary: #6f6d63; /* slate */
+  --text-tertiary: #92907f; /* slate-2 */
 
-  --accent: #c15f3c; /* terracotta — actions, emphasis */
-  --accent-bright: #d97757; /* Claude coral — hairlines, fills */
-  --accent-soft: #f4e3d8;
+  --accent: #a8492a; /* clay-deep — emphasis text, stats */
+  --accent-bright: #cc785c; /* clay — fills, hairlines, buttons */
+  --accent-soft: #f3e2d9;
 
-  /* chart palette: value = sage, cost = terracotta, net = umber */
-  --chart-value: #4a7862;
-  --chart-value-band: #a9c8b6;
-  --chart-cost: #c15f3c;
-  --chart-cost-band: #ebc0ac;
-  --chart-net: #9c7c4d;
-  --chart-grid: #dcd5c8;
+  /* chart palette: value = sage, cost = clay, net = gold */
+  --chart-value: #7e8b6b;
+  --chart-value-band: #c2cbb2;
+  --chart-cost: #cc785c;
+  --chart-cost-band: #ecc9ba;
+  --chart-net: #c99a3f;
+  --chart-net-band: #e8d6ac;
+  --chart-grid: #e2decf;
 
-  --shadow-card: 0 1px 2px rgba(60, 50, 30, 0.06), 0 1px 1px rgba(60, 50, 30, 0.04);
+  --shadow-card: 0 1px 2px rgba(43, 38, 24, 0.05), 0 1px 1px rgba(43, 38, 24, 0.04);
 }
 
 /* Expose tokens as Tailwind v4 utilities; `inline` preserves the var()

@@ -13,5 +13,5 @@ export function tickFormatter(format: ChartFormat): (n: number) => string {
 export const SERIES_COLORS = [
   { line: "var(--chart-value)", band: "var(--chart-value-band)" },
   { line: "var(--chart-cost)", band: "var(--chart-cost-band)" },
-  { line: "var(--chart-net)", band: "var(--chart-net)" },
+  { line: "var(--chart-net)", band: "var(--chart-net-band)" },
 ];

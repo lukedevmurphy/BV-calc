@@ -59,6 +59,13 @@ export function executiveSummarySection(ctx: ProposalContext): SectionOutput {
       `Every number on this slide is assembled mechanically from the sections that follow — nothing is restated by hand, ` +
       `so the summary cannot drift from the detail. If a figure looks wrong here, it is wrong in exactly one underlying ` +
       `assumption, and you can change it live.`,
+    // Pass-through of the headline figures (read, not computed) so renderers
+    // can draw a conservative/base/upside value strip without re-deriving.
+    rangedFigures: {
+      ...(value ? { annualValueFinalYear: value } : {}),
+      ...(cost ? { annualCostFinalYear: cost } : {}),
+      ...(net ? { netFinalYear: net } : {}),
+    },
     assumptionsUsed: [
       "assembled from Business Value, Cost, and Forecast section outputs",
     ],

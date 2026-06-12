@@ -25,7 +25,9 @@ import { roadmapSection } from "./roadmap";
 import { nextStepsSection } from "./next-steps";
 import { executiveSummarySection } from "./executive-summary";
 
-/** Canonical default ordering (spec §5). */
+/** Default display ordering — executive-deck flow: story first, asks, then
+ *  the scenario/cost detail as appendix material (the exporter inserts a
+ *  divider before the trailing appendix kinds). */
 export const DEFAULT_SECTION_ORDER: SectionKind[] = [
   "executive_summary",
   "problem",
@@ -35,11 +37,17 @@ export const DEFAULT_SECTION_ORDER: SectionKind[] = [
   "use_case_persona",
   "business_value",
   "proposal",
-  "cost",
-  "forecast",
   "roadmap",
   "next_steps",
+  "forecast",
+  "cost",
 ];
+
+/** Kinds that read as appendix detail when they trail the deck. */
+export const APPENDIX_KINDS: ReadonlySet<SectionKind> = new Set([
+  "forecast",
+  "cost",
+]);
 
 /** Synchronous module signature used by the registry. The public
  *  SectionModule type allows Promise for future async modules; everything in

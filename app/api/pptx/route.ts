@@ -1,6 +1,8 @@
 import PptxGenJS from "pptxgenjs";
-import type { SectionOutput } from "@/lib/types";
+import type { SectionKind, SectionOutput } from "@/lib/types";
+import { APPENDIX_KINDS } from "@/lib/sections/index";
 import {
+  addAppendixDivider,
   addSectionSlide,
   addTitleSlide,
   defineBrandMaster,
@@ -32,15 +34,42 @@ export async function POST(req: Request): Promise<Response> {
   pptx.defineLayout({ name: "WIDE", width: 13.33, height: 7.5 });
   pptx.layout = "WIDE";
   pptx.title = `Business Value Proposal — ${body.companyName}`;
-  defineBrandMaster(pptx, body.companyName);
+  defineBrandMaster(pptx);
 
   const sections = body.sections
     .filter((s) => s.enabled)
     .sort((a, b) => a.order - b.order);
 
+  // Appendix = the trailing run of appendix-kind sections (scenario detail,
+  // consumption economics). If the user reorders them into the main flow,
+  // they render as ordinary slides and no divider appears.
+  let appendixStart = sections.length;
+  while (
+    appendixStart > 0 &&
+    APPENDIX_KINDS.has(sections[appendixStart - 1].kind as SectionKind)
+  ) {
+    appendixStart--;
+  }
+  const main = sections.slice(0, appendixStart);
+  const appendix = sections.slice(appendixStart);
+
   addTitleSlide(pptx, body.companyName, sections.length);
-  for (const section of sections) {
-    addSectionSlide(pptx, section);
+
+  main.forEach((section, i) => {
+    addSectionSlide(pptx, section, { pageNo: i + 1 });
+  });
+
+  if (appendix.length > 0) {
+    addAppendixDivider(
+      pptx,
+      appendix.map((s) => s.title),
+    );
+    appendix.forEach((section, i) => {
+      addSectionSlide(pptx, section, {
+        pageNo: main.length + i + 1,
+        appendixIndex: i + 1,
+      });
+    });
   }
 
   // nodebuffer (never writeFile — Vercel's filesystem is read-only).

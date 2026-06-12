@@ -51,8 +51,8 @@ async function main() {
   const slideNames = Object.keys(zip.files).filter((f) =>
     /^ppt\/slides\/slide\d+\.xml$/.test(f),
   );
-  // title slide + 12 sections
-  assert.strictEqual(slideNames.length, 13, `expected 13 slides, got ${slideNames.length}`);
+  // cover + 10 main sections + appendix divider + 2 appendix sections
+  assert.strictEqual(slideNames.length, 14, `expected 14 slides, got ${slideNames.length}`);
 
   const allSlidesXml = (
     await Promise.all(slideNames.map((n) => zip.files[n].async("string")))
@@ -78,7 +78,11 @@ async function main() {
 
   // The seam: text the web preview shows must appear verbatim in the deck.
   for (const s of sections) {
-    assert(slides.includes(s.title), `slide text: title "${s.title}"`);
+    // Section titles render as uppercase kicker labels in the deck grammar.
+    assert(
+      slides.includes(s.title) || slides.includes(s.title.toUpperCase()),
+      `slide text: title "${s.title}"`,
+    );
     for (const b of s.bullets ?? []) assert(slides.includes(b), `bullet: "${b.slice(0, 50)}…"`);
     for (const st of s.stats ?? []) assert(slides.includes(st.value), `stat: "${st.value}"`);
     for (const row of s.table?.rows ?? [])

@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { Lora, Public_Sans } from "next/font/google";
+import { Hanken_Grotesk, Newsreader } from "next/font/google";
 import "./globals.css";
 
-// Stand-ins for Anthropic's proprietary brand faces: Lora for the Tiempos-like
-// editorial serif (display/headings), Public Sans for the Styrene-like body.
-const serif = Lora({ subsets: ["latin"], variable: "--font-tiempos" });
-const sans = Public_Sans({ subsets: ["latin"], variable: "--font-styrene" });
+// The Executive Business Case template's faces: Newsreader (Tiempos-like
+// editorial serif for display/headings), Hanken Grotesk (Styrene-like body).
+const serif = Newsreader({ subsets: ["latin"], variable: "--font-tiempos" });
+const sans = Hanken_Grotesk({ subsets: ["latin"], variable: "--font-styrene" });
 
 export const metadata: Metadata = {
   title: "bv-calc",

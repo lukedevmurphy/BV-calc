@@ -26,3 +26,5 @@ npm-debug.log*
 
 # local verification artifacts
 scripts/out-proposal.pptx
+
+.vercel

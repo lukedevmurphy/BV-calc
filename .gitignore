@@ -27,4 +27,7 @@ npm-debug.log*
 # local verification artifacts
 scripts/out-proposal.pptx
 
+# local Claude Code guidance — kept private
+CLAUDE.md
+
 .vercel

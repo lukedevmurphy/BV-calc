@@ -45,7 +45,9 @@ export default function CompanyStep({ onConfirm, initial }: Props) {
 
   return (
     <div className="mx-auto max-w-2xl rounded-xl border border-line bg-surface p-6 shadow-card">
-      <h2 className="text-lg font-semibold">Who is this proposal for?</h2>
+      <h2 className="font-serif text-2xl font-semibold tracking-tight">
+        Who is this proposal for?
+      </h2>
       <p className="mt-1 text-sm text-ink-secondary">
         Look up a company, then confirm or correct what came back — nothing flows
         into the proposal unverified.

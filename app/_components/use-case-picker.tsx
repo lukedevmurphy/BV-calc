@@ -10,14 +10,16 @@ interface Props {
   onChange: (ids: string[]) => void;
 }
 
+// Warm-palette chips: modes get distinct hues (tan / sage / coral), the
+// 4 D's competency lens shares a neutral warm gray.
 const TAG_STYLES: Record<string, string> = {
-  automation: "bg-blue-50 text-blue-700",
-  augmentation: "bg-green-50 text-green-700",
-  agency: "bg-purple-50 text-purple-700",
-  delegation: "bg-amber-50 text-amber-800",
-  description: "bg-amber-50 text-amber-800",
-  discernment: "bg-amber-50 text-amber-800",
-  diligence: "bg-amber-50 text-amber-800",
+  automation: "bg-[#ede4d1] text-[#7a6232]",
+  augmentation: "bg-[#e1eadf] text-[#44604c]",
+  agency: "bg-[#f4e0d5] text-[#a04c2a]",
+  delegation: "bg-[#e9e4d8] text-[#5e5a52]",
+  description: "bg-[#e9e4d8] text-[#5e5a52]",
+  discernment: "bg-[#e9e4d8] text-[#5e5a52]",
+  diligence: "bg-[#e9e4d8] text-[#5e5a52]",
 };
 
 /** Industry-filtered use-case selection with automation/augmentation/agency

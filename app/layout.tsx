@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Lora, Public_Sans } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+// Stand-ins for Anthropic's proprietary brand faces: Lora for the Tiempos-like
+// editorial serif (display/headings), Public Sans for the Styrene-like body.
+const serif = Lora({ subsets: ["latin"], variable: "--font-tiempos" });
+const sans = Public_Sans({ subsets: ["latin"], variable: "--font-styrene" });
 
 export const metadata: Metadata = {
   title: "bv-calc",
@@ -17,7 +20,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} font-sans antialiased min-h-screen`}>
+      <body
+        className={`${serif.variable} ${sans.variable} font-sans antialiased min-h-screen`}
+      >
         {children}
       </body>
     </html>

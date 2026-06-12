@@ -1,35 +1,38 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-styrene), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-tiempos), Georgia, "Times New Roman", serif;
 }
 
-/* Theme tokens — clean, neutral, professional. Charts read the --chart-*
-   vars so series colors stay consistent between sections. */
+/* Claude-editorial palette: warm cream canvas, soft paper surfaces, near-black
+   warm ink, terracotta accent. The PPTX exporter mirrors these hex values in
+   lib/pptx/slide-builders.ts — keep the two in sync. */
 :root {
-  --bg-canvas: #f6f7f9;
-  --bg-surface: #ffffff;
-  --bg-muted: #f1f3f5;
+  --bg-canvas: #f0eee6;
+  --bg-surface: #faf9f5;
+  --bg-muted: #e9e4d8;
 
-  --border-default: #e4e7ec;
-  --border-strong: #cdd2da;
+  --border-default: #dcd5c8;
+  --border-strong: #c9c1b0;
 
-  --text-primary: #16202e;
-  --text-secondary: #4b5565;
-  --text-tertiary: #768093;
+  --text-primary: #1f1e1d;
+  --text-secondary: #5e5a52;
+  --text-tertiary: #8a857b;
 
-  --accent: #b45309; /* warm amber — primary actions, base lines */
-  --accent-soft: #fef3e2;
+  --accent: #c15f3c; /* terracotta — actions, emphasis */
+  --accent-bright: #d97757; /* Claude coral — hairlines, fills */
+  --accent-soft: #f4e3d8;
 
-  /* chart palette: value = green family, cost = slate/blue family */
-  --chart-value: #15803d;
-  --chart-value-band: #86efac;
-  --chart-cost: #1d4ed8;
-  --chart-cost-band: #93c5fd;
-  --chart-net: #b45309;
-  --chart-grid: #e4e7ec;
+  /* chart palette: value = sage, cost = terracotta, net = umber */
+  --chart-value: #4a7862;
+  --chart-value-band: #a9c8b6;
+  --chart-cost: #c15f3c;
+  --chart-cost-band: #ebc0ac;
+  --chart-net: #9c7c4d;
+  --chart-grid: #dcd5c8;
 
-  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 1px rgba(16, 24, 40, 0.04);
+  --shadow-card: 0 1px 2px rgba(60, 50, 30, 0.06), 0 1px 1px rgba(60, 50, 30, 0.04);
 }
 
 /* Expose tokens as Tailwind v4 utilities; `inline` preserves the var()
@@ -47,6 +50,7 @@
   --color-ink-tertiary: var(--text-tertiary);
 
   --color-accent: var(--accent);
+  --color-accent-bright: var(--accent-bright);
   --color-accent-soft: var(--accent-soft);
 
   --shadow-card: var(--shadow-card);

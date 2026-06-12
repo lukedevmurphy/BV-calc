@@ -1,6 +1,10 @@
 import PptxGenJS from "pptxgenjs";
 import type { SectionOutput } from "@/lib/types";
-import { addSectionSlide, addTitleSlide } from "@/lib/pptx/slide-builders";
+import {
+  addSectionSlide,
+  addTitleSlide,
+  defineBrandMaster,
+} from "@/lib/pptx/slide-builders";
 
 // PptxGenJS needs Node APIs; never run this on the Edge runtime.
 export const runtime = "nodejs";
@@ -28,6 +32,7 @@ export async function POST(req: Request): Promise<Response> {
   pptx.defineLayout({ name: "WIDE", width: 13.33, height: 7.5 });
   pptx.layout = "WIDE";
   pptx.title = `Business Value Proposal — ${body.companyName}`;
+  defineBrandMaster(pptx, body.companyName);
 
   const sections = body.sections
     .filter((s) => s.enabled)

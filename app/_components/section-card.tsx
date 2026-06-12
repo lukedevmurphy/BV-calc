@@ -15,8 +15,10 @@ export default function SectionCard({ section }: { section: SectionOutput }) {
       className="rounded-xl border border-line bg-surface p-6 shadow-card"
       data-section={section.kind}
     >
-      <header>
-        <h2 className="text-xl font-semibold">{section.title}</h2>
+      <header className="border-b border-line pb-3">
+        <h2 className="font-serif text-2xl font-semibold tracking-tight">
+          {section.title}
+        </h2>
         {section.subtitle && (
           <p className="mt-1 text-sm text-ink-secondary">{section.subtitle}</p>
         )}
@@ -25,11 +27,16 @@ export default function SectionCard({ section }: { section: SectionOutput }) {
       {section.stats && section.stats.length > 0 && (
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {section.stats.map((s) => (
-            <div key={s.label} className="rounded-lg bg-muted px-3 py-2">
+            <div
+              key={s.label}
+              className="rounded-lg border border-line bg-canvas px-3 py-2"
+            >
               <div className="text-[11px] font-medium uppercase tracking-wide text-ink-tertiary">
                 {s.label}
               </div>
-              <div className="mt-0.5 text-sm font-semibold leading-snug">{s.value}</div>
+              <div className="mt-0.5 font-serif text-sm font-semibold leading-snug">
+                {s.value}
+              </div>
             </div>
           ))}
         </div>
@@ -47,7 +54,9 @@ export default function SectionCard({ section }: { section: SectionOutput }) {
       )}
 
       {section.narrative && (
-        <p className="mt-3 text-sm italic text-ink-secondary">{section.narrative}</p>
+        <p className="mt-3 font-serif text-sm italic text-ink-secondary">
+          {section.narrative}
+        </p>
       )}
 
       {section.table && (

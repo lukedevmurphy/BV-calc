@@ -31,3 +31,5 @@ scripts/out-proposal.pptx
 CLAUDE.md
 
 .vercel
+
+.env*.local

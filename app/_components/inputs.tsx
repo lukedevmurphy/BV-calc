@@ -104,6 +104,36 @@ export function RangedField({
   );
 }
 
+/** Segmented (pill) toggle over a small string union. */
+export function SegmentedControl<T extends string>({
+  value,
+  options,
+  onChange,
+}: {
+  value: T;
+  options: { value: T; label: string }[];
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div className="flex gap-1 rounded-lg bg-muted p-1">
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          onClick={() => onChange(o.value)}
+          className={`flex-1 rounded-md px-2 py-1 text-xs font-medium transition ${
+            value === o.value
+              ? "bg-surface text-ink shadow-card"
+              : "text-ink-secondary hover:text-ink"
+          }`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function Slider({
   value,
   onChange,

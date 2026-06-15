@@ -35,6 +35,20 @@ export const scale = (a: Ranged, k: number): Ranged => ({
 export const sum = (xs: Ranged[]): Ranged => xs.reduce(add, exact(0));
 
 /**
+ * Build a confidence band of ±`halfWidthPct` around a central estimate. Used
+ * by the value-approach slider: each approach reports a band that reflects its
+ * METHODOLOGICAL confidence (top_down coarse → wide, bottom_up granular →
+ * tight) rather than the engine's mechanical multiplicative compounding (which,
+ * counter-intuitively, widens most for the most-detailed build). The base is
+ * the meaningful figure and is preserved exactly; only the spread is set here.
+ */
+export const bandAroundBase = (base: number, halfWidthPct: number): Ranged => ({
+  low: base * (1 - halfWidthPct),
+  base,
+  high: base * (1 + halfWidthPct),
+});
+
+/**
  * THE PAIRING SUBTLETY — value minus cost. The conservative ("low") outcome is
  * LOW value AND HIGH cost; the optimistic ("high") outcome is high value and
  * low cost. Element-wise map2 would be wrong here (it understates the spread

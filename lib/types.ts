@@ -38,7 +38,21 @@ export interface ModelMixEntry {
  * adopter consumes). Changing any field must re-flow Cost, Business Value,
  * and Forecast consistently.
  */
+/**
+ * Which altitude the value case is built at. Swaps the unit of analysis,
+ * the input burden, and the confidence-band width — but NOT the output
+ * schema: all three emit identical rangedFigures keys, so downstream
+ * sections (cost, forecast, exec summary) stay agnostic.
+ *   top_down  — whole company, few inputs, benchmark %, widest band
+ *   middle    — per value-pool sizing, moderate inputs, medium band
+ *   bottom_up — per use case rolled up, many inputs, tightest band (today's path)
+ */
+export type ValueApproach = "top_down" | "middle" | "bottom_up";
+
 export interface ScenarioAssumptions {
+  /** Value-case altitude. Absent on pre-feature saved payloads → treat as
+   *  "bottom_up" (the original behavior). */
+  valueApproach: ValueApproach;
   /** Total addressable users at the company/team. */
   targetUserCount: number;
   /** Dimension 1: fraction of target users active, ramped by year. */
@@ -56,6 +70,41 @@ export interface ScenarioAssumptions {
   implementationCost: Ranged;
   /** Default 3. */
   horizonYears: number;
+}
+
+// ── Value model (top_down / middle inputs; bottom_up reuses use cases) ───────
+
+/** One function/department-level value pool, used by the `middle` approach. */
+export interface ValuePool {
+  id: string;
+  label: string;
+  /** Pool size in $ (or FTE-cost) the uplift applies to. */
+  size: Ranged;
+  /** Pool-specific efficiency/productivity uplift, 0..1 fraction. */
+  upliftPct: Ranged;
+  /** Pool adoption assumption, 0..1 fraction. */
+  adoption: Ranged;
+  /** Citation; "uncited — user to verify" when none — never fabricated. */
+  source?: string;
+}
+
+/**
+ * Inputs for the shallower value approaches. Kept whole in state regardless of
+ * the active approach so toggling the slider never loses work; the section
+ * reads only the groups its approach needs. (bottom_up needs none of these —
+ * it reuses selectedUseCases + ScenarioAssumptions.)
+ */
+export interface ValueModelInputs {
+  // top_down group — whole-company benchmark math
+  topline: Ranged;
+  addressableShare: Ranged; // 0..1 share of topline addressable by AI
+  upliftPct: Ranged; // 0..1 benchmark efficiency uplift
+  /** Required (non-empty) for top_down; "uncited — user to verify" if no
+   *  source — never a fabricated citation. */
+  upliftSource?: string;
+  realizationFactor: Ranged; // 0..1 discount on the theoretical uplift
+  // middle group — per value-pool sizing
+  valuePools: ValuePool[];
 }
 
 // ── Company & enrichment ─────────────────────────────────────────────────────
@@ -182,6 +231,9 @@ export interface ProposalContext {
   company: CompanyProfile;
   assumptions: ScenarioAssumptions;
   selectedUseCases: UseCase[];
+  /** Inputs for the top_down / middle value approaches. Always present
+   *  (computeAllSections fills a default); bottom_up ignores it. */
+  valueModel: ValueModelInputs;
   /** For sections that summarize others (exec summary runs last). */
   priorSections: Partial<Record<SectionKind, SectionOutput>>;
 }
@@ -205,6 +257,9 @@ export interface ProposalPayload {
   company: CompanyProfile;
   assumptions: ScenarioAssumptions;
   selectedUseCaseIds: string[];
+  /** Inputs for the top_down / middle value approaches. Optional so pre-
+   *  feature saved payloads still rehydrate (builder falls back to default). */
+  valueModel?: ValueModelInputs;
   sectionConfig: SectionConfigEntry[];
   /** Last computed snapshot — fast load/share; recomputed live after edit. */
   sections: SectionOutput[];

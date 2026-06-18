@@ -18,6 +18,7 @@ import SaveButton from "./save-button";
 import AssumptionsPanel from "./assumptions-panel";
 import ValueModelPanel from "./value-model-panel";
 import CompanyStep from "./company-step";
+import SavedCasesList from "./saved-cases-list";
 import UseCasePicker from "./use-case-picker";
 import SectionList from "./section-list";
 
@@ -103,6 +104,9 @@ export default function Builder({
     return (
       <div className="px-6 py-12">
         <CompanyStep initial={company ?? undefined} onConfirm={confirmCompany} />
+        {/* Browse/reload saved cases only on a fresh start, not when editing
+            the profile of a proposal already open in the builder. */}
+        {!company && <SavedCasesList />}
       </div>
     );
   }

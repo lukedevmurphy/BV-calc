@@ -28,6 +28,7 @@ export default async function ProposalPage({
           company: p.company,
           assumptions: p.assumptions,
           useCaseIds: p.selectedUseCaseIds,
+          valueModel: p.valueModel,
           sectionConfig: p.sectionConfig,
         }}
       />

@@ -11,7 +11,9 @@ import type {
   SectionKind,
   SectionOutput,
   UseCase,
+  ValueModelInputs,
 } from "@/lib/types";
+import { DEFAULT_VALUE_MODEL } from "@/lib/data/defaults";
 import { problemSection } from "./problem";
 import { businessValueSection } from "./business-value";
 import { costSection } from "./cost";
@@ -90,6 +92,10 @@ export interface ProposalInputs {
   company: CompanyProfile;
   assumptions: ScenarioAssumptions;
   selectedUseCases: UseCase[];
+  /** Inputs for the top_down value approach. Optional — callers that only
+   *  exercise the default bottom_up path (scripts, pre-feature saved payloads)
+   *  may omit it. */
+  valueModel?: ValueModelInputs;
   sectionConfig: SectionConfigEntry[];
 }
 
@@ -115,6 +121,7 @@ export function computeAllSections(inputs: ProposalInputs): SectionOutput[] {
     company: inputs.company,
     assumptions: inputs.assumptions,
     selectedUseCases: inputs.selectedUseCases,
+    valueModel: inputs.valueModel ?? DEFAULT_VALUE_MODEL,
     priorSections,
   };
 

@@ -2,13 +2,14 @@
 // company and assert the SectionOutput contract. `npx tsx scripts/check-sections.ts`
 
 import assert from "node:assert";
-import { DEFAULT_ASSUMPTIONS } from "@/lib/data/defaults";
+import { DEFAULT_ASSUMPTIONS, DEFAULT_VALUE_MODEL } from "@/lib/data/defaults";
 import { SEED_USE_CASES } from "@/lib/data/use-cases";
+import { annualValue } from "@/lib/economics/engine";
 import {
   computeAllSections,
   defaultSectionConfig,
 } from "@/lib/sections/index";
-import type { CompanyProfile } from "@/lib/types";
+import type { CompanyProfile, Ranged, ValueApproach } from "@/lib/types";
 
 const demoCompany: CompanyProfile = {
   name: "Crestline Asset Management",
@@ -67,5 +68,52 @@ assert(costStat && costSectionStat && costStat.value === costSectionStat.value,
 
 // Default ordering: exec summary first on the page, computed last
 assert.strictEqual(sections[0].kind, "executive_summary", "exec summary ordered first");
+
+// ── Value-approach slider: band narrows with depth; keys are identical ───────
+const ucs4 = SEED_USE_CASES.slice(0, 4);
+const halfWidth = (r: Ranged) => (r.high - r.low) / (2 * r.base);
+const valueFor = (approach: ValueApproach) => {
+  const out = computeAllSections({
+    company: demoCompany,
+    assumptions: { ...DEFAULT_ASSUMPTIONS, valueApproach: approach },
+    selectedUseCases: ucs4,
+    valueModel: DEFAULT_VALUE_MODEL,
+    sectionConfig: defaultSectionConfig(),
+  });
+  const bv = out.find((s) => s.kind === "business_value")!;
+  return bv.rangedFigures!.annualValueFinalYear;
+};
+
+const td = valueFor("top_down");
+const bu = valueFor("bottom_up");
+
+// Both approaches emit the identical rangedFigures key set (downstream-agnostic)
+for (const approach of ["top_down", "bottom_up"] as ValueApproach[]) {
+  const out = computeAllSections({
+    company: demoCompany,
+    assumptions: { ...DEFAULT_ASSUMPTIONS, valueApproach: approach },
+    selectedUseCases: ucs4,
+    valueModel: DEFAULT_VALUE_MODEL,
+    sectionConfig: defaultSectionConfig(),
+  });
+  const keys = Object.keys(out.find((s) => s.kind === "business_value")!.rangedFigures ?? {}).sort();
+  assert.deepStrictEqual(keys, ["annualValueFinalYear", "annualValueY1"], `${approach} rangedFigures keys`);
+}
+
+// Confidence band: top_down (assumptive) is wider than bottom_up (defensible).
+// This is the on-screen demo claim — it must actually hold.
+assert(
+  halfWidth(td) > halfWidth(bu),
+  `top_down band (${(halfWidth(td) * 100).toFixed(0)}%) must be WIDER than bottom_up (${(halfWidth(bu) * 100).toFixed(0)}%)`,
+);
+
+// bottom_up base is the engine value, unchanged by the band normalization
+assert(
+  Math.abs(bu.base - annualValue(DEFAULT_ASSUMPTIONS, ucs4, DEFAULT_ASSUMPTIONS.horizonYears).base) < 1,
+  "bottom_up base equals the engine annualValue base (regression guard)",
+);
+console.log(
+  `value-approach bands: top_down ±${(halfWidth(td) * 100).toFixed(0)}% (wider) > bottom_up ±${(halfWidth(bu) * 100).toFixed(0)}% (tighter) ✓`,
+);
 
 console.log("Section contract holds across all 12. ✓");

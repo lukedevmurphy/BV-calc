@@ -26,7 +26,10 @@ async function main() {
     sectionConfig: defaultSectionConfig(),
   });
 
-  const res = await fetch("http://localhost:3000/api/pptx", {
+  // Default to the dev server on :3000; override with PPTX_BASE_URL when the
+  // dev server is on another port (e.g. :3001 if 3000 is taken).
+  const baseUrl = process.env.PPTX_BASE_URL ?? "http://localhost:3000";
+  const res = await fetch(`${baseUrl}/api/pptx`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ companyName: company.name, sections }),

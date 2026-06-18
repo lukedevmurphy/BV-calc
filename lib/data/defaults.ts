@@ -1,5 +1,11 @@
-import type { ScenarioAssumptions } from "@/lib/types";
+import type { ScenarioAssumptions, ValueModelInputs } from "@/lib/types";
 import { ranged } from "@/lib/economics/ranged";
+import {
+  DEFAULT_ADDRESSABLE_SHARE,
+  DEFAULT_REALIZATION_FACTOR,
+  DEFAULT_UPLIFT_PCT,
+  UNCITED,
+} from "@/lib/value-model/constants";
 
 // TODO: confirm current Claude model names + pricing at build time — do not
 // trust these placeholder values. They were seeded from Anthropic's published
@@ -37,6 +43,8 @@ export const DEFAULT_MODEL_MIX: ScenarioAssumptions["modelMix"] = [
  * over the horizon so the forecast funnels naturally.
  */
 export const DEFAULT_ASSUMPTIONS: ScenarioAssumptions = {
+  // Default altitude is bottom_up — the original, most-defensible behavior.
+  valueApproach: "bottom_up",
   targetUserCount: 1000,
 
   // Dimension 1 — breadth: fraction of target users active, by year.
@@ -61,4 +69,25 @@ export const DEFAULT_ASSUMPTIONS: ScenarioAssumptions = {
   loadedHourlyCost: ranged(75, 95, 130),
   implementationCost: ranged(150_000, 250_000, 400_000),
   horizonYears: 3,
+};
+
+/**
+ * Static fallback value-model inputs (top_down approach). Used as builder
+ * initial state before company pre-fill runs, and by computeAllSections when no
+ * valueModel is supplied (e.g. verification scripts / pre-feature saved
+ * payloads). bottom_up never reads it. Topline sized off a 1,000-person labor
+ * base.
+ */
+const DEFAULT_TOPLINE_BASE = 180_000_000; // 1,000 × ~$180k loaded annual cost
+
+export const DEFAULT_VALUE_MODEL: ValueModelInputs = {
+  topline: ranged(
+    Math.round(DEFAULT_TOPLINE_BASE * 0.85),
+    DEFAULT_TOPLINE_BASE,
+    Math.round(DEFAULT_TOPLINE_BASE * 1.15),
+  ),
+  addressableShare: DEFAULT_ADDRESSABLE_SHARE,
+  upliftPct: DEFAULT_UPLIFT_PCT,
+  upliftSource: UNCITED,
+  realizationFactor: DEFAULT_REALIZATION_FACTOR,
 };

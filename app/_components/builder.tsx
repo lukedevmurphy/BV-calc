@@ -6,13 +6,17 @@ import type {
   ProposalPayload,
   ScenarioAssumptions,
   SectionConfigEntry,
+  ValueApproach,
+  ValueModelInputs,
 } from "@/lib/types";
-import { DEFAULT_ASSUMPTIONS } from "@/lib/data/defaults";
+import { DEFAULT_ASSUMPTIONS, DEFAULT_VALUE_MODEL } from "@/lib/data/defaults";
 import { resolveUseCases } from "@/lib/data/use-cases";
+import { getValuePrefillProvider } from "@/lib/value-model/prefill/provider";
 import { computeAllSections, defaultSectionConfig } from "@/lib/sections/index";
 import ExportButton from "./export-button";
 import SaveButton from "./save-button";
 import AssumptionsPanel from "./assumptions-panel";
+import ValueModelPanel from "./value-model-panel";
 import CompanyStep from "./company-step";
 import UseCasePicker from "./use-case-picker";
 import SectionList from "./section-list";
@@ -28,6 +32,7 @@ export interface BuilderInitialState {
   company: CompanyProfile;
   assumptions: ScenarioAssumptions;
   useCaseIds: string[];
+  valueModel?: ValueModelInputs;
   sectionConfig: SectionConfigEntry[];
 }
 
@@ -48,6 +53,9 @@ export default function Builder({
   const [useCaseIds, setUseCaseIds] = useState<string[]>(
     initial?.useCaseIds ?? DEFAULT_USE_CASE_IDS,
   );
+  const [valueModel, setValueModel] = useState<ValueModelInputs>(
+    initial?.valueModel ?? DEFAULT_VALUE_MODEL,
+  );
   const [sectionConfig, setSectionConfig] = useState<SectionConfigEntry[]>(
     initial?.sectionConfig ?? defaultSectionConfig(),
   );
@@ -58,6 +66,7 @@ export default function Builder({
   // Keep slider drags at full frame rate: inputs update immediately, the
   // full-pipeline recompute trails via deferred value.
   const deferredAssumptions = useDeferredValue(assumptions);
+  const deferredValueModel = useDeferredValue(valueModel);
 
   const sections = useMemo(
     () =>
@@ -66,22 +75,34 @@ export default function Builder({
             company,
             assumptions: deferredAssumptions,
             selectedUseCases: resolveUseCases(useCaseIds),
+            valueModel: deferredValueModel,
             sectionConfig,
           })
         : [],
-    [company, deferredAssumptions, useCaseIds, sectionConfig],
+    [company, deferredAssumptions, deferredValueModel, useCaseIds, sectionConfig],
   );
+
+  // Generative pre-fill (deterministic in v1, AI-backed later behind the same
+  // provider): on company confirm, seed every value-model input so the form is
+  // never shown empty. Approach changes don't re-prefill — values persist in
+  // state, so toggling altitudes never clobbers the user's edits.
+  function confirmCompany(profile: CompanyProfile) {
+    setCompany(profile);
+    setEditingCompany(false);
+    getValuePrefillProvider()
+      .prefill({
+        company: profile,
+        approach: assumptions.valueApproach ?? "bottom_up",
+        useCases: resolveUseCases(useCaseIds),
+      })
+      .then(setValueModel)
+      .catch(() => setValueModel(DEFAULT_VALUE_MODEL));
+  }
 
   if (!company || editingCompany) {
     return (
       <div className="px-6 py-12">
-        <CompanyStep
-          initial={company ?? undefined}
-          onConfirm={(profile) => {
-            setCompany(profile);
-            setEditingCompany(false);
-          }}
-        />
+        <CompanyStep initial={company ?? undefined} onConfirm={confirmCompany} />
       </div>
     );
   }
@@ -92,6 +113,7 @@ export default function Builder({
     company,
     assumptions: deferredAssumptions,
     selectedUseCaseIds: useCaseIds,
+    valueModel: deferredValueModel,
     sectionConfig,
     sections,
   };
@@ -124,6 +146,15 @@ export default function Builder({
         <aside className="lg:sticky lg:top-6 lg:h-fit lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto rounded-xl border border-line bg-surface p-5 shadow-card">
           <div className="space-y-6">
             <UseCasePicker selectedIds={useCaseIds} onChange={setUseCaseIds} />
+            <hr className="border-line" />
+            <ValueModelPanel
+              approach={assumptions.valueApproach ?? "bottom_up"}
+              valueModel={valueModel}
+              onApproachChange={(valueApproach: ValueApproach) =>
+                setAssumptions({ ...assumptions, valueApproach })
+              }
+              onValueModelChange={setValueModel}
+            />
             <hr className="border-line" />
             <AssumptionsPanel assumptions={assumptions} onChange={setAssumptions} />
           </div>

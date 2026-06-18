@@ -38,7 +38,22 @@ export interface ModelMixEntry {
  * adopter consumes). Changing any field must re-flow Cost, Business Value,
  * and Forecast consistently.
  */
+/**
+ * Which altitude the value case is built at. Swaps the unit of analysis,
+ * the input burden, and the confidence-band width — but NOT the output
+ * schema: all three emit identical rangedFigures keys, so downstream
+ * sections (cost, forecast, exec summary) stay agnostic.
+ *   top_down  — whole company: derive value drivers from the top-line numbers
+ *               via benchmark uplift. Few inputs, more assumptive, widest band.
+ *   bottom_up — build each value driver up from use cases and sum them. Many
+ *               inputs, more defensible, tightest band (today's path).
+ */
+export type ValueApproach = "top_down" | "bottom_up";
+
 export interface ScenarioAssumptions {
+  /** Value-case altitude. Absent on pre-feature saved payloads → treat as
+   *  "bottom_up" (the original behavior). */
+  valueApproach: ValueApproach;
   /** Total addressable users at the company/team. */
   targetUserCount: number;
   /** Dimension 1: fraction of target users active, ramped by year. */
@@ -56,6 +71,25 @@ export interface ScenarioAssumptions {
   implementationCost: Ranged;
   /** Default 3. */
   horizonYears: number;
+}
+
+// ── Value model (top_down inputs; bottom_up reuses use cases) ────────────────
+
+/**
+ * Inputs for the top_down value approach. Kept whole in state regardless of
+ * the active approach so toggling the control never loses work; the section
+ * reads these only for top_down. (bottom_up needs none of them — it reuses
+ * selectedUseCases + ScenarioAssumptions.)
+ */
+export interface ValueModelInputs {
+  // top_down group — whole-company benchmark math
+  topline: Ranged;
+  addressableShare: Ranged; // 0..1 share of topline addressable by AI
+  upliftPct: Ranged; // 0..1 benchmark efficiency uplift
+  /** Required (non-empty) for top_down; "uncited — user to verify" if no
+   *  source — never a fabricated citation. */
+  upliftSource?: string;
+  realizationFactor: Ranged; // 0..1 discount on the theoretical uplift
 }
 
 // ── Company & enrichment ─────────────────────────────────────────────────────
@@ -103,6 +137,9 @@ export interface UseCase {
   hoursSavedPerInstance?: Ranged;
   instancesPerMonthPerUser?: Ranged;
   tags?: UseCaseTag[];
+  /** Where this use case / agent template comes from, for "more info" links
+   *  (e.g. the Anthropic financial-services agent catalog). */
+  source?: { label: string; url: string };
 }
 
 // ── SectionOutput — the keystone object every module returns ────────────────
@@ -182,6 +219,9 @@ export interface ProposalContext {
   company: CompanyProfile;
   assumptions: ScenarioAssumptions;
   selectedUseCases: UseCase[];
+  /** Inputs for the top_down value approach. Always present
+   *  (computeAllSections fills a default); bottom_up ignores it. */
+  valueModel: ValueModelInputs;
   /** For sections that summarize others (exec summary runs last). */
   priorSections: Partial<Record<SectionKind, SectionOutput>>;
 }
@@ -205,6 +245,9 @@ export interface ProposalPayload {
   company: CompanyProfile;
   assumptions: ScenarioAssumptions;
   selectedUseCaseIds: string[];
+  /** Inputs for the top_down value approach. Optional so pre-feature saved
+   *  payloads still rehydrate (builder falls back to default). */
+  valueModel?: ValueModelInputs;
   sectionConfig: SectionConfigEntry[];
   /** Last computed snapshot — fast load/share; recomputed live after edit. */
   sections: SectionOutput[];

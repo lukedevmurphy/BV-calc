@@ -174,6 +174,9 @@ export type SectionKind =
   | "forecast"
   | "roadmap"
   | "next_steps"
+  // Social proof: a real, attributed Anthropic customer story matched to the
+  // company's sub-industry, with a separately-labeled target analogy.
+  | "peer_proof"
   // Auto-generated scenario appendix slides (not user-configurable; produced by
   // lib/sections/scenario.ts for Preview + export, never by computeAllSections).
   | "scenario_conservative"
@@ -228,6 +231,10 @@ export interface SectionOutput {
   speakerNotes?: string;
   /** Named economic outputs other sections can reference. */
   rangedFigures?: Record<string, Ranged>;
+  /** Clickable source links (e.g. an Anthropic customer-story URL). Rendered as
+   *  "label ↗" in the web SlideView; the URL is also carried in a bullet so it
+   *  survives into the pptx export as text. */
+  links?: { label: string; url: string }[];
   /** Human-readable list of which assumptions fed this section — auditability. */
   assumptionsUsed?: string[];
   order: number;

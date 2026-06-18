@@ -1,5 +1,6 @@
 import type { ProposalContext, SectionOutput } from "@/lib/types";
 import { illustrativeFlag } from "@/lib/provenance";
+import { RATIO_CEILING, ratioPlausible } from "@/lib/economics/ranged";
 import { fmtNumber, fmtRange } from "@/lib/format";
 
 /**
@@ -30,12 +31,20 @@ export function executiveSummarySection(ctx: ProposalContext): SectionOutput {
   }
   if (cost) {
     bullets.push(
-      `Annual consumption cost at the same point: ${fmtRange(cost)} — cost rises with adoption by design, and stays an order of magnitude below the value it enables`,
+      `Annual consumption cost at the same point: ${fmtRange(cost)} — cost rises with adoption by design; the value-to-cost gap is the business case, and cost is a wide range driven by implementation (see Cost)`,
     );
   }
   if (breakEvenStat) {
     bullets.push(
       `Break-even (including one-time implementation): ${breakEvenStat.value}`,
+    );
+  }
+  // Ratio sanity (Part 4): an implausible value-to-cost ratio is a credibility
+  // risk, not a hero number — warn instead of printing it as a headline.
+  const roiOk = roi ? ratioPlausible(roi.base) : true;
+  if (roi && !roiOk) {
+    bullets.push(
+      `⚠ Value-to-cost ratio (~${fmtNumber(roi.base)}×) exceeds the plausible ceiling (~${RATIO_CEILING}×) — likely cost is understated or value overstated; revisit token volumes, adoption and model mix before presenting`,
     );
   }
   bullets.push(
@@ -57,7 +66,14 @@ export function executiveSummarySection(ctx: ProposalContext): SectionOutput {
       ...(cost ? [{ label: `Annual cost, Y${a.horizonYears}`, value: fmtRange(cost) }] : []),
       ...(net ? [{ label: `Net value, Y${a.horizonYears}`, value: fmtRange(net) }] : []),
       ...(roi
-        ? [{ label: "Value-to-cost ratio", value: fmtRange(roi, (n) => `${fmtNumber(n)}×`) }]
+        ? [
+            {
+              label: "Value-to-cost ratio",
+              value: roiOk
+                ? fmtRange(roi, (n) => `${fmtNumber(n)}×`)
+                : `⚠ ~${fmtNumber(roi.base)}× — review assumptions`,
+            },
+          ]
         : []),
     ],
     speakerNotes:

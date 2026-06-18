@@ -65,8 +65,15 @@ export interface ScenarioAssumptions {
   adoptionBreadth: RampPoint[];
   /** Dimension 2: consumption-intensity multiplier per adopter, by year. */
   usageDepth: RampPoint[];
-  avgTasksPerActiveUserPerMonth: Ranged;
-  avgTokensPerTask: { input: number; output: number };
+  /** Cost lever — fraction of INPUT tokens served from prompt cache (~90% off
+   *  cached input). 0..1; adjustable assumption. */
+  cacheHitRatio: number;
+  /** Cost lever — fraction of tasks run via the Batch API (~50% off). 0..1. */
+  batchShare: number;
+  /** Per-use-case token-volume OVERRIDES (keyed by use-case id). Absent → the
+   *  catalog default (lib/data/token-defaults.ts). Persisted with the proposal
+   *  so an overridden cost model round-trips through save/reload. */
+  tokenOverrides?: Record<string, { input: Ranged; output: Ranged }>;
   modelMix: ModelMixEntry[];
   /** Fully loaded employee cost ($/hr) — drives bottom-up value. */
   loadedHourlyCost: Ranged;

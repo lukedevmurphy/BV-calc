@@ -7,22 +7,22 @@ import { SEED_USE_CASES } from "@/lib/data/use-cases";
 import {
   annualTokenCost,
   annualValue,
-  blendedPricePerTask,
+  avgCostPerTask,
   breakEvenAdoption,
   breakEvenMonth,
   costValueByAdoption,
   yearlySeries,
 } from "@/lib/economics/engine";
-import { netVsCost } from "@/lib/economics/ranged";
+import { netVsCost, ratioVsCost, ratioPlausible } from "@/lib/economics/ranged";
 import { fmtCurrency, fmtRange } from "@/lib/format";
 
 const a = DEFAULT_ASSUMPTIONS;
 const ucs = SEED_USE_CASES.slice(0, 4);
 
-console.log(`blended $/task: $${blendedPricePerTask(a).toFixed(4)}`);
+console.log(`avg blended $/task: $${avgCostPerTask(a, ucs).toFixed(4)}`);
 
 for (const year of [1, 2, 3]) {
-  const cost = annualTokenCost(a, year);
+  const cost = annualTokenCost(a, ucs, year);
   const value = annualValue(a, ucs, year);
   const net = netVsCost(value, cost);
   console.log(
@@ -66,6 +66,18 @@ if (be.high !== null && be.base !== null) assert(be.high <= be.base, "break-even
 
 const bea = breakEvenAdoption(a, ucs);
 console.log(`break-even adoption (base): ${bea === null ? "none" : `${Math.round(bea * 100)}%`}`);
+
+// Cost realism + ratio + band-width sanity (Part 4)
+const v3 = annualValue(a, ucs, 3);
+const c3 = annualTokenCost(a, ucs, 3);
+const ratio3 = ratioVsCost(v3, c3);
+const relW = (r: { low: number; base: number; high: number }) => (r.high - r.low) / r.base;
+console.log(
+  `Y3 value ${fmtCurrency(v3.base)} · cost ${fmtCurrency(c3.base)} · ratio ${ratio3.base.toFixed(1)}× ` +
+    `(plausible≤${30}: ${ratioPlausible(ratio3.base)}) · cost-band relW ${relW(c3).toFixed(2)} vs value-band relW ${relW(v3).toFixed(2)}`,
+);
+// Cost band must not be wildly wider than the value band (no worst-case stacking)
+assert(relW(c3) <= relW(v3) * 1.5 + 0.01, "cost-band width sane vs value-band width");
 
 // JSON round-trip (the wire-format guard)
 const roundTrip = JSON.parse(JSON.stringify(series));

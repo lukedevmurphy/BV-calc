@@ -19,11 +19,22 @@ import type {
 } from "@/lib/types";
 import { exact, mul, netVsCost, ranged, scale, sum } from "./ranged";
 import { interpolateRamp } from "./ramp";
+import { tokenDefaultFor } from "@/lib/data/token-defaults";
 
 // Fallbacks for use cases that ship without sizing knobs, so the engine stays
 // total. Seeded use cases always carry explicit values.
 const FALLBACK_HOURS_SAVED: Ranged = ranged(0.25, 0.5, 1);
 const FALLBACK_INSTANCES_PER_MONTH: Ranged = ranged(1, 2, 4);
+
+// Cost levers — sourceable discounts (June 2026): cached input ≈90% cheaper,
+// Batch API ≈50% off. The HIT RATIO / BATCH SHARE they apply to are user
+// assumptions; these discount magnitudes are the published rates.
+export const CACHED_INPUT_DISCOUNT = 0.9;
+export const BATCH_DISCOUNT = 0.5;
+const clamp01 = (x: number | undefined) => Math.min(1, Math.max(0, x ?? 0));
+
+const instancesBase = (uc: UseCase) =>
+  (uc.instancesPerMonthPerUser ?? FALLBACK_INSTANCES_PER_MONTH).base;
 
 /** Dimension 1 (breadth): how many people are active at a point in time. */
 export function activeUsersAtYear(
@@ -42,30 +53,86 @@ export function depthAtYear(a: ScenarioAssumptions, year: number): Ranged {
   return interpolateRamp(a.usageDepth, year);
 }
 
-/** Blended $/task from the user-editable model mix. */
-export function blendedPricePerTask(a: ScenarioAssumptions): number {
-  const { input, output } = a.avgTokensPerTask;
-  return a.modelMix.reduce(
-    (acc, m) =>
-      acc +
-      (m.sharePct / 100) *
-        ((input * m.inputPricePerMTok + output * m.outputPricePerMTok) / 1e6),
-    0,
-  );
+/** Per-use-case token volumes — the user's override, else the catalog default. */
+export function tokensForUseCase(
+  a: ScenarioAssumptions,
+  uc: UseCase,
+): { input: Ranged; output: Ranged } {
+  const o = a.tokenOverrides?.[uc.id];
+  if (o) return o;
+  const d = tokenDefaultFor(uc.id);
+  return { input: d.input, output: d.output };
 }
 
-/** Monthly consumption cost at a point in time (year may be fractional). */
-export function monthlyCost(a: ScenarioAssumptions, year: number): Ranged {
-  const volume = mul(
-    mul(activeUsersAtYear(a, year), depthAtYear(a, year)),
-    a.avgTasksPerActiveUserPerMonth,
-  );
-  return scale(volume, blendedPricePerTask(a));
+/** Effective $/token after the prompt-cache discount on the hit fraction. */
+const inputUnit = (a: ScenarioAssumptions, m: ScenarioAssumptions["modelMix"][number]) =>
+  (m.inputPricePerMTok / 1e6) * (1 - clamp01(a.cacheHitRatio) * CACHED_INPUT_DISCOUNT);
+const outputUnit = (m: ScenarioAssumptions["modelMix"][number]) => m.outputPricePerMTok / 1e6;
+
+/**
+ * Cost of ONE instance of a use case ($), banded by its token range and blended
+ * over the model mix, with prompt-caching and Batch discounts applied. The band
+ * width comes from the TOKEN (implementation-strategy) range — NOT from
+ * compounding adoption × depth × instances — which keeps the cost band sane.
+ */
+export function costPerTask(a: ScenarioAssumptions, uc: UseCase): Ranged {
+  const tok = tokensForUseCase(a, uc);
+  const batchMult = 1 - clamp01(a.batchShare) * BATCH_DISCOUNT;
+  let low = 0, base = 0, high = 0;
+  for (const m of a.modelMix) {
+    const share = (m.sharePct || 0) / 100;
+    const iu = inputUnit(a, m) * batchMult;
+    const ou = outputUnit(m) * batchMult;
+    low += share * (tok.input.low * iu + tok.output.low * ou);
+    base += share * (tok.input.base * iu + tok.output.base * ou);
+    high += share * (tok.input.high * iu + tok.output.high * ou);
+  }
+  return { low, base, high };
+}
+
+/** Representative blended $/task across the selected use cases (base), display. */
+export function avgCostPerTask(a: ScenarioAssumptions, useCases: UseCase[]): number {
+  if (useCases.length === 0) return 0;
+  return useCases.reduce((s, uc) => s + costPerTask(a, uc).base, 0) / useCases.length;
+}
+
+/** Blended list $/MTok across the model mix (pre-caching), for display. */
+export const blendedInputPricePerMTok = (a: ScenarioAssumptions) =>
+  a.modelMix.reduce((s, m) => s + (m.sharePct / 100) * m.inputPricePerMTok, 0);
+export const blendedOutputPricePerMTok = (a: ScenarioAssumptions) =>
+  a.modelMix.reduce((s, m) => s + (m.sharePct / 100) * m.outputPricePerMTok, 0);
+
+/**
+ * Monthly consumption cost at a point in time. Sums the SAME per-use-case
+ * instance volumes that drive value (so every value-creating task also incurs
+ * token cost) × per-use-case cost-per-task. Adoption/depth/instances are taken
+ * at base; the band is the token-strategy spread (see costPerTask).
+ */
+export function monthlyCost(
+  a: ScenarioAssumptions,
+  useCases: UseCase[],
+  year: number,
+): Ranged {
+  const users = activeUsersAtYear(a, year).base;
+  const depth = depthAtYear(a, year).base;
+  let low = 0, base = 0, high = 0;
+  for (const uc of useCases) {
+    const vol = users * depth * instancesBase(uc);
+    const cpt = costPerTask(a, uc);
+    low += vol * cpt.low;
+    base += vol * cpt.base;
+    high += vol * cpt.high;
+  }
+  return { low, base, high };
 }
 
 /** Annual consumption cost for a given (integer) year of the ramp. */
-export function annualTokenCost(a: ScenarioAssumptions, year: number): Ranged {
-  return scale(monthlyCost(a, year), 12);
+export function annualTokenCost(
+  a: ScenarioAssumptions,
+  useCases: UseCase[],
+  year: number,
+): Ranged {
+  return scale(monthlyCost(a, useCases, year), 12);
 }
 
 /** Monthly bottom-up value across selected use cases at a point in time. */
@@ -125,7 +192,7 @@ export function yearlySeries(
 ): { value: BandedSeries; cost: BandedSeries; net: BandedSeries } {
   const years = Array.from({ length: a.horizonYears }, (_, i) => i + 1);
   const value = years.map((y) => ({ x: `Year ${y}`, ...annualValue(a, useCases, y) }));
-  const cost = years.map((y) => ({ x: `Year ${y}`, ...annualTokenCost(a, y) }));
+  const cost = years.map((y) => ({ x: `Year ${y}`, ...annualTokenCost(a, useCases, y) }));
   const net = years.map((y, i) => ({
     x: `Year ${y}`,
     ...netVsCost(value[i], cost[i]),
@@ -164,7 +231,7 @@ export function breakEvenMonth(
   for (let m = 1; m <= months; m++) {
     const midYear = (m - 0.5) / 12; // sample mid-month
     cumValue = sumPair(cumValue, monthlyValue(a, useCases, midYear));
-    cumCost = sumPair(cumCost, monthlyCost(a, midYear));
+    cumCost = sumPair(cumCost, monthlyCost(a, useCases, midYear));
 
     if (result.low === null && cumValue.low >= cumCost.high + a.implementationCost.high) {
       result.low = m;
@@ -198,32 +265,23 @@ export function costValueByAdoption(
   useCases: UseCase[],
   steps = 10,
 ): { breadth: number; cost: Ranged; value: Ranged }[] {
-  const matureDepth = depthAtYear(a, a.horizonYears);
-  const tasks = a.avgTasksPerActiveUserPerMonth;
-  const price = blendedPricePerTask(a);
+  const matureDepth = depthAtYear(a, a.horizonYears).base;
 
   return Array.from({ length: steps + 1 }, (_, i) => {
     const breadth = i / steps;
-    const users = exact(a.targetUserCount * breadth);
-    const cost = scale(mul(mul(users, matureDepth), tasks), price * 12);
-    const value = scale(
-      sum(
-        useCases.map((uc) =>
-          mul(
-            mul(
-              mul(
-                uc.hoursSavedPerInstance ?? FALLBACK_HOURS_SAVED,
-                uc.instancesPerMonthPerUser ?? FALLBACK_INSTANCES_PER_MONTH,
-              ),
-              a.loadedHourlyCost,
-            ),
-            mul(matureDepth, users),
-          ),
-        ),
-      ),
-      12,
-    );
-    return { breadth, cost, value };
+    const users = a.targetUserCount * breadth;
+    let cLow = 0, cBase = 0, cHigh = 0, value = 0;
+    for (const uc of useCases) {
+      const inst = instancesBase(uc);
+      const vol = users * matureDepth * inst * 12;
+      const cpt = costPerTask(a, uc);
+      cLow += vol * cpt.low;
+      cBase += vol * cpt.base;
+      cHigh += vol * cpt.high;
+      const h = (uc.hoursSavedPerInstance ?? FALLBACK_HOURS_SAVED).base;
+      value += h * inst * a.loadedHourlyCost.base * matureDepth * users * 12;
+    }
+    return { breadth, cost: { low: cLow, base: cBase, high: cHigh }, value: exact(value) };
   });
 }
 
@@ -238,20 +296,17 @@ export function breakEvenAdoption(
   steps = 100,
 ): number | null {
   const amortized = a.implementationCost.base / a.horizonYears;
-  const matureDepth = depthAtYear(a, a.horizonYears);
+  const matureDepth = depthAtYear(a, a.horizonYears).base;
   for (let i = 0; i <= steps; i++) {
     const breadth = i / steps;
     const users = a.targetUserCount * breadth;
-    const cost =
-      users * matureDepth.base * a.avgTasksPerActiveUserPerMonth.base *
-      blendedPricePerTask(a) * 12;
-    const value =
-      useCases.reduce((acc, uc) => {
-        const h = (uc.hoursSavedPerInstance ?? FALLBACK_HOURS_SAVED).base;
-        const inst = (uc.instancesPerMonthPerUser ?? FALLBACK_INSTANCES_PER_MONTH).base;
-        return acc + h * inst * a.loadedHourlyCost.base;
-      }, 0) *
-      matureDepth.base * users * 12;
+    let cost = 0, value = 0;
+    for (const uc of useCases) {
+      const inst = instancesBase(uc);
+      cost += users * matureDepth * inst * costPerTask(a, uc).base * 12;
+      const h = (uc.hoursSavedPerInstance ?? FALLBACK_HOURS_SAVED).base;
+      value += h * inst * a.loadedHourlyCost.base * matureDepth * users * 12;
+    }
     if (value >= cost + amortized) return breadth;
   }
   return null;

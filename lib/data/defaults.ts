@@ -76,8 +76,10 @@ export const DEFAULT_ASSUMPTIONS: ScenarioAssumptions = {
     { year: 3, low: 1.0, base: 1.6, high: 3.0 },
   ],
 
-  avgTasksPerActiveUserPerMonth: ranged(30, 60, 120),
-  avgTokensPerTask: { input: 20_000, output: 5_000 },
+  // Cost levers (estimates — editable). Document-heavy FS workloads reuse system
+  // prompts + document context, so a moderate cache-hit default; some batchable.
+  cacheHitRatio: 0.4,
+  batchShare: 0.2,
   modelMix: DEFAULT_MODEL_MIX,
 
   loadedHourlyCost: ranged(75, 95, 130),

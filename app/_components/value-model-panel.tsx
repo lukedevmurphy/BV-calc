@@ -5,13 +5,21 @@ import {
   ACTIVE_INPUT_GROUPS,
   APPROACH_BAND_HALF_WIDTH_PCT,
 } from "@/lib/value-model/constants";
+import type { SubIndustry } from "@/lib/value-model/sub-industry";
 import { FieldLabel, RangedField, SegmentedControl } from "./inputs";
 
 interface Props {
   approach: ValueApproach;
   valueModel: ValueModelInputs;
+  /** Resolved from the confirmed company — drives the top-down driver labels. */
+  subIndustry: SubIndustry;
   onApproachChange: (a: ValueApproach) => void;
   onValueModelChange: (v: ValueModelInputs) => void;
+}
+
+/** Tiny help line under a driver field. */
+function Help({ children }: { children: React.ReactNode }) {
+  return <p className="text-[11px] leading-snug text-ink-tertiary">{children}</p>;
 }
 
 const APPROACH_OPTIONS: { value: ValueApproach; label: string }[] = [
@@ -53,10 +61,12 @@ const APPROACH_COPY: Record<
 export default function ValueModelPanel({
   approach,
   valueModel: vm,
+  subIndustry,
   onApproachChange,
   onValueModelChange,
 }: Props) {
   const patch = (p: Partial<ValueModelInputs>) => onValueModelChange({ ...vm, ...p });
+  const v = subIndustry.topDown;
 
   const groups = ACTIVE_INPUT_GROUPS[approach];
   const bandPct = Math.round(APPROACH_BAND_HALF_WIDTH_PCT[approach] * 100);
@@ -115,32 +125,44 @@ export default function ValueModelPanel({
 
       {groups.includes("topline") && (
         <div className="space-y-3 border-t border-line pt-3">
-          <FieldLabel>Company top-line</FieldLabel>
-          <RangedField
-            label="Top-line figure"
-            value={vm.topline}
-            step={1_000_000}
-            prefix="$"
-            onChange={(r) => patch({ topline: r })}
-          />
-          <RangedField
-            label="Addressable share (0–1)"
-            value={vm.addressableShare}
-            step={0.05}
-            onChange={(r) => patch({ addressableShare: r })}
-          />
-          <RangedField
-            label="Benchmark uplift (0–1)"
-            value={vm.upliftPct}
-            step={0.05}
-            onChange={(r) => patch({ upliftPct: r })}
-          />
-          <RangedField
-            label="Realization factor (0–1)"
-            value={vm.realizationFactor}
-            step={0.05}
-            onChange={(r) => patch({ realizationFactor: r })}
-          />
+          <FieldLabel>Value drivers — {subIndustry.label}</FieldLabel>
+          <div className="space-y-1">
+            <RangedField
+              label={v.toplineLabel}
+              value={vm.topline}
+              step={1_000_000}
+              prefix="$"
+              onChange={(r) => patch({ topline: r })}
+            />
+            <Help>{v.toplineHelp}</Help>
+          </div>
+          <div className="space-y-1">
+            <RangedField
+              label={v.addressableLabel}
+              value={vm.addressableShare}
+              step={0.05}
+              onChange={(r) => patch({ addressableShare: r })}
+            />
+            <Help>{v.addressableHelp}</Help>
+          </div>
+          <div className="space-y-1">
+            <RangedField
+              label={v.upliftLabel}
+              value={vm.upliftPct}
+              step={0.05}
+              onChange={(r) => patch({ upliftPct: r })}
+            />
+            <Help>{v.upliftHelp}</Help>
+          </div>
+          <div className="space-y-1">
+            <RangedField
+              label={v.realizationLabel}
+              value={vm.realizationFactor}
+              step={0.05}
+              onChange={(r) => patch({ realizationFactor: r })}
+            />
+            <Help>{v.realizationHelp}</Help>
+          </div>
           <label className="block">
             <FieldLabel>Uplift source (citation)</FieldLabel>
             <input

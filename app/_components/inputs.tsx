@@ -4,6 +4,16 @@ import type { Ranged } from "@/lib/types";
 
 /** Shared form primitives for the assumptions panel and editors. */
 
+/** One vocabulary across the whole app: the Ranged edges keep their internal
+ *  keys (low/base/high) but ALWAYS display as conservative/base/optimistic —
+ *  matching the section subheads, exports and speaker notes (the CFO-legible
+ *  wording). */
+export const EDGE_LABELS: Record<"low" | "base" | "high", string> = {
+  low: "conservative",
+  base: "base",
+  high: "optimistic",
+};
+
 export function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
     <div className="text-[11px] font-medium uppercase tracking-wide text-ink-tertiary">
@@ -82,7 +92,7 @@ export function RangedField({
       <div className="mt-1 grid grid-cols-3 gap-1.5">
         {(["low", "base", "high"] as const).map((edge) => (
           <div key={edge}>
-            <div className="text-[10px] text-ink-tertiary">{edge}</div>
+            <div className="text-[10px] text-ink-tertiary">{EDGE_LABELS[edge]}</div>
             <div className="flex items-center gap-1">
               {prefix && <span className="text-xs text-ink-tertiary">{prefix}</span>}
               <input

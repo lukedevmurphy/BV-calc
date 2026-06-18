@@ -1,11 +1,6 @@
 import type { Ranged, ValueModelInputs } from "@/lib/types";
 import { ranged } from "@/lib/economics/ranged";
-import {
-  DEFAULT_ADDRESSABLE_SHARE,
-  DEFAULT_REALIZATION_FACTOR,
-  DEFAULT_UPLIFT_PCT,
-  UNCITED,
-} from "../constants";
+import { resolveSubIndustry } from "../sub-industry";
 import type { ValuePrefillInput, ValuePrefillProvider } from "./provider";
 
 /** Fully-loaded annual cost per employee used to size a labor-base top-line
@@ -44,12 +39,19 @@ export class DeterministicValuePrefillProvider implements ValuePrefillProvider {
 
     const topline = band(toplineBase || 1_000 * ASSUMED_ANNUAL_LOADED_COST, 0.15);
 
+    // Sector-aware benchmark priors (still all uncited placeholders).
+    // TODO(model-enrichment): a Claude-backed ValuePrefillProvider will replace
+    // these deterministic priors with researched, CITED values (read from
+    // 10-Ks / sector benchmarks) — populating these exact fields with zero
+    // UI/section changes, per the ValuePrefillProvider contract.
+    const { priors } = resolveSubIndustry(company.industry);
+
     return Promise.resolve({
       topline,
-      addressableShare: DEFAULT_ADDRESSABLE_SHARE,
-      upliftPct: DEFAULT_UPLIFT_PCT,
-      upliftSource: UNCITED,
-      realizationFactor: DEFAULT_REALIZATION_FACTOR,
+      addressableShare: priors.addressableShare,
+      upliftPct: priors.upliftPct,
+      upliftSource: priors.upliftSource,
+      realizationFactor: priors.realizationFactor,
     });
   }
 }

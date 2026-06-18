@@ -1,7 +1,7 @@
 "use client";
 
 import type { RampPoint } from "@/lib/types";
-import { FieldLabel, Slider } from "./inputs";
+import { EDGE_LABELS, FieldLabel, Slider } from "./inputs";
 import { fmtPercent } from "@/lib/format";
 
 interface Props {
@@ -53,7 +53,9 @@ export default function RampEditor({ label, points, onChange, mode }: Props) {
             </div>
             {EDGES.map((edge) => (
               <div key={edge} className="flex items-center gap-2">
-                <span className="w-8 text-[10px] text-ink-tertiary">{edge}</span>
+                <span className="w-[4.75rem] shrink-0 text-[10px] text-ink-tertiary">
+                  {EDGE_LABELS[edge]}
+                </span>
                 <Slider
                   value={p[edge]}
                   min={0}

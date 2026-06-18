@@ -9,6 +9,7 @@ import {
   computeAllSections,
   defaultSectionConfig,
 } from "@/lib/sections/index";
+import { resolveSubIndustry } from "@/lib/value-model/sub-industry";
 import type { CompanyProfile, Ranged, ValueApproach } from "@/lib/types";
 
 const demoCompany: CompanyProfile = {
@@ -114,6 +115,52 @@ assert(
 );
 console.log(
   `value-approach bands: top_down ±${(halfWidth(td) * 100).toFixed(0)}% (wider) > bottom_up ±${(halfWidth(bu) * 100).toFixed(0)}% (tighter) ✓`,
+);
+
+// ── Sub-industry reactivity: labels + use-case default change per sector,
+//    while the engine's computed value keys stay identical ──────────────────
+const topDownDriverLabel = (industry: string) => {
+  const out = computeAllSections({
+    company: { ...demoCompany, industry },
+    assumptions: { ...DEFAULT_ASSUMPTIONS, valueApproach: "top_down" },
+    selectedUseCases: ucs4,
+    valueModel: DEFAULT_VALUE_MODEL,
+    sectionConfig: defaultSectionConfig(),
+  });
+  const bv = out.find((s) => s.kind === "business_value")!;
+  return {
+    // first driver row label (the sector's top-line concept)
+    label: String(bv.table!.rows[0][0]),
+    keys: Object.keys(bv.rangedFigures ?? {}).sort(),
+  };
+};
+
+const cu = topDownDriverLabel("Banking — Credit Union");
+const card = topDownDriverLabel("Payments & Card Networks");
+const bank = topDownDriverLabel("Banking & Capital Markets");
+
+// Labels must differ across sectors (the form/section is reactive)…
+assert(
+  cu.label !== card.label && cu.label !== bank.label && card.label !== bank.label,
+  `top-down driver labels must differ per sector (credit union="${cu.label}", card="${card.label}", bank="${bank.label}")`,
+);
+// …but the computed value keys must be identical (downstream stays agnostic).
+assert.deepStrictEqual(cu.keys, card.keys, "value keys identical: credit union vs card network");
+assert.deepStrictEqual(cu.keys, bank.keys, "value keys identical: credit union vs bank");
+
+// The use-case default + picker industry must also change per sector.
+const cuSub = resolveSubIndustry("Banking — Credit Union");
+const cardSub = resolveSubIndustry("Payments & Card Networks");
+assert(
+  JSON.stringify(cuSub.rankedUseCaseIds) !== JSON.stringify(cardSub.rankedUseCaseIds),
+  "default use-case set must differ: credit union vs card network",
+);
+assert(
+  resolveSubIndustry("totally unknown industry").id === "generic",
+  "unmapped industry falls back to generic",
+);
+console.log(
+  `sub-industry reactive: top-down label "${bank.label}" / "${cu.label}" / "${card.label}", value keys identical ✓`,
 );
 
 console.log("Section contract holds across all 12. ✓");

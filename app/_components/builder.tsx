@@ -11,6 +11,7 @@ import type {
 } from "@/lib/types";
 import { DEFAULT_ASSUMPTIONS, DEFAULT_VALUE_MODEL } from "@/lib/data/defaults";
 import { resolveUseCases } from "@/lib/data/use-cases";
+import { resolveSubIndustry } from "@/lib/value-model/sub-industry";
 import { getValuePrefillProvider } from "@/lib/value-model/prefill/provider";
 import { computeAllSections, defaultSectionConfig } from "@/lib/sections/index";
 import ExportButton from "./export-button";
@@ -90,11 +91,17 @@ export default function Builder({
   function confirmCompany(profile: CompanyProfile) {
     setCompany(profile);
     setEditingCompany(false);
+    // Reactive to sub-industry: seed the default use-case selection from the
+    // company's sector (most-relevant-first), then prefill the value model with
+    // that same set + the sector's benchmark priors.
+    const sub = resolveSubIndustry(profile.industry);
+    const ids = sub.rankedUseCaseIds;
+    setUseCaseIds(ids);
     getValuePrefillProvider()
       .prefill({
         company: profile,
         approach: assumptions.valueApproach ?? "bottom_up",
-        useCases: resolveUseCases(useCaseIds),
+        useCases: resolveUseCases(ids),
       })
       .then(setValueModel)
       .catch(() => setValueModel(DEFAULT_VALUE_MODEL));
@@ -110,6 +117,10 @@ export default function Builder({
       </div>
     );
   }
+
+  // Sub-industry resolved from the confirmed company drives the use-case
+  // default/order and the top-down driver vocabulary.
+  const subIndustry = resolveSubIndustry(company.industry);
 
   // Export and save both read the same settled `sections` memo the preview
   // renders — never a mid-drag frame.
@@ -149,11 +160,17 @@ export default function Builder({
       <div className="mt-6 grid gap-8 lg:grid-cols-[340px_minmax(0,1fr)]">
         <aside className="lg:sticky lg:top-6 lg:h-fit lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto rounded-xl border border-line bg-surface p-5 shadow-card">
           <div className="space-y-6">
-            <UseCasePicker selectedIds={useCaseIds} onChange={setUseCaseIds} />
+            <UseCasePicker
+              selectedIds={useCaseIds}
+              onChange={setUseCaseIds}
+              initialIndustry={subIndustry.useCaseIndustry}
+              rankedIds={subIndustry.rankedUseCaseIds}
+            />
             <hr className="border-line" />
             <ValueModelPanel
               approach={assumptions.valueApproach ?? "bottom_up"}
               valueModel={valueModel}
+              subIndustry={subIndustry}
               onApproachChange={(valueApproach: ValueApproach) =>
                 setAssumptions({ ...assumptions, valueApproach })
               }

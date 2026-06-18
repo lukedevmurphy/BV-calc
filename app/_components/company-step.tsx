@@ -79,7 +79,7 @@ export default function CompanyStep({ onConfirm, initial }: Props) {
               setName(n);
               lookup(n);
             }}
-            className="rounded-full bg-muted px-2.5 py-1 text-xs text-ink-secondary hover:bg-accent-soft"
+            className="rounded-full border border-line bg-surface px-2.5 py-1 text-xs text-ink-secondary hover:border-line-strong hover:bg-muted"
           >
             {n}
           </button>

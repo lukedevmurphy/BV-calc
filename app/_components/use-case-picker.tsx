@@ -8,25 +8,45 @@ import { FieldLabel } from "./inputs";
 interface Props {
   selectedIds: string[];
   onChange: (ids: string[]) => void;
+  /** Sector default for the industry filter (derived from the confirmed
+   *  company). Falls back to the first catalog industry when unset. */
+  initialIndustry?: string;
+  /** Most-relevant-first use-case IDs for the sector — shown first. */
+  rankedIds?: string[];
 }
 
 // Template-palette chips: modes get distinct hues (gold / sage / clay), the
-// 4 D's competency lens shares a neutral cream.
+// 4 D's competency lens shares a neutral cream. (Text darkened for WCAG AA.)
 const TAG_STYLES: Record<string, string> = {
-  automation: "bg-[#ede2c8] text-[#8a6a24]",
-  augmentation: "bg-[#e2e7d8] text-[#566145]",
+  automation: "bg-[#ede2c8] text-[#7a5d1f]",
+  augmentation: "bg-[#e2e7d8] text-[#49533a]",
   agency: "bg-[#f3e2d9] text-[#a8492a]",
-  delegation: "bg-[#eae6da] text-[#6f6d63]",
-  description: "bg-[#eae6da] text-[#6f6d63]",
-  discernment: "bg-[#eae6da] text-[#6f6d63]",
-  diligence: "bg-[#eae6da] text-[#6f6d63]",
+  delegation: "bg-[#eae6da] text-[#54534a]",
+  description: "bg-[#eae6da] text-[#54534a]",
+  discernment: "bg-[#eae6da] text-[#54534a]",
+  diligence: "bg-[#eae6da] text-[#54534a]",
 };
 
 /** Industry-filtered use-case selection with automation/augmentation/agency
- *  and 4 D's tag badges. */
-export default function UseCasePicker({ selectedIds, onChange }: Props) {
-  const [industry, setIndustry] = useState(INDUSTRIES[0] ?? "");
-  const options = useCasesByIndustry(industry);
+ *  and 4 D's tag badges. The industry filter and the order of the list both
+ *  follow the confirmed company's sub-industry (initialIndustry / rankedIds). */
+export default function UseCasePicker({
+  selectedIds,
+  onChange,
+  initialIndustry,
+  rankedIds,
+}: Props) {
+  const [industry, setIndustry] = useState(
+    initialIndustry ?? INDUSTRIES[0] ?? "",
+  );
+  // Pre-rank: sector's ranked use cases first (in rank order), then the rest.
+  const rank = (id: string) => {
+    const i = (rankedIds ?? []).indexOf(id);
+    return i === -1 ? Number.MAX_SAFE_INTEGER : i;
+  };
+  const options = [...useCasesByIndustry(industry)].sort(
+    (a, b) => rank(a.id) - rank(b.id),
+  );
 
   const toggle = (id: string) =>
     onChange(

@@ -10,6 +10,8 @@ import { annualValue, annualValueByUseCase } from "@/lib/economics/engine";
 import { interpolateRamp } from "@/lib/economics/ramp";
 import { bandAroundBase } from "@/lib/economics/ranged";
 import { APPROACH_BAND_HALF_WIDTH_PCT } from "@/lib/value-model/constants";
+import { resolveSubIndustry } from "@/lib/value-model/sub-industry";
+import { illustrativeFlag } from "@/lib/provenance";
 import { fmtCurrency, fmtPercent, fmtRange, fmtRangeTriple } from "@/lib/format";
 
 /**
@@ -166,9 +168,11 @@ function buildBottomUp(
 // ── top_down — whole company ─────────────────────────────────────────────────
 
 function buildTopDown(ctx: ProposalContext, finalYear: number): ApproachResult {
-  const { valueModel: vm } = ctx;
+  const { valueModel: vm, company } = ctx;
   const ratio = breadthRatio(ctx, finalYear);
   const source = vm.upliftSource?.trim() || "uncited — user to verify";
+  // Sector vocabulary: same math, sector-specific driver labels.
+  const v = resolveSubIndustry(company.industry).topDown;
 
   const matureBase =
     vm.topline.base *
@@ -179,20 +183,24 @@ function buildTopDown(ctx: ProposalContext, finalYear: number): ApproachResult {
   const table: TableData = {
     columns: ["Driver", "Value"],
     rows: [
-      ["Company top-line", fmtRange(vm.topline)],
-      ["Addressable share", fmtPercent(vm.addressableShare.base)],
-      ["Benchmark uplift", fmtPercent(vm.upliftPct.base)],
-      ["Realization factor", fmtPercent(vm.realizationFactor.base)],
+      [v.toplineRowLabel, fmtRange(vm.topline)],
+      [v.addressableRowLabel, fmtPercent(vm.addressableShare.base)],
+      [v.upliftRowLabel, fmtPercent(vm.upliftPct.base)],
+      [v.realizationRowLabel, fmtPercent(vm.realizationFactor.base)],
       [`Annual value (Y${finalYear})`, fmtCurrency(matureBase)],
     ],
   };
 
+  // Placeholder financials must never reach the deck unflagged.
+  const flag = illustrativeFlag(company);
+
   return {
-    subtitle: `Top-down from top-line × addressable share × benchmark uplift — fast, cited, widest band`,
+    subtitle: `Top-down from ${v.toplineRowLabel.toLowerCase()} × ${v.addressableRowLabel.toLowerCase()} × ${v.upliftRowLabel.toLowerCase()} — fast, cited, widest band`,
     bullets: [
-      `Annual value ≈ company top-line × addressable share × benchmark efficiency uplift × realization factor`,
-      `Benchmark uplift ${fmtPercent(vm.upliftPct.base)} — source: ${source}`,
-      `Widest confidence band of the three — a fast, whole-company estimate to be refined by going deeper`,
+      `Annual value ≈ ${v.toplineRowLabel.toLowerCase()} × ${v.addressableRowLabel.toLowerCase()} × ${v.upliftRowLabel.toLowerCase()} × realization factor`,
+      `${v.upliftRowLabel} ${fmtPercent(vm.upliftPct.base)} — source: ${source}`,
+      `Widest confidence band of the two approaches — a fast, whole-company estimate to be refined by going deeper`,
+      ...(flag ? [flag] : []),
     ],
     extraStats: [
       { label: "Benchmark uplift", value: fmtRangeTriple(vm.upliftPct, fmtPercent) },

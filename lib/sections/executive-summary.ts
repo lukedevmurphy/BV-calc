@@ -1,4 +1,5 @@
 import type { ProposalContext, SectionOutput } from "@/lib/types";
+import { illustrativeFlag } from "@/lib/provenance";
 import { fmtNumber, fmtRange } from "@/lib/format";
 
 /**
@@ -40,6 +41,10 @@ export function executiveSummarySection(ctx: ProposalContext): SectionOutput {
   bullets.push(
     `The ask this quarter: validate the sizing with practitioners and name a 2-use-case pilot cohort`,
   );
+  // Carry the placeholder-financials caveat onto the headline slide so a seed
+  // deck never reads as sourced — travels into the PPTX with the other bullets.
+  const flag = illustrativeFlag(company);
+  if (flag) bullets.push(flag);
 
   return {
     id: "executive_summary",

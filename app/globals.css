@@ -17,8 +17,10 @@
   --border-strong: #d3cebc;
 
   --text-primary: #1a1915; /* ink */
-  --text-secondary: #6f6d63; /* slate */
-  --text-tertiary: #92907f; /* slate-2 */
+  /* Darkened to clear WCAG AA 4.5:1 on the ivory/cream backgrounds
+     (was #6f6d63 / #92907f, both failed for body-size text). */
+  --text-secondary: #54534a; /* slate */
+  --text-tertiary: #5f5e52; /* slate-2 */
 
   --accent: #a8492a; /* clay-deep — emphasis text, stats */
   --accent-bright: #cc785c; /* clay — fills, hairlines, buttons */

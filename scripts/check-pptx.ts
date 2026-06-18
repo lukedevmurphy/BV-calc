@@ -9,6 +9,7 @@ import { writeFileSync } from "node:fs";
 import { DEFAULT_ASSUMPTIONS } from "@/lib/data/defaults";
 import { SEED_USE_CASES } from "@/lib/data/use-cases";
 import { computeAllSections, defaultSectionConfig } from "@/lib/sections/index";
+import { ILLUSTRATIVE_FLAG } from "@/lib/provenance";
 import type { CompanyProfile } from "@/lib/types";
 
 const company: CompanyProfile = {
@@ -98,6 +99,13 @@ async function main() {
     }
   }
   assert(chartNames.length >= 2, `native charts embedded (${chartNames.length})`);
+
+  // The demo company is illustrative (mocked) — its placeholder financials must
+  // not reach the deck unflagged. Assert the provenance flag survived to PPTX.
+  assert(
+    slides.includes(ILLUSTRATIVE_FLAG),
+    "illustrative-seed provenance flag present in exported deck",
+  );
 
   // LAYOUT INVARIANT: no two shapes on a slide may overlap. Parse each
   // slide's shape tree (sp / pic / graphicFrame bounding boxes in EMU) and

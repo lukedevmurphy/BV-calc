@@ -48,6 +48,21 @@ export default function SectionList({ sections, config, onConfigChange }: Props)
       return next;
     });
 
+  // Jump-nav: expand the target (if collapsed) and scroll it into view, so a
+  // viewer can land on Business Value / Cost / Forecast without scrolling.
+  const jumpTo = (kind: SectionKind) => {
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      next.delete(kind);
+      return next;
+    });
+    setTimeout(() => {
+      document
+        .getElementById(`section-${kind}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
+  };
+
   function handleDragEnd(e: DragEndEvent) {
     const { active, over } = e;
     if (!over || active.id === over.id) return;
@@ -68,19 +83,35 @@ export default function SectionList({ sections, config, onConfigChange }: Props)
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-        <div className="mb-3 flex items-center justify-end gap-2 text-xs">
-          <button
-            onClick={expandAll}
-            className="rounded-md border border-line px-2.5 py-1 font-medium text-ink-secondary hover:bg-muted"
-          >
-            Expand all
-          </button>
-          <button
-            onClick={collapseAll}
-            className="rounded-md border border-line px-2.5 py-1 font-medium text-ink-secondary hover:bg-muted"
-          >
-            Collapse all
-          </button>
+        <div className="sticky top-0 z-20 mb-3 space-y-2 rounded-lg border border-line bg-canvas/95 p-2 backdrop-blur supports-[backdrop-filter]:bg-canvas/80">
+          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+            <span className="font-medium text-ink-tertiary">Jump to:</span>
+            {sections
+              .filter((s) => s.enabled)
+              .map((s) => (
+                <button
+                  key={s.kind}
+                  onClick={() => jumpTo(s.kind)}
+                  className="rounded-md border border-line px-2 py-0.5 text-ink-secondary hover:border-line-strong hover:bg-muted"
+                >
+                  {s.title.split("—")[0].trim()}
+                </button>
+              ))}
+            <span className="ml-auto flex gap-2">
+              <button
+                onClick={expandAll}
+                className="rounded-md border border-line px-2.5 py-1 font-medium text-ink-secondary hover:bg-muted"
+              >
+                Expand all
+              </button>
+              <button
+                onClick={collapseAll}
+                className="rounded-md border border-line px-2.5 py-1 font-medium text-ink-secondary hover:bg-muted"
+              >
+                Collapse all
+              </button>
+            </span>
+          </div>
         </div>
         <div className="space-y-4">
           {sections.map((s) => (
@@ -119,7 +150,12 @@ function SortableSection({
   };
 
   return (
-    <div ref={setNodeRef} style={style} className="relative">
+    <div
+      ref={setNodeRef}
+      id={`section-${section.kind}`}
+      style={style}
+      className="relative scroll-mt-20"
+    >
       <div className="absolute -left-1 top-3 z-10 flex -translate-x-full flex-col items-center gap-1 pr-2">
         <button
           {...attributes}

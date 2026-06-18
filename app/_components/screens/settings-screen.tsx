@@ -1,0 +1,197 @@
+"use client";
+
+import type {
+  ScenarioAssumptions,
+  SectionOutput,
+  ValueModelInputs,
+} from "@/lib/types";
+import { FieldLabel, RangedField } from "../inputs";
+import RampEditor from "../ramp-editor";
+
+interface Props {
+  assumptions: ScenarioAssumptions;
+  onAssumptions: (a: ScenarioAssumptions) => void;
+  valueModel: ValueModelInputs;
+  onValueModel: (v: ValueModelInputs) => void;
+  /** Computed sections — used to show the live value composition. */
+  sections: SectionOutput[];
+  onBack: () => void;
+}
+
+const PRESETS = [
+  { label: "Offset (cost-out)", value: 0 },
+  { label: "Blend", value: 0.6 },
+  { label: "Capacity (reinvest)", value: 1 },
+];
+
+/**
+ * Settings / assumptions — distinct from company identity. Ramp assumptions,
+ * top-line → value-driver conversion ratios, and the reinvestment toggle (the
+ * contested assumption that RE-ROUTES value to a different financial outcome).
+ */
+export default function SettingsScreen({
+  assumptions,
+  onAssumptions,
+  valueModel,
+  onValueModel,
+  sections,
+  onBack,
+}: Props) {
+  const patch = (p: Partial<ScenarioAssumptions>) => onAssumptions({ ...assumptions, ...p });
+  const patchVM = (p: Partial<ValueModelInputs>) => onValueModel({ ...valueModel, ...p });
+  const cap = assumptions.reinvestmentCapacity ?? 0.6;
+  const capPct = Math.round(cap * 100);
+
+  // Live composition: the Business Value section already routes value to
+  // outcomes by this posture — surface its "→ outcome" stats here so the user
+  // sees the composition shift as they move the toggle.
+  const bv = sections.find((s) => s.kind === "business_value");
+  const composition = (bv?.stats ?? []).filter((s) => s.label.startsWith("→"));
+
+  return (
+    <div className="mx-auto max-w-3xl px-6 py-6">
+      <div className="mb-4 flex items-end justify-between gap-3">
+        <div>
+          <h1 className="font-serif text-2xl font-semibold tracking-tight">
+            Assumptions &amp; settings
+          </h1>
+          <p className="mt-1 text-sm text-ink-secondary">
+            The contested assumptions, in one place. Company identity is edited from the
+            top bar — this page is the economic posture.
+          </p>
+        </div>
+        <button
+          onClick={onBack}
+          className="rounded-lg border border-line-strong bg-surface px-4 py-2 text-sm font-medium hover:bg-muted"
+        >
+          ← Back
+        </button>
+      </div>
+
+      {/* Reinvestment toggle — the headline assumption */}
+      <section className="rounded-xl border border-line bg-surface p-5 shadow-card">
+        <h2 className="text-sm font-semibold">How is freed time realized?</h2>
+        <p className="mt-1 text-[13px] leading-snug text-ink-secondary">
+          The single most-contested assumption. It RE-ROUTES value to a different financial
+          outcome — it does not merely scale it. <span className="font-medium">Capacity</span>{" "}
+          (reinvest) sends value to revenue / production; <span className="font-medium">Offset</span>{" "}
+          (cost-out) sends it to operating margin.
+        </p>
+
+        <div className="mt-3 flex gap-1 rounded-lg bg-muted p-1">
+          {PRESETS.map((p) => {
+            const active = Math.abs(cap - p.value) < 0.001;
+            return (
+              <button
+                key={p.label}
+                onClick={() => patch({ reinvestmentCapacity: p.value })}
+                className={`flex-1 rounded-md px-2 py-1 text-xs font-medium transition ${
+                  active ? "bg-surface text-ink shadow-card" : "text-ink-secondary hover:text-ink"
+                }`}
+              >
+                {p.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-3">
+          <div className="flex items-center justify-between text-[11px] text-ink-tertiary">
+            <span>Offset / cost-out</span>
+            <span className="font-medium text-ink-secondary">
+              {capPct}% capacity / {100 - capPct}% offset
+            </span>
+            <span>Capacity / reinvest</span>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={cap}
+            onChange={(e) => patch({ reinvestmentCapacity: e.target.valueAsNumber })}
+            className="mt-1 w-full accent-[var(--accent)]"
+          />
+        </div>
+
+        {composition.length > 0 && (
+          <div className="mt-4">
+            <FieldLabel>Value composition at this posture (Year {assumptions.horizonYears})</FieldLabel>
+            <div className="mt-1 grid grid-cols-1 gap-2 sm:grid-cols-3">
+              {composition.map((c) => (
+                <div key={c.label} className="rounded-lg border border-line bg-canvas px-3 py-2">
+                  <div className="text-[11px] text-ink-tertiary">{c.label}</div>
+                  <div className="mt-0.5 font-serif text-sm font-semibold">{c.value}</div>
+                </div>
+              ))}
+            </div>
+            <p className="mt-1.5 text-[11px] text-ink-tertiary">
+              Same inputs, same total — only the composition moves as you change the posture.
+            </p>
+          </div>
+        )}
+      </section>
+
+      {/* Conversion ratios */}
+      <section className="mt-6 rounded-xl border border-line bg-surface p-5 shadow-card">
+        <h2 className="text-sm font-semibold">Top-line → value-driver conversion ratios</h2>
+        <p className="mt-1 text-[13px] leading-snug text-ink-secondary">
+          The named assumptions that convert the top-line into value (used by the top-down
+          approach). All are placeholders to confirm — never cited facts.
+        </p>
+        <div className="mt-3 space-y-3">
+          <RangedField
+            label="Addressable share (0–1)"
+            value={valueModel.addressableShare}
+            step={0.05}
+            onChange={(r) => patchVM({ addressableShare: r })}
+          />
+          <RangedField
+            label="Benchmark uplift (0–1)"
+            value={valueModel.upliftPct}
+            step={0.05}
+            onChange={(r) => patchVM({ upliftPct: r })}
+          />
+          <RangedField
+            label="Realization factor (0–1)"
+            value={valueModel.realizationFactor}
+            step={0.05}
+            onChange={(r) => patchVM({ realizationFactor: r })}
+          />
+        </div>
+      </section>
+
+      {/* Ramp assumptions */}
+      <section className="mt-6 rounded-xl border border-line bg-surface p-5 shadow-card">
+        <h2 className="text-sm font-semibold">Ramp assumptions</h2>
+        <p className="mt-1 text-[13px] leading-snug text-ink-secondary">
+          Adoption breadth and usage depth over the horizon (also editable on the Inputs
+          screen — same underlying assumptions).
+        </p>
+        <div className="mt-3 space-y-5">
+          <RampEditor
+            label="Adoption breadth (% of target users active)"
+            mode="percent"
+            points={assumptions.adoptionBreadth}
+            onChange={(adoptionBreadth) => patch({ adoptionBreadth })}
+          />
+          <RampEditor
+            label="Usage depth (consumption multiplier per adopter)"
+            mode="multiplier"
+            points={assumptions.usageDepth}
+            onChange={(usageDepth) => patch({ usageDepth })}
+          />
+        </div>
+      </section>
+
+      <div className="mt-6 flex justify-end">
+        <button
+          onClick={onBack}
+          className="rounded-lg border border-line-strong bg-surface px-4 py-2 text-sm font-medium hover:bg-muted"
+        >
+          ← Back
+        </button>
+      </div>
+    </div>
+  );
+}

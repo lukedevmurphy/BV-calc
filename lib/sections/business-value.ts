@@ -10,9 +10,79 @@ import { annualValue, annualValueByUseCase } from "@/lib/economics/engine";
 import { interpolateRamp } from "@/lib/economics/ramp";
 import { bandAroundBase } from "@/lib/economics/ranged";
 import { APPROACH_BAND_HALF_WIDTH_PCT } from "@/lib/value-model/constants";
-import { resolveSubIndustry } from "@/lib/value-model/sub-industry";
+import {
+  resolveSubIndustry,
+  subIndustryDrivers,
+  sectorDriverLabel,
+  type SubIndustryId,
+} from "@/lib/value-model/sub-industry";
+import {
+  VALUE_DRIVERS,
+  DRIVER_ORDER,
+  OUTCOMES,
+  rollupUseCasesToDrivers,
+  allocateByWeights,
+  routeToOutcomes,
+  type DriverId,
+} from "@/lib/value-model/drivers";
 import { illustrativeFlag } from "@/lib/provenance";
 import { fmtCurrency, fmtPercent, fmtRange, fmtRangeTriple } from "@/lib/format";
+
+/** Capacity share (0..1) for the reinvestment routing; default blend. */
+function capacityShare(ctx: ProposalContext): number {
+  const v = ctx.assumptions.reinvestmentCapacity;
+  return typeof v === "number" ? Math.min(1, Math.max(0, v)) : 0.6;
+}
+
+/**
+ * Build the driver-tree artifacts shared by both approaches: a by-driver chart
+ * (sector-named), the outcome-composition stats (routed by the reinvestment
+ * posture), and the framing bullets. Totals are preserved — perDriver sums to
+ * the section total, so rangedFigures are untouched.
+ */
+function driverArtifacts(
+  subId: SubIndustryId,
+  perDriver: Record<DriverId, number>,
+  ctx: ProposalContext,
+  finalYear: number,
+): { chart: ChartSeries; extraStats: KeyValue[]; note: string } {
+  const c = capacityShare(ctx);
+  const points = DRIVER_ORDER.filter((d) => perDriver[d] > 1)
+    .map((d) => ({
+      x: sectorDriverLabel(subId, d, VALUE_DRIVERS[d].short),
+      y: Math.round(perDriver[d]),
+    }))
+    .sort((a, b) => b.y - a.y);
+
+  const chart: ChartSeries = {
+    name: `Annual value by value driver (base, Y${finalYear})`,
+    points,
+    format: "currency",
+  };
+
+  // Outcome composition lives in the STAT cards (one row — no height cost) so
+  // check-sections / the Settings page can read it and it shifts with the
+  // reinvestment toggle. The posture narration goes to speaker notes so the
+  // slide's bullet budget (and the chart slot) is preserved.
+  const out = routeToOutcomes(perDriver, c);
+  const order: (keyof typeof out)[] = ["revenue", "margin", "loss_avoidance"];
+  const extraStats: KeyValue[] = order
+    .filter((o) => out[o] > 1)
+    .map((o) => ({ label: `→ ${OUTCOMES[o].label}`, value: fmtCurrency(out[o]) }));
+
+  const cap = Math.round(c * 100);
+  const sectorNote = subIndustryDrivers(subId).valueNote;
+  const note =
+    `Reinvestment posture ${cap}% capacity / ${100 - cap}% offset — value lands ` +
+    order
+      .filter((o) => out[o] > 1)
+      .map((o) => `${fmtCurrency(out[o])} → ${OUTCOMES[o].label.toLowerCase()}`)
+      .join(", ") +
+    ` (change on the Settings page).` +
+    (sectorNote ? ` ${sectorNote}` : "");
+
+  return { chart, extraStats, note };
+}
 
 /**
  * The business-value case, built at the altitude the user picked
@@ -93,6 +163,7 @@ function buildBottomUp(
   halfWidth: number,
 ): ApproachResult {
   const { assumptions: a, selectedUseCases } = ctx;
+  const subId = resolveSubIndustry(ctx.company.industry).id;
   // Sort highest → lowest by base value so the biggest contributors lead both
   // the table and the chart. Order is stable under the global ramp/adoption
   // multipliers (they scale every use case equally), so dragging sliders never
@@ -101,6 +172,16 @@ function buildBottomUp(
     (x, y) => y.value.base - x.value.base,
   );
 
+  // Roll use-case value UP the tree to the value drivers (each use case's value
+  // split equally across the drivers it feeds — totals preserved).
+  const perDriver = rollupUseCasesToDrivers(
+    byUseCase.map(({ useCase, value }) => ({ id: useCase.id, value: value.base })),
+  );
+  const tree = driverArtifacts(subId, perDriver, ctx, finalYear);
+
+  // The use-case detail table stays the bottom-up credibility view (the use
+  // case → driver MAPPING is surfaced in the picker, Part 2.2); the chart shows
+  // the driver-level rollup (Part 2.4).
   const table: TableData = {
     columns: [
       "Use case",
@@ -121,22 +202,13 @@ function buildBottomUp(
     ]),
   };
 
-  const charts: ChartSeries[] = [
-    {
-      name: `Annual value by use case (base, Y${finalYear})`,
-      points: byUseCase.map(({ useCase, value }) => ({
-        x: useCase.label,
-        y: Math.round(value.base),
-      })),
-      format: "currency",
-    },
-  ];
+  const charts: ChartSeries[] = [tree.chart];
 
   return {
-    subtitle: `Built bottom-up from ${selectedUseCases.length} selected use cases — not a top-down productivity claim`,
+    subtitle: `Built bottom-up from ${selectedUseCases.length} selected use cases, rolled up to value drivers — not a top-down productivity claim`,
     bullets: [
       `Each use case is sized as hours saved per instance × instances per user per month × fully loaded cost`,
-      `Value scales with both adoption dimensions: how many people use it (breadth) and how heavily they use it (depth)`,
+      `Use cases roll up into value drivers (see "Feeds drivers"); drivers roll up into a financial outcome`,
       `Tighter confidence band than the top-down approach — each figure traces to two quantified knobs per use case, so the spread is the narrowest`,
     ],
     extraStats: [
@@ -144,13 +216,15 @@ function buildBottomUp(
         label: "Loaded hourly cost",
         value: fmtRangeTriple(a.loadedHourlyCost, (n) => `$${n}`),
       },
+      ...tree.extraStats,
     ],
     table,
     charts,
     speakerNotes:
       `Every number in this table traces to two knobs per use case (hours saved, instances/month) ` +
       `plus the shared loaded-cost and adoption assumptions — walk the client through one row end-to-end ` +
-      `to establish the method, then let them pressure-test the knobs. The bottom-up build is the credibility of the whole deck.`,
+      `to establish the method, then let them pressure-test the knobs. The bottom-up build is the credibility of the whole deck. ` +
+      tree.note,
     assumptionsUsed: [
       "valueApproach (bottom_up)",
       "adoptionBreadth",
@@ -172,13 +246,19 @@ function buildTopDown(ctx: ProposalContext, finalYear: number): ApproachResult {
   const ratio = breadthRatio(ctx, finalYear);
   const source = vm.upliftSource?.trim() || "uncited — user to verify";
   // Sector vocabulary: same math, sector-specific driver labels.
-  const v = resolveSubIndustry(company.industry).topDown;
+  const sub = resolveSubIndustry(company.industry);
+  const v = sub.topDown;
 
   const matureBase =
     vm.topline.base *
     vm.addressableShare.base *
     vm.upliftPct.base *
     vm.realizationFactor.base;
+
+  // Allocate the whole-company total across the value drivers by the sector's
+  // driver weighting (totals preserved), then route to outcomes.
+  const perDriver = allocateByWeights(matureBase, subIndustryDrivers(sub.id).driverWeights);
+  const tree = driverArtifacts(sub.id, perDriver, ctx, finalYear);
 
   const table: TableData = {
     columns: ["Driver", "Value"],
@@ -205,12 +285,15 @@ function buildTopDown(ctx: ProposalContext, finalYear: number): ApproachResult {
     extraStats: [
       { label: "Benchmark uplift", value: fmtRangeTriple(vm.upliftPct, fmtPercent) },
       { label: "Addressable share", value: fmtPercent(vm.addressableShare.base) },
+      ...tree.extraStats,
     ],
     table,
+    charts: [tree.chart],
     speakerNotes:
       `This is the fastest altitude: one top-line figure scaled by a cited benchmark uplift and a realization haircut. ` +
       `The credibility here IS the citation — lead with the source, and flag explicitly when a percentage is uncited so ` +
-      `the client knows what still needs verifying. Drag the slider deeper to replace the benchmark with the client's own volumes.`,
+      `the client knows what still needs verifying. Drag the slider deeper to replace the benchmark with the client's own volumes. ` +
+      tree.note,
     assumptionsUsed: [
       "valueApproach (top_down)",
       "topline",

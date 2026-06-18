@@ -163,4 +163,35 @@ console.log(
   `sub-industry reactive: top-down label "${bank.label}" / "${cu.label}" / "${card.label}", value keys identical ✓`,
 );
 
+// ── Reinvestment toggle: re-routes the OUTCOME composition without changing
+//    the headline total (capacity vs offset → different driver/outcome mix) ──
+const bvFor = (capacity: number) => {
+  const out = computeAllSections({
+    company: demoCompany,
+    assumptions: { ...DEFAULT_ASSUMPTIONS, reinvestmentCapacity: capacity },
+    selectedUseCases: ucs4,
+    valueModel: DEFAULT_VALUE_MODEL,
+    sectionConfig: defaultSectionConfig(),
+  }).find((s) => s.kind === "business_value")!;
+  const composition = (out.stats ?? [])
+    .filter((s) => s.label.startsWith("→"))
+    .map((s) => `${s.label}=${s.value}`)
+    .join(" | ");
+  return { total: out.rangedFigures!.annualValueFinalYear.base, composition };
+};
+const capacity = bvFor(1); // full reinvest → revenue
+const offset = bvFor(0); // full cost-out → margin
+assert(
+  capacity.composition !== offset.composition,
+  "reinvestment toggle must change the value composition (capacity vs offset)",
+);
+assert(
+  Math.abs(capacity.total - offset.total) < 1,
+  "reinvestment toggle must NOT change the headline total — only its composition",
+);
+console.log(
+  `reinvestment re-routes composition (total unchanged ${Math.round(capacity.total) === Math.round(offset.total)}):\n` +
+    `  capacity: ${capacity.composition}\n  offset:   ${offset.composition} ✓`,
+);
+
 console.log("Section contract holds across all 12. ✓");

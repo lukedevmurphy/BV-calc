@@ -35,6 +35,20 @@ export const DEFAULT_MODEL_MIX: ScenarioAssumptions["modelMix"] = [
     outputPricePerMTok: 5,
     sharePct: 30,
   },
+  // Fable 5 access is currently RESTRICTED (export-control) — there is no stable
+  // public list price, so pricing is a labeled placeholder (0 / 0) at 0% share.
+  // NEVER auto-fill a real-looking number here; the user enters it manually if
+  // they have it. Same provenance treatment as the illustrative-seed flag.
+  {
+    id: "fable",
+    label: "Claude Fable 5",
+    inputPricePerMTok: 0,
+    outputPricePerMTok: 0,
+    sharePct: 0,
+    restricted: true,
+    priceNote:
+      "restricted — list price TBD, confirm at anthropic.com (access currently restricted; placeholder, not for live use)",
+  },
 ];
 
 /**
@@ -69,6 +83,9 @@ export const DEFAULT_ASSUMPTIONS: ScenarioAssumptions = {
   loadedHourlyCost: ranged(75, 95, 130),
   implementationCost: ranged(150_000, 250_000, 400_000),
   horizonYears: 3,
+  // Blend default (60% capacity / 40% offset) — the contested reinvestment
+  // assumption, surfaced and editable on the Settings page.
+  reinvestmentCapacity: 0.6,
 };
 
 /**

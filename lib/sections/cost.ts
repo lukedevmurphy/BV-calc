@@ -31,9 +31,14 @@ export function costSection(ctx: ProposalContext): SectionOutput {
   const beAdoption = breakEvenAdoption(a, selectedUseCases);
   const byAdoption = costValueByAdoption(a, selectedUseCases);
 
+  // Only models that actually carry task volume belong in the cost table.
+  // Inactive rows (0% share) — e.g. a restricted/placeholder model like Fable 5
+  // — contribute nothing to cost and would just bloat the slide; they stay
+  // visible/editable in the model-mix editor on the Inputs screen.
+  const activeMix = a.modelMix.filter((m) => m.sharePct > 0);
   const table = {
     columns: ["Model (editable)", "Share of tasks", "Input $/MTok", "Output $/MTok"],
-    rows: a.modelMix.map((m) => [
+    rows: (activeMix.length > 0 ? activeMix : a.modelMix).map((m) => [
       m.label,
       fmtPercent(m.sharePct / 100),
       `$${m.inputPricePerMTok}`,

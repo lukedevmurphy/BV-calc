@@ -33,38 +33,51 @@ export default function ModelMixEditor({ mix, onChange }: Props) {
           <span>Share %</span>
         </div>
         {mix.map((m) => (
-          <div key={m.id} className="grid grid-cols-[1fr_56px_56px_52px] gap-1.5">
-            <input
-              type="text"
-              value={m.label}
-              onChange={(e) => set(m.id, { label: e.target.value })}
-              className="rounded-md border border-line bg-surface px-1.5 py-1 text-xs"
-            />
-            <input
-              type="number"
-              value={m.inputPricePerMTok}
-              min={0}
-              step={0.25}
-              onChange={(e) => set(m.id, { inputPricePerMTok: num(e.target.valueAsNumber) })}
-              className="rounded-md border border-line bg-surface px-1.5 py-1 text-xs"
-            />
-            <input
-              type="number"
-              value={m.outputPricePerMTok}
-              min={0}
-              step={0.25}
-              onChange={(e) => set(m.id, { outputPricePerMTok: num(e.target.valueAsNumber) })}
-              className="rounded-md border border-line bg-surface px-1.5 py-1 text-xs"
-            />
-            <input
-              type="number"
-              value={m.sharePct}
-              min={0}
-              max={100}
-              step={5}
-              onChange={(e) => set(m.id, { sharePct: num(e.target.valueAsNumber) })}
-              className="rounded-md border border-line bg-surface px-1.5 py-1 text-xs"
-            />
+          <div key={m.id}>
+            <div className="grid grid-cols-[1fr_56px_56px_52px] gap-1.5">
+              <input
+                type="text"
+                value={m.label}
+                onChange={(e) => set(m.id, { label: e.target.value })}
+                className="rounded-md border border-line bg-surface px-1.5 py-1 text-xs"
+              />
+              <input
+                type="number"
+                value={m.inputPricePerMTok}
+                min={0}
+                step={0.25}
+                placeholder={m.restricted ? "TBD" : undefined}
+                onChange={(e) => set(m.id, { inputPricePerMTok: num(e.target.valueAsNumber) })}
+                className={`rounded-md border px-1.5 py-1 text-xs ${
+                  m.restricted ? "border-dashed border-line-strong bg-muted" : "border-line bg-surface"
+                }`}
+              />
+              <input
+                type="number"
+                value={m.outputPricePerMTok}
+                min={0}
+                step={0.25}
+                placeholder={m.restricted ? "TBD" : undefined}
+                onChange={(e) => set(m.id, { outputPricePerMTok: num(e.target.valueAsNumber) })}
+                className={`rounded-md border px-1.5 py-1 text-xs ${
+                  m.restricted ? "border-dashed border-line-strong bg-muted" : "border-line bg-surface"
+                }`}
+              />
+              <input
+                type="number"
+                value={m.sharePct}
+                min={0}
+                max={100}
+                step={5}
+                onChange={(e) => set(m.id, { sharePct: num(e.target.valueAsNumber) })}
+                className="rounded-md border border-line bg-surface px-1.5 py-1 text-xs"
+              />
+            </div>
+            {m.restricted && m.priceNote && (
+              <p className="mt-1 rounded bg-accent-soft px-1.5 py-1 text-[10px] font-medium text-accent">
+                {m.label} — {m.priceNote}
+              </p>
+            )}
           </div>
         ))}
       </div>

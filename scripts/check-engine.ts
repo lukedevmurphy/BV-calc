@@ -78,6 +78,11 @@ console.log(
 );
 // Cost band must not be wildly wider than the value band (no worst-case stacking)
 assert(relW(c3) <= relW(v3) * 1.5 + 0.01, "cost-band width sane vs value-band width");
+// Value-realism fix: the realization haircut must keep the headline ratio under
+// the plausibility ceiling on the default scenario (value honest, not capped).
+assert(ratioPlausible(ratio3.base), `Y3 ratio must be plausible after realization haircut (got ${ratio3.base.toFixed(1)}×)`);
+// And break-even must be a real period, not month 1 (the ramp-from-zero fix).
+assert(be.base !== null && be.base > 1, `break-even base must be a real period > month 1 (got ${be.base})`);
 
 // JSON round-trip (the wire-format guard)
 const roundTrip = JSON.parse(JSON.stringify(series));

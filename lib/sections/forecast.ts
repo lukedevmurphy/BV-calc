@@ -14,14 +14,25 @@ import { fmtMonth, fmtRange } from "@/lib/format";
  * near-term, widening over time — plus the break-even period.
  */
 export function forecastSection(ctx: ProposalContext): SectionOutput {
-  const { assumptions: a, selectedUseCases } = ctx;
+  const { assumptions: a, selectedUseCases, priorSections } = ctx;
   const finalYear = a.horizonYears;
 
   const series = yearlySeries(a, selectedUseCases);
   const be = breakEvenMonth(a, selectedUseCases);
 
-  const valueFinal = annualValue(a, selectedUseCases, finalYear);
-  const costFinal = annualTokenCost(a, selectedUseCases, finalYear);
+  // Net and ROI are derived from the SAME displayed bands the deck shows — the
+  // business-value section's methodological band (bandAroundBase) and the cost
+  // section's token band — NOT the engine's raw multiplicative band. Otherwise
+  // the headline ratio/net would carry the 7-factor compounding spread (a
+  // wildly wide, indefensible optimistic edge) while the value stat shows the
+  // tight band — the exact inconsistency a CFO would catch. Fall back to the
+  // engine figures if a prior section is somehow absent (standalone/tests).
+  const valueFinal =
+    priorSections.business_value?.rangedFigures?.annualValueFinalYear ??
+    annualValue(a, selectedUseCases, finalYear);
+  const costFinal =
+    priorSections.cost?.rangedFigures?.annualCostFinalYear ??
+    annualTokenCost(a, selectedUseCases, finalYear);
   const netFinal = netVsCost(valueFinal, costFinal);
   const roiFinal = ratioVsCost(valueFinal, costFinal);
 

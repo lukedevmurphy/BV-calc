@@ -5,8 +5,11 @@ import type {
   SectionOutput,
   ValueModelInputs,
 } from "@/lib/types";
-import { FieldLabel, RangedField } from "../inputs";
+import { FieldLabel, RangedField, Slider } from "../inputs";
 import RampEditor from "../ramp-editor";
+import { DEFAULT_VALUE_REALIZATION, DEFAULT_USE_CASE_COVERAGE } from "@/lib/data/defaults";
+import { valueRealization } from "@/lib/economics/engine";
+import { fmtCurrency } from "@/lib/format";
 
 interface Props {
   assumptions: ScenarioAssumptions;
@@ -41,12 +44,18 @@ export default function SettingsScreen({
   const patchVM = (p: Partial<ValueModelInputs>) => onValueModel({ ...valueModel, ...p });
   const cap = assumptions.reinvestmentCapacity ?? 0.6;
   const capPct = Math.round(cap * 100);
+  const coverage = assumptions.useCaseCoverage ?? DEFAULT_USE_CASE_COVERAGE;
+  const coveragePct = Math.round(coverage * 100);
+  // The blended realization rate at the current posture — shown live so the user
+  // sees the realized total move as they slide the toggle / edit the rates.
+  const realizedPct = Math.round(valueRealization(assumptions).base * 100);
 
   // Live composition: the Business Value section already routes value to
   // outcomes by this posture — surface its "→ outcome" stats here so the user
   // sees the composition shift as they move the toggle.
   const bv = sections.find((s) => s.kind === "business_value");
   const composition = (bv?.stats ?? []).filter((s) => s.label.startsWith("→"));
+  const valueTotal = bv?.rangedFigures?.annualValueFinalYear?.base;
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-6">
@@ -72,10 +81,12 @@ export default function SettingsScreen({
       <section className="rounded-xl border border-line bg-surface p-5 shadow-card">
         <h2 className="text-sm font-semibold">How is freed time realized?</h2>
         <p className="mt-1 text-[13px] leading-snug text-ink-secondary">
-          The single most-contested assumption. It RE-ROUTES value to a different financial
-          outcome — it does not merely scale it. <span className="font-medium">Capacity</span>{" "}
-          (reinvest) sends value to revenue / production; <span className="font-medium">Offset</span>{" "}
-          (cost-out) sends it to operating margin.
+          The single most-contested assumption. It sets <span className="font-medium">both</span> the
+          financial outcome AND the realized total — a freed hour is only a dollar if it is actually
+          monetized or cut. <span className="font-medium">Capacity</span> (reinvest) sends value to
+          revenue / production and realizes <span className="font-medium">less</span> (speculative);{" "}
+          <span className="font-medium">Offset</span> (cost-out) sends it to operating margin and
+          realizes more. Moving the toggle changes the dollar total, not just its label.
         </p>
 
         <div className="mt-3 flex gap-1 rounded-lg bg-muted p-1">
@@ -126,10 +137,55 @@ export default function SettingsScreen({
               ))}
             </div>
             <p className="mt-1.5 text-[11px] text-ink-tertiary">
-              Same inputs, same total — only the composition moves as you change the posture.
+              At this posture ~{realizedPct}% of freed hours are realized as dollars
+              {valueTotal !== undefined && (
+                <> → realized annual value (Y{assumptions.horizonYears}) ≈ {fmtCurrency(valueTotal)}</>
+              )}
+              . Move the toggle and both the total and the composition shift.
             </p>
           </div>
         )}
+      </section>
+
+      {/* Value realization — the saved-hours → dollars haircut (value-realism fix) */}
+      <section className="mt-6 rounded-xl border border-line bg-surface p-5 shadow-card">
+        <h2 className="text-sm font-semibold">Value realization &amp; coverage</h2>
+        <p className="mt-1 text-[13px] leading-snug text-ink-secondary">
+          Saved hours are not dollars at full freight. These editable estimates turn the gross
+          bottom-up saved-hours into a defensible realized value — the fix that keeps the
+          value-to-cost ratio credible. Blended realization at the current posture:{" "}
+          <span className="font-medium text-ink">~{realizedPct}%</span>.
+        </p>
+        <div className="mt-3 space-y-3">
+          <RangedField
+            label="Offset realization — freed hours → avoided cost (0–1)"
+            value={assumptions.offsetRealization ?? DEFAULT_VALUE_REALIZATION.offset}
+            step={0.05}
+            onChange={(r) => patch({ offsetRealization: r })}
+          />
+          <RangedField
+            label="Capacity realization — freed capacity → monetized output (0–1, lower)"
+            value={assumptions.capacityRealization ?? DEFAULT_VALUE_REALIZATION.capacity}
+            step={0.05}
+            onChange={(r) => patch({ capacityRealization: r })}
+          />
+          <div>
+            <FieldLabel>
+              Persona coverage — share of selected workflows a typical adopter runs ({coveragePct}%)
+            </FieldLabel>
+            <Slider
+              value={coverage}
+              min={0}
+              max={1}
+              step={0.05}
+              onChange={(useCaseCoverage) => patch({ useCaseCoverage })}
+            />
+            <p className="mt-1 text-[11px] text-ink-tertiary">
+              The bottom-up sum credits every adopter with every selected use case; in reality the
+              workflows map to distinct personas, so a typical adopter runs only a subset (~1 of N).
+            </p>
+          </div>
+        </div>
       </section>
 
       {/* Conversion ratios */}

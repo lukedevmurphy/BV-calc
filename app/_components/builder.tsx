@@ -6,7 +6,6 @@ import type {
   ProposalPayload,
   ScenarioAssumptions,
   SectionConfigEntry,
-  ValueApproach,
   ValueModelInputs,
 } from "@/lib/types";
 import { DEFAULT_ASSUMPTIONS, DEFAULT_VALUE_MODEL } from "@/lib/data/defaults";
@@ -14,14 +13,14 @@ import { resolveUseCases } from "@/lib/data/use-cases";
 import { resolveSubIndustry } from "@/lib/value-model/sub-industry";
 import { getValuePrefillProvider } from "@/lib/value-model/prefill/provider";
 import { computeAllSections, defaultSectionConfig } from "@/lib/sections/index";
-import ExportButton from "./export-button";
 import SaveButton from "./save-button";
-import AssumptionsPanel from "./assumptions-panel";
-import ValueModelPanel from "./value-model-panel";
 import CompanyStep from "./company-step";
 import SavedCasesList from "./saved-cases-list";
-import UseCasePicker from "./use-case-picker";
-import SectionList from "./section-list";
+import FlowNav, { type Screen } from "./flow-nav";
+import InputsScreen from "./screens/inputs-screen";
+import BuildScreen from "./screens/build-screen";
+import PreviewScreen from "./screens/preview-screen";
+import SettingsScreen from "./screens/settings-screen";
 
 const DEFAULT_USE_CASE_IDS = [
   "awm-meeting-prep",
@@ -45,9 +44,7 @@ export default function Builder({
   initial?: BuilderInitialState;
   proposalId?: string;
 }) {
-  const [company, setCompany] = useState<CompanyProfile | null>(
-    initial?.company ?? null,
-  );
+  const [company, setCompany] = useState<CompanyProfile | null>(initial?.company ?? null);
   const [editingCompany, setEditingCompany] = useState(false);
   const [assumptions, setAssumptions] = useState<ScenarioAssumptions>(
     initial?.assumptions ?? DEFAULT_ASSUMPTIONS,
@@ -61,12 +58,13 @@ export default function Builder({
   const [sectionConfig, setSectionConfig] = useState<SectionConfigEntry[]>(
     initial?.sectionConfig ?? defaultSectionConfig(),
   );
-  const [proposalId, setProposalId] = useState<string | null>(
-    initialProposalId ?? null,
-  );
+  const [proposalId, setProposalId] = useState<string | null>(initialProposalId ?? null);
 
-  // Keep slider drags at full frame rate: inputs update immediately, the
-  // full-pipeline recompute trails via deferred value.
+  // Three-screen flow state — lives here, so moving Inputs ↔ Build ↔ Preview
+  // (and the Settings page) never loses work.
+  const [screen, setScreen] = useState<Screen>("inputs");
+  const [returnScreen, setReturnScreen] = useState<Screen>("inputs");
+
   const deferredAssumptions = useDeferredValue(assumptions);
   const deferredValueModel = useDeferredValue(valueModel);
 
@@ -84,16 +82,12 @@ export default function Builder({
     [company, deferredAssumptions, deferredValueModel, useCaseIds, sectionConfig],
   );
 
-  // Generative pre-fill (deterministic in v1, AI-backed later behind the same
-  // provider): on company confirm, seed every value-model input so the form is
-  // never shown empty. Approach changes don't re-prefill — values persist in
-  // state, so toggling altitudes never clobbers the user's edits.
   function confirmCompany(profile: CompanyProfile) {
     setCompany(profile);
     setEditingCompany(false);
+    setScreen("inputs");
     // Reactive to sub-industry: seed the default use-case selection from the
-    // company's sector (most-relevant-first), then prefill the value model with
-    // that same set + the sector's benchmark priors.
+    // company's sector, then prefill the value model with that set + priors.
     const sub = resolveSubIndustry(profile.industry);
     const ids = sub.rankedUseCaseIds;
     setUseCaseIds(ids);
@@ -111,19 +105,13 @@ export default function Builder({
     return (
       <div className="px-6 py-12">
         <CompanyStep initial={company ?? undefined} onConfirm={confirmCompany} />
-        {/* Browse/reload saved cases only on a fresh start, not when editing
-            the profile of a proposal already open in the builder. */}
         {!company && <SavedCasesList />}
       </div>
     );
   }
 
-  // Sub-industry resolved from the confirmed company drives the use-case
-  // default/order and the top-down driver vocabulary.
   const subIndustry = resolveSubIndustry(company.industry);
 
-  // Export and save both read the same settled `sections` memo the preview
-  // renders — never a mid-drag frame.
   const payload: ProposalPayload = {
     company,
     assumptions: deferredAssumptions,
@@ -133,62 +121,67 @@ export default function Builder({
     sections,
   };
 
+  // Settings is reachable from any step; returning from it goes back to where
+  // the user came from.
+  function navigate(s: Screen) {
+    if (s === "settings" && screen !== "settings") setReturnScreen(screen);
+    setScreen(s);
+  }
+
   return (
-    <div className="mx-auto max-w-7xl px-6 py-8">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-serif text-3xl font-semibold tracking-tight">
-            Business Value Proposal — {company.name}
-          </h1>
-          <p className="mt-1 text-sm text-ink-secondary">
-            {sections.filter((s) => s.enabled).length} of {sections.length} sections
-            enabled · all economics shown as conservative / base / optimistic ranges ·{" "}
-            <button
-              onClick={() => setEditingCompany(true)}
-              className="text-accent underline-offset-2 hover:underline"
-            >
-              edit company profile
-            </button>
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
+    <div className="min-h-screen pb-16">
+      <FlowNav
+        screen={screen}
+        onNavigate={navigate}
+        companyName={company.name}
+        onEditCompany={() => setEditingCompany(true)}
+        saveSlot={
           <SaveButton proposalId={proposalId} payload={payload} onSaved={setProposalId} />
-          <ExportButton companyName={company.name} sections={sections} />
-        </div>
-      </header>
+        }
+      />
 
-      <div className="mt-6 grid gap-8 lg:grid-cols-[340px_minmax(0,1fr)]">
-        <aside className="lg:sticky lg:top-6 lg:h-fit lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto rounded-xl border border-line bg-surface p-5 shadow-card">
-          <div className="space-y-6">
-            <UseCasePicker
-              selectedIds={useCaseIds}
-              onChange={setUseCaseIds}
-              initialIndustry={subIndustry.useCaseIndustry}
-              rankedIds={subIndustry.rankedUseCaseIds}
-            />
-            <hr className="border-line" />
-            <ValueModelPanel
-              approach={assumptions.valueApproach ?? "bottom_up"}
-              valueModel={valueModel}
-              subIndustry={subIndustry}
-              onApproachChange={(valueApproach: ValueApproach) =>
-                setAssumptions({ ...assumptions, valueApproach })
-              }
-              onValueModelChange={setValueModel}
-            />
-            <hr className="border-line" />
-            <AssumptionsPanel assumptions={assumptions} onChange={setAssumptions} />
-          </div>
-        </aside>
+      {screen === "inputs" && (
+        <InputsScreen
+          company={company}
+          useCaseIds={useCaseIds}
+          onUseCaseIds={setUseCaseIds}
+          assumptions={assumptions}
+          onAssumptions={setAssumptions}
+          valueModel={valueModel}
+          onValueModel={setValueModel}
+          subIndustry={subIndustry}
+          onNext={() => setScreen("build")}
+        />
+      )}
 
-        <main className="pl-6">
-          <SectionList
-            sections={sections}
-            config={sectionConfig}
-            onConfigChange={setSectionConfig}
-          />
-        </main>
-      </div>
+      {screen === "build" && (
+        <BuildScreen
+          sections={sections}
+          config={sectionConfig}
+          onConfigChange={setSectionConfig}
+          onBack={() => setScreen("inputs")}
+          onNext={() => setScreen("preview")}
+        />
+      )}
+
+      {screen === "preview" && (
+        <PreviewScreen
+          sections={sections}
+          companyName={company.name}
+          onBack={() => setScreen("build")}
+        />
+      )}
+
+      {screen === "settings" && (
+        <SettingsScreen
+          assumptions={assumptions}
+          onAssumptions={setAssumptions}
+          valueModel={valueModel}
+          onValueModel={setValueModel}
+          sections={sections}
+          onBack={() => setScreen(returnScreen)}
+        />
+      )}
     </div>
   );
 }

@@ -51,6 +51,25 @@ export const APPENDIX_KINDS: ReadonlySet<SectionKind> = new Set([
   "cost",
 ]);
 
+/** Preview (readout) sequence — a CFO readout leads with the answer: value,
+ *  then where it comes from, then cost, then break-even, then the ask, then the
+ *  supporting narrative. ONLY the Preview slideshow re-sequences; the Build
+ *  screen keeps raw DEFAULT_SECTION_ORDER. Opens on executive_summary. */
+export const READOUT_ORDER: SectionKind[] = [
+  "executive_summary", // the answer / headline value
+  "business_value", // where the value comes from (drivers)
+  "proposal", // value tied to demand + the asks
+  "cost", // what it costs
+  "forecast", // trajectory + break-even
+  "roadmap", // how we get there
+  "next_steps", // the ask
+  "problem", // supporting narrative ↓
+  "current_state",
+  "future_state",
+  "product",
+  "use_case_persona",
+];
+
 /** Synchronous module signature used by the registry. The public
  *  SectionModule type allows Promise for future async modules; everything in
  *  v1 is sync so live reflow stays a plain useMemo. */

@@ -30,6 +30,11 @@ export interface ModelMixEntry {
   inputPricePerMTok: number; // USD per 1M input tokens — user-editable
   outputPricePerMTok: number; // USD per 1M output tokens — user-editable
   sharePct: number; // 0..100, share of task volume routed to this model
+  /** Access-restricted model (e.g. export-controlled): pricing is a labeled
+   *  placeholder, never an invented number. Surfaced with priceNote. */
+  restricted?: boolean;
+  /** Caveat shown on the row when the price is a placeholder. */
+  priceNote?: string;
 }
 
 /**
@@ -71,6 +76,11 @@ export interface ScenarioAssumptions {
   implementationCost: Ranged;
   /** Default 3. */
   horizonYears: number;
+  /** Reinvestment posture: share of freed value realized as CAPACITY (reinvest
+   *  → revenue/production) vs OFFSET (cost-out → margin). 0..1; default 0.6
+   *  (blend). Re-routes which financial outcome value lands in — composition,
+   *  not total. Absent on pre-feature saved payloads → treat as 0.6. */
+  reinvestmentCapacity?: number;
 }
 
 // ── Value model (top_down inputs; bottom_up reuses use cases) ────────────────

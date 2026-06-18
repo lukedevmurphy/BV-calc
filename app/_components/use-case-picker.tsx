@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { UseCaseTag } from "@/lib/types";
 import { INDUSTRIES, useCasesByIndustry } from "@/lib/data/use-cases";
+import { driversForUseCase, VALUE_DRIVERS } from "@/lib/value-model/drivers";
 import { FieldLabel } from "./inputs";
 
 interface Props {
@@ -114,6 +115,21 @@ export default function UseCasePicker({
                       source ↗
                     </a>
                   )}
+                </span>
+                {/* Use-case → value-driver mapping (the value tree's middle layer). */}
+                <span className="mt-1 flex flex-wrap items-center gap-1">
+                  <span className="text-[9px] uppercase tracking-wide text-ink-tertiary">
+                    drives
+                  </span>
+                  {driversForUseCase(uc.id).map((d) => (
+                    <span
+                      key={d}
+                      title={VALUE_DRIVERS[d].label}
+                      className="rounded border border-line-strong px-1.5 py-px text-[9px] font-medium text-ink-secondary"
+                    >
+                      {VALUE_DRIVERS[d].short}
+                    </span>
+                  ))}
                 </span>
               </span>
             </label>

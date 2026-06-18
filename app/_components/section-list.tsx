@@ -20,23 +20,24 @@ import type { SectionConfigEntry, SectionKind, SectionOutput } from "@/lib/types
 import SectionCard from "./section-card";
 
 interface Props {
-  /** All computed sections, sorted by order (disabled ones included — they
-   *  stay computed so the exec summary keeps its figures). */
+  /** All computed sections, sorted by order (disabled ones included). */
   sections: SectionOutput[];
   config: SectionConfigEntry[];
   onConfigChange: (config: SectionConfigEntry[]) => void;
 }
 
-/** Drag-to-reorder + enable/disable. Order changes rewrite the shared
- *  sectionConfig, so web preview and pptx export stay in lockstep. */
+/**
+ * The Build screen body — FLIPPED layout: the section list / nav lives on the
+ * LEFT (drag to reorder, toggle to include/exclude, click to jump), the section
+ * work / edit area (the cards) on the RIGHT. Reordering rewrites the shared
+ * sectionConfig so web preview and pptx export stay in lockstep.
+ */
 export default function SectionList({ sections, config, onConfigChange }: Props) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
   );
   const ids = sections.map((s) => s.kind);
 
-  // Per-card collapse is pure preview state — it never touches sectionConfig,
-  // so it can't affect the pptx export or a saved proposal.
   const [collapsed, setCollapsed] = useState<Set<SectionKind>>(new Set());
   const collapseAll = () => setCollapsed(new Set(ids));
   const expandAll = () => setCollapsed(new Set());
@@ -48,8 +49,6 @@ export default function SectionList({ sections, config, onConfigChange }: Props)
       return next;
     });
 
-  // Jump-nav: expand the target (if collapsed) and scroll it into view, so a
-  // viewer can land on Business Value / Cost / Forecast without scrolling.
   const jumpTo = (kind: SectionKind) => {
     setCollapsed((prev) => {
       const next = new Set(prev);
@@ -69,9 +68,7 @@ export default function SectionList({ sections, config, onConfigChange }: Props)
     const oldIndex = ids.indexOf(active.id as SectionKind);
     const newIndex = ids.indexOf(over.id as SectionKind);
     const newOrder = arrayMove(ids, oldIndex, newIndex);
-    onConfigChange(
-      config.map((c) => ({ ...c, order: newOrder.indexOf(c.kind) })),
-    );
+    onConfigChange(config.map((c) => ({ ...c, order: newOrder.indexOf(c.kind) })));
   }
 
   function toggle(kind: SectionKind) {
@@ -81,68 +78,75 @@ export default function SectionList({ sections, config, onConfigChange }: Props)
   }
 
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-        <div className="sticky top-0 z-20 mb-3 space-y-2 rounded-lg border border-line bg-canvas/95 p-2 backdrop-blur supports-[backdrop-filter]:bg-canvas/80">
-          <div className="flex flex-wrap items-center gap-1.5 text-xs">
-            <span className="font-medium text-ink-tertiary">Jump to:</span>
-            {sections
-              .filter((s) => s.enabled)
-              .map((s) => (
-                <button
-                  key={s.kind}
-                  onClick={() => jumpTo(s.kind)}
-                  className="rounded-md border border-line px-2 py-0.5 text-ink-secondary hover:border-line-strong hover:bg-muted"
-                >
-                  {s.title.split("—")[0].trim()}
-                </button>
-              ))}
-            <span className="ml-auto flex gap-2">
-              <button
-                onClick={expandAll}
-                className="rounded-md border border-line px-2.5 py-1 font-medium text-ink-secondary hover:bg-muted"
-              >
-                Expand all
-              </button>
-              <button
-                onClick={collapseAll}
-                className="rounded-md border border-line px-2.5 py-1 font-medium text-ink-secondary hover:bg-muted"
-              >
-                Collapse all
-              </button>
-            </span>
+    <div className="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
+      {/* LEFT — section nav / control */}
+      <aside className="lg:sticky lg:top-20 lg:h-fit lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto rounded-xl border border-line bg-surface p-3 shadow-card">
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="text-sm font-semibold">Sections</h2>
+          <div className="flex gap-1 text-[11px]">
+            <button
+              onClick={expandAll}
+              className="rounded border border-line px-1.5 py-0.5 text-ink-secondary hover:bg-muted"
+            >
+              Expand
+            </button>
+            <button
+              onClick={collapseAll}
+              className="rounded border border-line px-1.5 py-0.5 text-ink-secondary hover:bg-muted"
+            >
+              Collapse
+            </button>
           </div>
         </div>
-        <div className="space-y-4">
-          {sections.map((s) => (
-            <SortableSection
-              key={s.kind}
-              section={s}
-              collapsed={collapsed.has(s.kind)}
-              onToggle={() => toggle(s.kind)}
-              onToggleCollapse={() => toggleCollapse(s.kind)}
-            />
-          ))}
-        </div>
-      </SortableContext>
-    </DndContext>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+            <ul className="space-y-1">
+              {sections.map((s) => (
+                <SortableNavItem
+                  key={s.kind}
+                  section={s}
+                  onToggle={() => toggle(s.kind)}
+                  onJump={() => jumpTo(s.kind)}
+                />
+              ))}
+            </ul>
+          </SortableContext>
+        </DndContext>
+      </aside>
+
+      {/* RIGHT — section work / edit area */}
+      <div className="space-y-4">
+        {sections.map((s) => (
+          <div key={s.kind} id={`section-${s.kind}`} className="scroll-mt-24">
+            {s.enabled ? (
+              <SectionCard
+                section={s}
+                collapsed={collapsed.has(s.kind)}
+                onToggleCollapse={() => toggleCollapse(s.kind)}
+              />
+            ) : (
+              <div className="rounded-xl border border-dashed border-line bg-muted/60 px-6 py-3 text-sm text-ink-tertiary">
+                {s.title} — excluded from preview and export
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
-function SortableSection({
+function SortableNavItem({
   section,
-  collapsed,
   onToggle,
-  onToggleCollapse,
+  onJump,
 }: {
   section: SectionOutput;
-  collapsed: boolean;
   onToggle: () => void;
-  onToggleCollapse: () => void;
+  onJump: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: section.kind });
-
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -150,48 +154,46 @@ function SortableSection({
   };
 
   return (
-    <div
+    <li
       ref={setNodeRef}
-      id={`section-${section.kind}`}
       style={style}
-      className="relative scroll-mt-20"
+      className={`flex items-center gap-1.5 rounded-md border px-1.5 py-1 ${
+        section.enabled
+          ? "border-line bg-surface"
+          : "border-dashed border-line bg-muted/50"
+      }`}
     >
-      <div className="absolute -left-1 top-3 z-10 flex -translate-x-full flex-col items-center gap-1 pr-2">
-        <button
-          {...attributes}
-          {...listeners}
-          title="Drag to reorder"
-          className="cursor-grab rounded p-1 text-ink-tertiary hover:bg-muted active:cursor-grabbing"
-        >
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-            <circle cx="5" cy="3" r="1.5" />
-            <circle cx="11" cy="3" r="1.5" />
-            <circle cx="5" cy="8" r="1.5" />
-            <circle cx="11" cy="8" r="1.5" />
-            <circle cx="5" cy="13" r="1.5" />
-            <circle cx="11" cy="13" r="1.5" />
-          </svg>
-        </button>
-        <input
-          type="checkbox"
-          checked={section.enabled}
-          onChange={onToggle}
-          title={section.enabled ? "Exclude from proposal" : "Include in proposal"}
-          className="accent-[var(--accent)]"
-        />
-      </div>
-
-      {section.enabled ? (
-        <SectionCard
-          section={section}
-          collapsed={collapsed}
-          onToggleCollapse={onToggleCollapse}
-        />
-      ) : (
-        <div className="rounded-xl border border-dashed border-line bg-muted/60 px-6 py-3 text-sm text-ink-tertiary">
-          {section.title} — excluded from preview and export
-        </div>
-      )}
-    </div>
+      <button
+        {...attributes}
+        {...listeners}
+        title="Drag to reorder"
+        className="cursor-grab rounded p-0.5 text-ink-tertiary hover:bg-muted active:cursor-grabbing"
+      >
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+          <circle cx="5" cy="3" r="1.5" />
+          <circle cx="11" cy="3" r="1.5" />
+          <circle cx="5" cy="8" r="1.5" />
+          <circle cx="11" cy="8" r="1.5" />
+          <circle cx="5" cy="13" r="1.5" />
+          <circle cx="11" cy="13" r="1.5" />
+        </svg>
+      </button>
+      <input
+        type="checkbox"
+        checked={section.enabled}
+        onChange={onToggle}
+        title={section.enabled ? "Exclude from proposal" : "Include in proposal"}
+        className="accent-[var(--accent)]"
+      />
+      <button
+        onClick={onJump}
+        className={`flex-1 truncate text-left text-xs ${
+          section.enabled ? "hover:text-accent" : "text-ink-tertiary"
+        }`}
+        title={section.title}
+      >
+        {section.title.split("—")[0].trim()}
+      </button>
+    </li>
   );
 }

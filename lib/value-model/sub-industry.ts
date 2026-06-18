@@ -20,6 +20,7 @@
 import type { Ranged } from "@/lib/types";
 import { ranged } from "@/lib/economics/ranged";
 import { UNCITED } from "./constants";
+import type { DriverId } from "./drivers";
 
 export type SubIndustryId =
   | "diversified_bank"
@@ -242,4 +243,113 @@ export function resolveSubIndustry(industry: string | undefined): SubIndustry {
   if (s.includes("asset") || s.includes("wealth")) return pick("asset_wealth_manager");
   if (s.includes("bank")) return pick("diversified_bank");
   return pick("generic");
+}
+
+// ── Per-sector value-driver weighting + vocabulary (FS-value-driver-taxonomy) ──
+// Which drivers dominate for a sector (weights, relative — used to allocate the
+// top-down total across the value tree) and what each driver is CALLED there.
+// A `valueNote` carries the sector framing caveats from the taxonomy.
+
+export interface SubIndustryDriverProfile {
+  /** Drivers that matter most for the sector (lead the breakdown). */
+  dominantDrivers: DriverId[];
+  /** Relative weights used to split the top-down total across drivers. */
+  driverWeights: Record<DriverId, number>;
+  /** Sector-specific name for a driver (e.g. bank productivity = "cost-to-serve"). */
+  driverVocab: Partial<Record<DriverId, string>>;
+  /** Framing caveat surfaced in the value breakdown, when present. */
+  valueNote?: string;
+}
+
+const W = (
+  productivity: number,
+  revenue_growth: number,
+  cross_sell: number,
+  onboarding_speed: number,
+  risk_compliance: number,
+): Record<DriverId, number> => ({
+  productivity,
+  revenue_growth,
+  cross_sell,
+  onboarding_speed,
+  risk_compliance,
+});
+
+export const SUB_INDUSTRY_DRIVERS: Record<SubIndustryId, SubIndustryDriverProfile> = {
+  diversified_bank: {
+    dominantDrivers: ["productivity", "risk_compliance", "cross_sell"],
+    driverWeights: W(0.4, 0.05, 0.15, 0.1, 0.3),
+    driverVocab: {
+      productivity: "cost-to-serve / efficiency ratio",
+      risk_compliance: "loss-given-default avoidance",
+      cross_sell: "fee income per customer",
+    },
+  },
+  investment_bank: {
+    dominantDrivers: ["productivity", "revenue_growth"],
+    driverWeights: W(0.5, 0.3, 0.1, 0.05, 0.05),
+    driverVocab: {
+      productivity: "deal-team / research capacity",
+      revenue_growth: "deal / coverage throughput",
+    },
+  },
+  brokerage: {
+    dominantDrivers: ["productivity", "cross_sell", "onboarding_speed"],
+    driverWeights: W(0.4, 0.1, 0.25, 0.2, 0.05),
+    driverVocab: {
+      productivity: "advisor productivity",
+      cross_sell: "share of wallet",
+      onboarding_speed: "time-to-fund",
+    },
+  },
+  credit_union: {
+    dominantDrivers: ["productivity", "onboarding_speed", "risk_compliance"],
+    driverWeights: W(0.4, 0.05, 0.05, 0.25, 0.25),
+    driverVocab: {
+      productivity: "cost-to-serve per member",
+      onboarding_speed: "loan-decision time",
+      risk_compliance: "compliance / non-interest expense",
+    },
+    valueNote:
+      "Member-owned, not-for-profit — value is framed as returned to members / lower fees, not profit.",
+  },
+  asset_wealth_manager: {
+    dominantDrivers: ["productivity", "cross_sell", "onboarding_speed"],
+    driverWeights: W(0.4, 0.1, 0.25, 0.15, 0.1),
+    driverVocab: {
+      productivity: "research / client-reporting capacity",
+      cross_sell: "net new assets",
+      onboarding_speed: "client onboarding",
+    },
+  },
+  card_network: {
+    dominantDrivers: ["productivity", "risk_compliance", "onboarding_speed"],
+    driverWeights: W(0.4, 0.05, 0.05, 0.2, 0.3),
+    driverVocab: {
+      productivity: "dispute-resolution / ops efficiency",
+      risk_compliance: "fraud-loss avoidance",
+      onboarding_speed: "merchant onboarding time",
+    },
+    valueNote:
+      "Volume-driven, not headcount-driven — productivity is ops efficiency on a fixed transaction base.",
+  },
+  generic: {
+    dominantDrivers: ["productivity", "risk_compliance", "cross_sell"],
+    driverWeights: W(0.4, 0.1, 0.15, 0.15, 0.2),
+    driverVocab: {},
+  },
+};
+
+/** Driver profile for a resolved sub-industry. */
+export function subIndustryDrivers(id: SubIndustryId): SubIndustryDriverProfile {
+  return SUB_INDUSTRY_DRIVERS[id];
+}
+
+/** Sector name for a driver, falling back to the canonical driver label. */
+export function sectorDriverLabel(
+  id: SubIndustryId,
+  driver: DriverId,
+  fallback: string,
+): string {
+  return SUB_INDUSTRY_DRIVERS[id].driverVocab[driver] ?? fallback;
 }

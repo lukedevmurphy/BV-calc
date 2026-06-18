@@ -128,6 +128,23 @@ export default function SlideView({ section }: { section: SectionOutput }) {
         )}
         {(hasCharts || section.table) && visual}
       </div>
+
+      {/* Clickable sources (e.g. an Anthropic customer-story URL). */}
+      {section.links && section.links.length > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          {section.links.map((l) => (
+            <a
+              key={l.url}
+              href={l.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-medium text-accent underline-offset-2 hover:underline"
+            >
+              {l.label} ↗
+            </a>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

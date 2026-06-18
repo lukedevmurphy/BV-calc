@@ -259,4 +259,46 @@ if (roi && roi.base > 30) {
   console.log(`ratio sanity: ${roi ? roi.base.toFixed(1) + "×" : "n/a"} within ceiling ✓`);
 }
 
+// ── Peer Proof: real attributed story for a matched sub-industry; omitted else,
+//    and the customer's results are NEVER presented as the target's ───────────
+const peerFor = (industry: string) =>
+  computeAllSections({
+    company: { name: "TargetCo", industry },
+    assumptions: DEFAULT_ASSUMPTIONS,
+    selectedUseCases: ucs4,
+    valueModel: DEFAULT_VALUE_MODEL,
+    sectionConfig: defaultSectionConfig(),
+  }).find((s) => s.kind === "peer_proof");
+
+const payments = peerFor("Payments & Card Networks"); // Visa-like → should match
+const awm = peerFor("Asset & Wealth Management"); // demo → no curated peer → omit
+assert(payments, "payments target matches a peer story");
+assert(awm === undefined, "no relevant peer → section omitted (no fabrication)");
+// Real customer named + sourced.
+assert(/Satispay/.test(payments!.subtitle ?? ""), "peer subtitle names the real customer");
+assert(
+  (payments!.links ?? []).some((l) => l.url.startsWith("https://claude.com/customers/")),
+  "peer story carries the real source URL",
+);
+assert(
+  (payments!.bullets ?? []).some((b) => b.includes("claude.com/customers/")),
+  "source URL also on-slide as text (survives pptx export)",
+);
+// Attribution discipline: outcomes attributed to the customer; analogy + provenance labeled.
+assert(
+  (payments!.stats ?? []).every((s) => s.label.includes("Satispay")),
+  "every outcome stat is attributed to the real customer",
+);
+assert(
+  (payments!.bullets ?? []).some((b) => /analogy, not TargetCo'?s result/i.test(b)),
+  "target parallel is labeled an analogy, not the target's result",
+);
+assert(
+  (payments!.bullets ?? []).some((b) => b.toLowerCase().includes("provenance")),
+  "provenance flag present (sourced story vs author inference)",
+);
+console.log(
+  `peer proof: payments → "${payments!.subtitle}" (sourced); AWM → omitted ✓`,
+);
+
 console.log("Section contract holds across all 12. ✓");

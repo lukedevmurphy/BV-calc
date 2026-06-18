@@ -85,9 +85,28 @@ export interface ScenarioAssumptions {
   horizonYears: number;
   /** Reinvestment posture: share of freed value realized as CAPACITY (reinvest
    *  → revenue/production) vs OFFSET (cost-out → margin). 0..1; default 0.6
-   *  (blend). Re-routes which financial outcome value lands in — composition,
-   *  not total. Absent on pre-feature saved payloads → treat as 0.6. */
+   *  (blend). Picks WHICH financial outcome value lands in AND — because the two
+   *  modes realize at different rates (see offset/capacityRealization) — moves
+   *  the TOTAL value too. Absent on pre-feature saved payloads → treat as 0.6. */
   reinvestmentCapacity?: number;
+  /** Value-realization (OFFSET mode): the share of freed hours that actually
+   *  converts to avoided cost. Saved time is only a dollar under cost-out to the
+   *  extent headcount/hiring is genuinely avoided — fractional hours scattered
+   *  across many people rarely all become FTE cuts. 0..1 band; editable estimate.
+   *  Absent on pre-feature payloads → DEFAULT_VALUE_REALIZATION.offset. */
+  offsetRealization?: Ranged;
+  /** Value-realization (CAPACITY mode): the share of freed capacity actually
+   *  monetized into output that earns. LOWER than offset — reinvested capacity is
+   *  more speculative than direct cost-out. 0..1 band; editable estimate.
+   *  Absent on pre-feature payloads → DEFAULT_VALUE_REALIZATION.capacity. */
+  capacityRealization?: Ranged;
+  /** Persona coverage: the share of the SELECTED workflows a typical adopter
+   *  actually runs. The bottom-up sum credits every adopter with every selected
+   *  use case at full volume, but the use cases map to distinct personas (a
+   *  credit analyst is not also the KYC-ops clearer) — so a typical adopter runs
+   *  only a subset. 0..1; editable. Corrects the "everyone does everything"
+   *  overcount. Absent on pre-feature payloads → DEFAULT_USE_CASE_COVERAGE. */
+  useCaseCoverage?: number;
 }
 
 // ── Value model (top_down inputs; bottom_up reuses use cases) ────────────────

@@ -4,7 +4,7 @@
 import assert from "node:assert";
 import { DEFAULT_ASSUMPTIONS, DEFAULT_VALUE_MODEL } from "@/lib/data/defaults";
 import { SEED_USE_CASES } from "@/lib/data/use-cases";
-import { annualValue } from "@/lib/economics/engine";
+import { annualValue, breakEvenMonth } from "@/lib/economics/engine";
 import {
   computeAllSections,
   defaultSectionConfig,
@@ -175,8 +175,10 @@ console.log(
   `sub-industry reactive: top-down label "${bank.label}" / "${cu.label}" / "${card.label}", value keys identical ✓`,
 );
 
-// ── Reinvestment toggle: re-routes the OUTCOME composition without changing
-//    the headline total (capacity vs offset → different driver/outcome mix) ──
+// ── Reinvestment toggle: with the value-realism fix it moves BOTH the outcome
+//    composition AND the realized TOTAL — capacity realizes less than offset, so
+//    full-capacity value is strictly lower than full cost-out (this proves the
+//    saved-hours leak is fixed, not merely re-labelled). ─────────────────────
 const bvFor = (capacity: number) => {
   const out = computeAllSections({
     company: demoCompany,
@@ -191,19 +193,36 @@ const bvFor = (capacity: number) => {
     .join(" | ");
   return { total: out.rangedFigures!.annualValueFinalYear.base, composition };
 };
-const capacity = bvFor(1); // full reinvest → revenue
-const offset = bvFor(0); // full cost-out → margin
+const capacity = bvFor(1); // full reinvest → revenue, realizes LESS
+const offset = bvFor(0); // full cost-out → margin, realizes MORE
 assert(
   capacity.composition !== offset.composition,
   "reinvestment toggle must change the value composition (capacity vs offset)",
 );
 assert(
-  Math.abs(capacity.total - offset.total) < 1,
-  "reinvestment toggle must NOT change the headline total — only its composition",
+  offset.total > capacity.total * 1.2,
+  `reinvestment toggle must move the realized TOTAL (offset ${Math.round(offset.total)} should exceed capacity ${Math.round(capacity.total)} — capacity realizes less)`,
 );
 console.log(
-  `reinvestment re-routes composition (total unchanged ${Math.round(capacity.total) === Math.round(offset.total)}):\n` +
+  `reinvestment moves total + composition: offset ${fmtCurrency(offset.total)} > capacity ${fmtCurrency(capacity.total)} ` +
+    `(${(offset.total / capacity.total).toFixed(2)}× spread)\n` +
     `  capacity: ${capacity.composition}\n  offset:   ${offset.composition} ✓`,
+);
+
+// ── Value realism: the haircut keeps the headline ratio plausible and pushes
+//    break-even off month 1 (the whole point of this fix) ──────────────────────
+const realismRoi = byKind.forecast.rangedFigures!.roiFinalYear.base;
+assert(
+  realismRoi <= 30,
+  `value-realism: headline ratio must be plausible (got ${realismRoi.toFixed(1)}× > 30 — value not honest)`,
+);
+const realismBE = breakEvenMonth(DEFAULT_ASSUMPTIONS, ucs4);
+assert(
+  realismBE.base !== null && realismBE.base > 1,
+  `value-realism: break-even must be a real period, not month 1 (got ${realismBE.base})`,
+);
+console.log(
+  `value realism: ratio ${realismRoi.toFixed(1)}× (≤30, ⚠ cleared), break-even base month ${realismBE.base} (off month 1) ✓`,
 );
 
 // ── Scenario appendix slides carry the low / high figures (Part 4) ───────────

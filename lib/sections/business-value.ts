@@ -6,9 +6,15 @@ import type {
   SectionOutput,
   TableData,
 } from "@/lib/types";
-import { annualValue, annualValueByUseCase } from "@/lib/economics/engine";
+import {
+  annualValue,
+  annualValueByUseCase,
+  useCaseCoverage,
+  valueRealization,
+} from "@/lib/economics/engine";
 import { interpolateRamp } from "@/lib/economics/ramp";
 import { bandAroundBase } from "@/lib/economics/ranged";
+import { savedHoursBasisFor } from "@/lib/data/hours-defaults";
 import { APPROACH_BAND_HALF_WIDTH_PCT } from "@/lib/value-model/constants";
 import {
   resolveSubIndustry,
@@ -73,7 +79,8 @@ function driverArtifacts(
   const cap = Math.round(c * 100);
   const sectorNote = subIndustryDrivers(subId).valueNote;
   const note =
-    `Reinvestment posture ${cap}% capacity / ${100 - cap}% offset — value lands ` +
+    `Reinvestment posture ${cap}% capacity / ${100 - cap}% offset sets BOTH the realized total ` +
+    `(capacity realizes less than offset, so moving the toggle moves the dollar total — not just its label) and where it lands: ` +
     order
       .filter((o) => out[o] > 1)
       .map((o) => `${fmtCurrency(out[o])} → ${OUTCOMES[o].label.toLowerCase()}`)
@@ -204,12 +211,24 @@ function buildBottomUp(
 
   const charts: ChartSeries[] = [tree.chart];
 
+  // Part 4 — show the realization work: gross saved-hours value is haircut by a
+  // realization rate (posture-blended) and persona coverage before it is a dollar.
+  const realization = valueRealization(a);
+  const coverage = useCaseCoverage(a);
+  const rzPct = Math.round(realization.base * 100);
+  const covPct = Math.round(coverage * 100);
+  // Hours basis for the top contributors → speaker notes (auditability, Part 3).
+  const hoursBasis = byUseCase
+    .slice(0, 3)
+    .map(({ useCase }) => `${useCase.label}: ${savedHoursBasisFor(useCase.id)}`)
+    .join("; ");
+
   return {
-    subtitle: `Built bottom-up from ${selectedUseCases.length} selected use cases, rolled up to value drivers — not a top-down productivity claim`,
+    subtitle: `Built bottom-up from ${selectedUseCases.length} selected use cases — realization-adjusted to a defensible dollar value, not raw saved time`,
     bullets: [
-      `Each use case is sized as hours saved per instance × instances per user per month × fully loaded cost`,
-      `Use cases roll up into value drivers (see "Feeds drivers"); drivers roll up into a financial outcome`,
-      `Tighter confidence band than the top-down approach — each figure traces to two quantified knobs per use case, so the spread is the narrowest`,
+      `Each use case = hours saved/instance × instances/user/mo × loaded cost, scaled by adoption breadth × usage depth — then realization-adjusted`,
+      `Realized value, not raw saved time: only ~${rzPct}% of freed hours are credited as dollars (capacity realizes less than offset), and a typical adopter runs ~${covPct}% of the selected workflows`,
+      `Use cases roll up to value drivers → a financial outcome; the reinvestment posture sets the outcome mix AND the realized total (edit on Settings)`,
     ],
     extraStats: [
       {
@@ -221,9 +240,11 @@ function buildBottomUp(
     table,
     charts,
     speakerNotes:
-      `Every number in this table traces to two knobs per use case (hours saved, instances/month) ` +
-      `plus the shared loaded-cost and adoption assumptions — walk the client through one row end-to-end ` +
-      `to establish the method, then let them pressure-test the knobs. The bottom-up build is the credibility of the whole deck. ` +
+      `Every number traces to two knobs per use case (hours saved, instances/month) plus loaded cost and adoption — ` +
+      `then the gross saved-hours value is haircut to a REALIZED dollar value: ~${rzPct}% realization (a freed hour ` +
+      `is only money if it is actually cut or monetized — capacity realizes less than offset) × ~${covPct}% persona ` +
+      `coverage (a typical adopter runs only a subset of the selected workflows). Saved-hours are ESTIMATES to pressure-test — ` +
+      `${hoursBasis}. ` +
       tree.note,
     assumptionsUsed: [
       "valueApproach (bottom_up)",
@@ -231,7 +252,9 @@ function buildBottomUp(
       "usageDepth",
       "targetUserCount",
       "loadedHourlyCost",
-      "per-use-case sizing (hoursSavedPerInstance, instancesPerMonthPerUser)",
+      "per-use-case sizing (hoursSavedPerInstance, instancesPerMonthPerUser — estimates)",
+      "value realization (offsetRealization / capacityRealization, by reinvestment posture)",
+      "useCaseCoverage (persona overlap)",
       `horizonYears (${finalYear})`,
     ],
     y1Base: annualValue(a, selectedUseCases, 1).base,

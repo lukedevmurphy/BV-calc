@@ -20,11 +20,48 @@ import type {
 import { exact, mul, netVsCost, ranged, scale, sum } from "./ranged";
 import { interpolateRamp } from "./ramp";
 import { tokenDefaultFor } from "@/lib/data/token-defaults";
+import {
+  DEFAULT_USE_CASE_COVERAGE,
+  DEFAULT_VALUE_REALIZATION,
+} from "@/lib/data/defaults";
 
 // Fallbacks for use cases that ship without sizing knobs, so the engine stays
 // total. Seeded use cases always carry explicit values.
 const FALLBACK_HOURS_SAVED: Ranged = ranged(0.25, 0.5, 1);
 const FALLBACK_INSTANCES_PER_MONTH: Ranged = ranged(1, 2, 4);
+
+// ── Value-realism: turn raw saved-hours into realized dollars ────────────────
+// The bottom-up sum is a GROSS, full-freight figure: every saved hour valued at
+// the loaded rate, for every adopter, on every selected use case. Two honest
+// haircuts turn it into a defensible dollar value — both move value the SAME
+// direction (more realization / more coverage → more value), so element-wise
+// mul/scale is correct here (this is NOT an anti-paired value-vs-cost op).
+
+/**
+ * Effective fraction of saved-hours value realized as dollars, blended by the
+ * reinvestment posture. CAPACITY realizes LESS than OFFSET, so moving the toggle
+ * moves the TOTAL value (not just its composition). Ranged because realization
+ * itself is uncertain. Pre-feature payloads fall back to the published defaults.
+ */
+export function valueRealization(a: ScenarioAssumptions): Ranged {
+  const cap = clamp01(a.reinvestmentCapacity ?? 0.6);
+  const off = a.offsetRealization ?? DEFAULT_VALUE_REALIZATION.offset;
+  const capR = a.capacityRealization ?? DEFAULT_VALUE_REALIZATION.capacity;
+  return {
+    low: cap * capR.low + (1 - cap) * off.low,
+    base: cap * capR.base + (1 - cap) * off.base,
+    high: cap * capR.high + (1 - cap) * off.high,
+  };
+}
+
+/** Persona-coverage scalar — share of selected workflows a typical adopter runs. */
+export const useCaseCoverage = (a: ScenarioAssumptions): number =>
+  clamp01(a.useCaseCoverage ?? DEFAULT_USE_CASE_COVERAGE);
+
+/** Combined value-realism multiplier on raw saved-hours value (base edge), for
+ *  the per-year helpers below that only track base. */
+const valueRealismBase = (a: ScenarioAssumptions): number =>
+  useCaseCoverage(a) * valueRealization(a).base;
 
 // Cost levers — sourceable discounts (June 2026): cached input ≈90% cheaper,
 // Batch API ≈50% off. The HIT RATIO / BATCH SHARE they apply to are user
@@ -135,7 +172,11 @@ export function annualTokenCost(
   return scale(monthlyCost(a, useCases, year), 12);
 }
 
-/** Monthly bottom-up value across selected use cases at a point in time. */
+/** Monthly bottom-up value across selected use cases at a point in time —
+ *  REALIZATION-ADJUSTED, not raw saved time. The gross saved-hours value is
+ *  haircut by persona coverage (a typical adopter runs only a subset of the
+ *  selected workflows) and by the posture-blended realization rate (freed hours
+ *  become dollars only partially, and capacity realizes less than offset). */
 export function monthlyValue(
   a: ScenarioAssumptions,
   useCases: UseCase[],
@@ -143,7 +184,7 @@ export function monthlyValue(
 ): Ranged {
   const users = activeUsersAtYear(a, year);
   const depth = depthAtYear(a, year);
-  return sum(
+  const gross = sum(
     useCases.map((uc) => {
       const perUserPerMonth = mul(
         mul(
@@ -155,6 +196,8 @@ export function monthlyValue(
       return mul(mul(perUserPerMonth, depth), users);
     }),
   );
+  // coverage (scalar) × realization (ranged) — both value-direction, so scale/mul.
+  return scale(mul(gross, valueRealization(a)), useCaseCoverage(a));
 }
 
 export function annualValue(
@@ -266,6 +309,7 @@ export function costValueByAdoption(
   steps = 10,
 ): { breadth: number; cost: Ranged; value: Ranged }[] {
   const matureDepth = depthAtYear(a, a.horizonYears).base;
+  const realism = valueRealismBase(a); // coverage × realization (base)
 
   return Array.from({ length: steps + 1 }, (_, i) => {
     const breadth = i / steps;
@@ -279,7 +323,8 @@ export function costValueByAdoption(
       cBase += vol * cpt.base;
       cHigh += vol * cpt.high;
       const h = (uc.hoursSavedPerInstance ?? FALLBACK_HOURS_SAVED).base;
-      value += h * inst * a.loadedHourlyCost.base * matureDepth * users * 12;
+      // Value is realization-adjusted (same haircut as monthlyValue); cost is not.
+      value += h * inst * a.loadedHourlyCost.base * matureDepth * users * 12 * realism;
     }
     return { breadth, cost: { low: cLow, base: cBase, high: cHigh }, value: exact(value) };
   });
@@ -297,6 +342,7 @@ export function breakEvenAdoption(
 ): number | null {
   const amortized = a.implementationCost.base / a.horizonYears;
   const matureDepth = depthAtYear(a, a.horizonYears).base;
+  const realism = valueRealismBase(a); // coverage × realization (base)
   for (let i = 0; i <= steps; i++) {
     const breadth = i / steps;
     const users = a.targetUserCount * breadth;
@@ -305,7 +351,7 @@ export function breakEvenAdoption(
       const inst = instancesBase(uc);
       cost += users * matureDepth * inst * costPerTask(a, uc).base * 12;
       const h = (uc.hoursSavedPerInstance ?? FALLBACK_HOURS_SAVED).base;
-      value += h * inst * a.loadedHourlyCost.base * matureDepth * users * 12;
+      value += h * inst * a.loadedHourlyCost.base * matureDepth * users * 12 * realism;
     }
     if (value >= cost + amortized) return breadth;
   }

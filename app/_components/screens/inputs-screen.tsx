@@ -7,6 +7,7 @@ import type {
   ValueModelInputs,
 } from "@/lib/types";
 import type { SubIndustry } from "@/lib/value-model/sub-industry";
+import { resolveUseCases } from "@/lib/data/use-cases";
 import { isIllustrativeProfile } from "@/lib/provenance";
 import UseCasePicker from "../use-case-picker";
 import ValueModelPanel from "../value-model-panel";
@@ -90,7 +91,11 @@ export default function InputsScreen({
         </div>
 
         <div className="rounded-xl border border-line bg-surface p-5 shadow-card">
-          <AssumptionsPanel assumptions={assumptions} onChange={onAssumptions} />
+          <AssumptionsPanel
+            assumptions={assumptions}
+            onChange={onAssumptions}
+            selectedUseCases={resolveUseCases(useCaseIds)}
+          />
         </div>
       </div>
 

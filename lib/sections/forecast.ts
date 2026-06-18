@@ -21,7 +21,7 @@ export function forecastSection(ctx: ProposalContext): SectionOutput {
   const be = breakEvenMonth(a, selectedUseCases);
 
   const valueFinal = annualValue(a, selectedUseCases, finalYear);
-  const costFinal = annualTokenCost(a, finalYear);
+  const costFinal = annualTokenCost(a, selectedUseCases, finalYear);
   const netFinal = netVsCost(valueFinal, costFinal);
   const roiFinal = ratioVsCost(valueFinal, costFinal);
 
@@ -67,8 +67,9 @@ export function forecastSection(ctx: ProposalContext): SectionOutput {
       "adoptionBreadth",
       "usageDepth",
       "targetUserCount",
-      "avgTasksPerActiveUserPerMonth",
-      "avgTokensPerTask",
+      "per-use-case tokens (estimate)",
+      "cacheHitRatio",
+      "batchShare",
       "modelMix",
       "loadedHourlyCost",
       "implementationCost",

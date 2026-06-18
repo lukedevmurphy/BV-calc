@@ -1,13 +1,16 @@
 "use client";
 
-import type { ScenarioAssumptions } from "@/lib/types";
-import { NumberField, RangedField } from "./inputs";
+import type { ScenarioAssumptions, UseCase } from "@/lib/types";
+import { FieldLabel, NumberField, RangedField, Slider } from "./inputs";
 import RampEditor from "./ramp-editor";
 import ModelMixEditor from "./model-mix-editor";
+import TokenModelEditor from "./token-model-editor";
 
 interface Props {
   assumptions: ScenarioAssumptions;
   onChange: (a: ScenarioAssumptions) => void;
+  /** Selected use cases — drives the per-use-case token editor. */
+  selectedUseCases: UseCase[];
 }
 
 /**
@@ -15,8 +18,10 @@ interface Props {
  * onChange into builder state, and the section pipeline recomputes live —
  * Cost, Business Value, and Forecast re-flow together by construction.
  */
-export default function AssumptionsPanel({ assumptions: a, onChange }: Props) {
+export default function AssumptionsPanel({ assumptions: a, onChange, selectedUseCases }: Props) {
   const patch = (p: Partial<ScenarioAssumptions>) => onChange({ ...a, ...p });
+  const cachePct = Math.round((a.cacheHitRatio ?? 0) * 100);
+  const batchPct = Math.round((a.batchShare ?? 0) * 100);
 
   return (
     <div className="space-y-5">
@@ -43,33 +48,41 @@ export default function AssumptionsPanel({ assumptions: a, onChange }: Props) {
         onChange={(points) => patch({ usageDepth: points })}
       />
 
-      <RangedField
-        label="Tasks per active user / month"
-        value={a.avgTasksPerActiveUserPerMonth}
-        step={5}
-        onChange={(r) => patch({ avgTasksPerActiveUserPerMonth: r })}
-      />
+      {/* ── Cost model ──────────────────────────────────────────────── */}
+      <div className="space-y-4 border-t border-line pt-4">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-secondary">
+          Cost model
+        </h3>
 
-      <div className="grid grid-cols-2 gap-2">
-        <NumberField
-          label="Tokens / task (input)"
-          value={a.avgTokensPerTask.input}
-          step={1000}
-          onChange={(n) =>
-            patch({ avgTokensPerTask: { ...a.avgTokensPerTask, input: n } })
-          }
-        />
-        <NumberField
-          label="Tokens / task (output)"
-          value={a.avgTokensPerTask.output}
-          step={500}
-          onChange={(n) =>
-            patch({ avgTokensPerTask: { ...a.avgTokensPerTask, output: n } })
-          }
+        <ModelMixEditor mix={a.modelMix} onChange={(modelMix) => patch({ modelMix })} />
+
+        <div>
+          <FieldLabel>Prompt-cache hit — {cachePct}% of input cached (~90% off)</FieldLabel>
+          <Slider
+            value={a.cacheHitRatio ?? 0}
+            min={0}
+            max={1}
+            step={0.05}
+            onChange={(cacheHitRatio) => patch({ cacheHitRatio })}
+          />
+        </div>
+        <div>
+          <FieldLabel>Batch API share — {batchPct}% of tasks (~50% off)</FieldLabel>
+          <Slider
+            value={a.batchShare ?? 0}
+            min={0}
+            max={1}
+            step={0.05}
+            onChange={(batchShare) => patch({ batchShare })}
+          />
+        </div>
+
+        <TokenModelEditor
+          assumptions={a}
+          selectedUseCases={selectedUseCases}
+          onChange={onChange}
         />
       </div>
-
-      <ModelMixEditor mix={a.modelMix} onChange={(modelMix) => patch({ modelMix })} />
 
       <RangedField
         label="Loaded hourly cost ($/hr)"

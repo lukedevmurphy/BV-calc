@@ -1,55 +1,72 @@
 import type { ProposalContext, Ranged, SectionOutput } from "@/lib/types";
 import {
   annualTokenCost,
-  blendedPricePerTask,
+  avgCostPerTask,
+  blendedInputPricePerMTok,
+  blendedOutputPricePerMTok,
   breakEvenAdoption,
   breakEvenMonth,
+  costPerTask,
   costValueByAdoption,
+  tokensForUseCase,
 } from "@/lib/economics/engine";
+import { tokenDefaultFor } from "@/lib/data/token-defaults";
 import {
   fmtCurrency,
   fmtCurrencySmall,
   fmtMonth,
+  fmtNumber,
   fmtPercent,
-  fmtRange,
 } from "@/lib/format";
 
 /**
- * Consumption-based cost. Formula spine:
- *   cost = activeUsers(breadth) × tasksPerUser × depth × tokensPerTask
- *          × pricePerToken(modelMix)
- * Must make the consumption truth explicit — higher adoption raises cost —
- * and surface break-even (both the adoption level and the period).
+ * Consumption-based cost. Spine:
+ *   cost = active users × (per-use-case instances) × tokens/task × blended
+ *          $/token, with prompt-caching + Batch discounts.
+ *
+ * DEFENSIBILITY OVER ACCURACY: token volumes are ENGINEERING ESTIMATES (no
+ * public benchmark exists), so the section shows its ARITHMETIC and separates
+ * what's sourceable (prices, caching %, doc sizes) from what's assumed (docs
+ * per task, output length, adoption, model mix). Cost is a WIDE RANGE driven by
+ * implementation — the section says so plainly, and the band on the chart is the
+ * token/implementation spread.
  */
 export function costSection(ctx: ProposalContext): SectionOutput {
   const { assumptions: a, selectedUseCases } = ctx;
   const finalYear = a.horizonYears;
 
-  const pricePerTask = blendedPricePerTask(a);
-  const costY1 = annualTokenCost(a, 1);
-  const costFinal = annualTokenCost(a, finalYear);
+  const costY1 = annualTokenCost(a, selectedUseCases, 1);
+  const costFinal = annualTokenCost(a, selectedUseCases, finalYear);
   const be = breakEvenMonth(a, selectedUseCases);
   const beAdoption = breakEvenAdoption(a, selectedUseCases);
   const byAdoption = costValueByAdoption(a, selectedUseCases);
 
-  // Only models that actually carry task volume belong in the cost table.
-  // Inactive rows (0% share) — e.g. a restricted/placeholder model like Fable 5
-  // — contribute nothing to cost and would just bloat the slide; they stay
-  // visible/editable in the model-mix editor on the Inputs screen.
-  const activeMix = a.modelMix.filter((m) => m.sharePct > 0);
-  const table = {
-    columns: ["Model (editable)", "Share of tasks", "Input $/MTok", "Output $/MTok"],
-    rows: (activeMix.length > 0 ? activeMix : a.modelMix).map((m) => [
-      m.label,
-      fmtPercent(m.sharePct / 100),
-      `$${m.inputPricePerMTok}`,
-      `$${m.outputPricePerMTok}`,
-    ]),
-  };
+  // Lever before/after: cost with no caching + no batch vs the current settings.
+  const gross = annualTokenCost(
+    { ...a, cacheHitRatio: 0, batchShare: 0 },
+    selectedUseCases,
+    finalYear,
+  ).base;
+  const leverSavings = gross > 0 ? 1 - costFinal.base / gross : 0;
+
+  const cachePct = Math.round((a.cacheHitRatio ?? 0) * 100);
+  const batchPct = Math.round((a.batchShare ?? 0) * 100);
+  const inMTok = blendedInputPricePerMTok(a);
+  const outMTok = blendedOutputPricePerMTok(a);
+
+  // Per-use-case token arithmetic (the assumed driver). It lives in speaker
+  // notes + the editable cost-model panel rather than a slide table, so the
+  // cost-vs-adoption band chart stays the primary visual element on the slide.
+  const arithmetic = selectedUseCases
+    .map((uc) => {
+      const tok = tokensForUseCase(a, uc);
+      return `${uc.label} — ${fmtNumber(tok.input.base)} in / ${fmtNumber(tok.output.base)} out → ${fmtCurrencySmall(costPerTask(a, uc).base)}/task`;
+    })
+    .join("; ");
 
   const bandedCharts = [
     {
-      name: "Annual cost vs. adoption breadth (at mature usage depth)",
+      name: "Annual cost vs. adoption breadth (band = token / implementation range)",
       points: byAdoption.map(({ breadth, cost }) => ({
         x: fmtPercent(breadth),
         low: Math.round(cost.low),
@@ -66,20 +83,29 @@ export function costSection(ctx: ProposalContext): SectionOutput {
     implementationCost: a.implementationCost,
   };
 
+  // Per-use-case basis notes (the estimate rationale) → speaker notes, so an
+  // assumed token count is never presented as a sourced fact on the slide.
+  const basisNotes = selectedUseCases
+    .map((uc) => `${uc.label}: ${tokenDefaultFor(uc.id).basis}`)
+    .join("; ");
+
   return {
     id: "cost",
     kind: "cost",
     title: "Cost — Consumption-Based",
-    subtitle: "Pricing scales with usage: more adoption and heavier usage mean higher cost — by design",
+    subtitle:
+      "A WIDE range driven by implementation — tokens per task, caching, model mix, and adoption",
     bullets: [
-      `Cost = active users (breadth) × tasks per user (depth) × tokens per task × blended price per token`,
-      `Higher adoption raises cost — that is the consumption truth, and it is the success case: spend tracks realized usage, not shelfware seats`,
-      `Blended price per task is ${fmtCurrencySmall(pricePerTask)} at the current model mix — every price and share below is editable`,
-      `Break-even: value covers consumption plus the one-time implementation cost (${fmtCurrency(a.implementationCost.base)}) at ${fmtMonth(be.base)} in the base case`,
+      `Cost = active users × tasks per use case × tokens per task × blended $/token — every task that creates value also spends tokens`,
+      `Token volumes are ESTIMATES, not sourced facts: document-heavy tasks ingest source docs and emit long structured output, and a single agentic task can reach 400K–2M cumulative input tokens — the range is the message`,
+      `Sourceable: model prices ($5/$25, $3/$15, $1/$5 per MTok), ~90% cached-input discount, ~50% Batch discount, a 10-K ≈ 100–300K tokens. Assumed: docs/task, output length, adoption, model mix`,
+      `Levers applied — ${cachePct}% prompt-cache hit + ${batchPct}% Batch — cut blended cost ~${Math.round(leverSavings * 100)}% vs no levers (${fmtCurrency(gross)} → ${fmtCurrency(costFinal.base)}); a Haiku-heavy vs Opus-heavy mix swings cost ~5× per token`,
+      `Break-even: cumulative value covers consumption plus the one-time implementation cost (${fmtCurrency(a.implementationCost.base)}, amortized) at ${fmtMonth(be.base)} in the base case`,
     ],
     stats: [
-      { label: "Annual cost, Year 1", value: fmtRange(costY1) },
-      { label: `Annual cost, Year ${finalYear}`, value: fmtRange(costFinal) },
+      { label: "Annual cost, Year 1", value: fmtCurrency(costY1.base) },
+      { label: `Annual cost, Year ${finalYear}`, value: fmtCurrency(costFinal.base) },
+      { label: "Blended $/task (avg)", value: fmtCurrencySmall(avgCostPerTask(a, selectedUseCases)) },
       {
         label: "Break-even period",
         value: `${fmtMonth(be.base)} (optimistic ${fmtMonth(be.high)}, conservative ${fmtMonth(be.low)})`,
@@ -92,19 +118,22 @@ export function costSection(ctx: ProposalContext): SectionOutput {
             : `≥ ${fmtPercent(beAdoption)} of target users`,
       },
     ],
-    table,
     bandedCharts,
-    speakerNotes:
-      `Lead with the consumption framing: unlike per-seat SaaS, cost rises with adoption — which means the bill is an adoption ` +
-      `signal, not a fixed bet. The chart shows annual cost across adoption levels at mature usage depth; pair it with the value ` +
-      `line in the forecast. Model prices are placeholders to confirm against current published pricing before presenting.`,
     rangedFigures,
+    speakerNotes:
+      `Lead with the honesty: token volumes are estimates, not sourced facts — there is no public "tokens per DDQ" benchmark, ` +
+      `so credibility comes from showing the arithmetic and the levers, not from a number that doesn't exist. Blended list price is ` +
+      `~$${inMTok.toFixed(2)}/MTok in, $${outMTok.toFixed(2)}/MTok out before the ${cachePct}% cache / ${batchPct}% batch discounts. ` +
+      `Per-use-case arithmetic (base) — ${arithmetic}. Basis — ${basisNotes}. Every token volume, the cache/batch levers, the model ` +
+      `mix and prices are user-editable and persist with the proposal; walk the client through one row, then let them set their own ` +
+      `implementation assumptions.`,
     assumptionsUsed: [
       "adoptionBreadth",
       "usageDepth",
       "targetUserCount",
-      "avgTasksPerActiveUserPerMonth",
-      "avgTokensPerTask",
+      "per-use-case tokens (input/output, estimate — varies by implementation)",
+      "cacheHitRatio (~90% off cached input)",
+      "batchShare (~50% off)",
       "modelMix (prices and shares)",
       "implementationCost",
     ],

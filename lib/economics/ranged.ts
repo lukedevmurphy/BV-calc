@@ -70,3 +70,14 @@ export const ratioVsCost = (value: Ranged, cost: Ranged): Ranged => ({
 });
 
 const safeDiv = (n: number, d: number): number => (d === 0 ? 0 : n / d);
+
+/**
+ * Plausibility ceiling for the headline value-to-cost ratio. A credible AI
+ * business case lands in low-single to low-double-digit ROI; a 100×+ ratio
+ * signals cost understated or value overstated. Above this, surface a WARNING
+ * instead of a hero number that destroys credibility with a CFO.
+ */
+export const RATIO_CEILING = 30;
+
+export const ratioPlausible = (ratioBase: number): boolean =>
+  ratioBase <= RATIO_CEILING;

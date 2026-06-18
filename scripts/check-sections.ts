@@ -221,4 +221,23 @@ console.log(
   `scenario appendix: conservative value=${consValue?.value} (low), upside value=${upValue?.value} (high) ✓`,
 );
 
+// ── Ratio sanity (Part 4): an implausible ratio must WARN, never print bare ──
+const roi = byKind.forecast.rangedFigures?.roiFinalYear;
+const roiStat = (byKind.executive_summary.stats ?? []).find(
+  (s) => s.label === "Value-to-cost ratio",
+);
+if (roi && roi.base > 30) {
+  assert(
+    roiStat !== undefined && roiStat.value.includes("⚠"),
+    `implausible ratio (${roi.base.toFixed(0)}×) must show a warning, not a hero number`,
+  );
+  assert(
+    (byKind.executive_summary.bullets ?? []).some((b) => b.includes("exceeds the plausible ceiling")),
+    "implausible ratio must add a warning bullet",
+  );
+  console.log(`ratio sanity: ${roi.base.toFixed(0)}× > 30 → exec summary warns (no hero number) ✓`);
+} else {
+  console.log(`ratio sanity: ${roi ? roi.base.toFixed(1) + "×" : "n/a"} within ceiling ✓`);
+}
+
 console.log("Section contract holds across all 12. ✓");

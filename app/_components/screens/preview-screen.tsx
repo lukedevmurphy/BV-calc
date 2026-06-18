@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { SectionOutput } from "@/lib/types";
 import { READOUT_ORDER } from "@/lib/sections/index";
 import { scenarioAppendixSlides } from "@/lib/sections/scenario";
+import { planSection } from "@/lib/slide-fit/plan";
 import SlideView from "../slide-view";
 import ExportButton from "../export-button";
 
@@ -15,7 +16,7 @@ interface Props {
 }
 
 type Slide =
-  | { type: "section"; section: SectionOutput }
+  | { type: "section"; section: SectionOutput; fontScale: number }
   | { type: "divider" };
 
 function inferFinalYear(sections: SectionOutput[]): number {
@@ -45,12 +46,31 @@ export default function PreviewScreen({ sections, companyName, onBack }: Props) 
     const main = enabled.filter((s) => !s.appendix).sort((a, b) => rank(a.kind) - rank(b.kind));
     const appendixSecs = enabled.filter((s) => s.appendix).sort((a, b) => a.order - b.order);
     const scenarios = scenarioAppendixSlides(enabled, inferFinalYear(enabled));
-    const appendix = [...appendixSecs, ...scenarios];
 
-    const out: Slide[] = main.map((section) => ({ type: "section", section }));
-    if (appendix.length > 0) {
+    // Same slide-fit engine as /api/pptx, so the preview splits / summarizes /
+    // compacts exactly as the exported deck does (a slide that summarizes to an
+    // appendix on export does so here too).
+    const plannedMain = main.flatMap(planSection);
+    const plannedDragged = appendixSecs.flatMap(planSection);
+    const plannedScenarios = scenarios.flatMap(planSection);
+
+    const mainFlow = plannedMain.filter((p) => p.placement === "main");
+    const appendixFlow = [
+      ...plannedDragged,
+      ...plannedMain.filter((p) => p.placement === "appendix"),
+      ...plannedScenarios,
+    ];
+
+    const out: Slide[] = mainFlow.map((p) => ({
+      type: "section",
+      section: p.section,
+      fontScale: p.fontScale,
+    }));
+    if (appendixFlow.length > 0) {
       out.push({ type: "divider" });
-      appendix.forEach((section) => out.push({ type: "section", section }));
+      appendixFlow.forEach((p) =>
+        out.push({ type: "section", section: p.section, fontScale: p.fontScale }),
+      );
     }
     return out;
   }, [sections]);
@@ -100,7 +120,18 @@ export default function PreviewScreen({ sections, companyName, onBack }: Props) 
             <AppendixDividerSlide />
           ) : (
             <div className="h-full overflow-y-auto px-10 py-8">
-              <SlideView section={current.section} />
+              {/* Mirror the export's compaction: a compacted slide renders its
+                  content slightly smaller here too (zoom leaves the same
+                  shrink-to-fit footprint the PPTX shows). */}
+              <div
+                style={
+                  current.fontScale < 1
+                    ? ({ zoom: current.fontScale } as React.CSSProperties)
+                    : undefined
+                }
+              >
+                <SlideView section={current.section} />
+              </div>
             </div>
           )}
         </div>

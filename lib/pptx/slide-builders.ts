@@ -26,15 +26,27 @@ import type {
   TableData,
 } from "@/lib/types";
 import { fmtCurrency } from "@/lib/format";
-
-// ── Geometry ────────────────────────────────────────────────────────────────
-const PAGE_W = 13.33;
-const PAGE_H = 7.5;
-const MARGIN = 0.72;
-const CONTENT_W = PAGE_W - MARGIN * 2;
-const CONTENT_BOTTOM = PAGE_H - 0.62; // clear of the master footer rule
-const COL_GAP = 0.4;
-const LEFT_COL_W = 5.2;
+import {
+  PAGE_W,
+  PAGE_H,
+  MARGIN,
+  CONTENT_W,
+  CONTENT_BOTTOM,
+  COL_GAP,
+  LEFT_COL_W,
+  CARD_H,
+  STAT_ROW_EXTRA,
+  STRIP_H,
+  STRIP_PAD,
+  CHART_MIN,
+  TABLE_PT,
+  BULLET_PT,
+  STAT_VALUE_PT,
+  bulletsH,
+  tableH,
+  tableColWidths,
+  textBlockH,
+} from "@/lib/slide-fit/metrics";
 
 // ── Palette (mirrors app/globals.css / the HTML template) ──────────────────
 const IVORY = "FAF9F5";
@@ -59,56 +71,6 @@ const SERIES_HUES = [
   { base: "CC785C", edge: "ECC9BA" },
   { base: "C99A3F", edge: "E8D6AC" },
 ];
-
-// ── Text metrics (conservative estimates; pt → inches at 72pt/in) ──────────
-const lineH = (pt: number) => (1.42 * pt) / 72;
-const charsPerLine = (widthIn: number, pt: number) =>
-  Math.max(8, Math.floor(widthIn / (0.0074 * pt)));
-
-function textLines(text: string, widthIn: number, pt: number): number {
-  const cpl = charsPerLine(widthIn, pt);
-  return text
-    .split("\n")
-    .reduce((acc, ln) => acc + Math.max(1, Math.ceil(ln.length / cpl)), 0);
-}
-
-function textBlockH(text: string, widthIn: number, pt: number): number {
-  return textLines(text, widthIn, pt) * lineH(pt) + 0.08;
-}
-
-function bulletsH(bullets: string[], widthIn: number, pt: number): number {
-  const para = 0.11;
-  const usable = widthIn - 0.25;
-  return (
-    bullets.reduce((acc, b) => acc + textLines(b, usable, pt) * lineH(pt) + para, 0) +
-    0.12
-  );
-}
-
-function tableColWidths(cols: number, totalW: number): number[] {
-  const weights =
-    cols === 2 ? [0.45, 0.55]
-    : cols === 3 ? [0.4, 0.3, 0.3]
-    : cols === 4 ? [0.34, 0.22, 0.22, 0.22]
-    : Array.from({ length: cols }, () => 1 / cols);
-  return weights.map((w) => w * totalW);
-}
-
-const TABLE_FONT = 10;
-const CELL_PAD_H = 0.14;
-
-function tableH(table: TableData, totalW: number): number {
-  const colW = tableColWidths(table.columns.length, totalW);
-  const rowH = (cells: (string | number)[]) =>
-    Math.max(
-      ...cells.map((c, i) =>
-        textLines(String(c), Math.max(colW[i] - 0.15, 0.3), TABLE_FONT),
-      ),
-    ) *
-      lineH(TABLE_FONT) +
-    CELL_PAD_H;
-  return rowH(table.columns) + table.rows.reduce((acc, r) => acc + rowH(r), 0) + 0.1;
-}
 
 // ── Master slide (footer brand) ─────────────────────────────────────────────
 export const MASTER = "BVC";
@@ -286,6 +248,10 @@ export interface SectionSlideOpts {
   pageNo: number;
   /** Set for appendix sections — renders the "APPENDIX A{n} · …" kicker. */
   appendixIndex?: number;
+  /** Body-font compaction multiplier from the slide-fit engine (1 = none).
+   *  Scales bullets, table and stat-value text within a readable floor so a
+   *  slightly-over slide fits without splitting. */
+  fontScale?: number;
 }
 
 export function addSectionSlide(
@@ -294,6 +260,7 @@ export function addSectionSlide(
   opts: SectionSlideOpts,
 ): void {
   const slide = pptx.addSlide({ masterName: MASTER });
+  const scale = opts.fontScale ?? 1;
 
   const kicker = opts.appendixIndex
     ? `Appendix A${opts.appendixIndex} · ${s.title}`
@@ -312,13 +279,11 @@ export function addSectionSlide(
   // body, so the budget math keeps everything collision-free.
   const valueFig =
     s.kind === "executive_summary" ? s.rangedFigures?.annualValueFinalYear : undefined;
-  const STRIP_H = 1.12;
-  const bodyBottom = valueFig ? CONTENT_BOTTOM - STRIP_H - 0.18 : CONTENT_BOTTOM;
+  const bodyBottom = valueFig ? CONTENT_BOTTOM - STRIP_H - STRIP_PAD : CONTENT_BOTTOM;
 
   // Stats row — cream cards, big-ish serif clay-deep value, label beneath
   if (s.stats && s.stats.length > 0) {
     const gap = 0.18;
-    const cardH = 0.98;
     const w = (CONTENT_W - gap * (s.stats.length - 1)) / s.stats.length;
     s.stats.forEach((stat, i) => {
       const x = MARGIN + i * (w + gap);
@@ -326,7 +291,7 @@ export function addSectionSlide(
         x,
         y,
         w,
-        h: cardH,
+        h: CARD_H,
         rectRadius: 0.07,
         fill: { color: CREAM },
         line: { color: LINE, width: 0.75 },
@@ -336,7 +301,7 @@ export function addSectionSlide(
           {
             text: stat.value,
             options: {
-              fontSize: 12.5,
+              fontSize: STAT_VALUE_PT * scale,
               fontFace: SERIF,
               color: CLAY_DEEP,
               breakLine: true,
@@ -356,13 +321,14 @@ export function addSectionSlide(
           x: x + 0.14,
           y: y + 0.1,
           w: w - 0.28,
-          h: cardH - 0.2,
+          h: CARD_H - 0.2,
           valign: "top",
+          wrap: true,
           fit: "shrink",
         },
       );
     });
-    y += cardH + 0.22;
+    y += CARD_H + STAT_ROW_EXTRA;
   }
 
   const hasVisual =
@@ -374,16 +340,22 @@ export function addSectionSlide(
   const visX = twoCol ? MARGIN + LEFT_COL_W + COL_GAP : MARGIN;
   const visW = twoCol ? CONTENT_W - LEFT_COL_W - COL_GAP : CONTENT_W;
 
+  // Boxes are placed at their ESTIMATED NATURAL height (no clamping to the
+  // frame): the slide-fit engine guarantees the content fits at `scale`, so the
+  // natural height stays within bodyBottom — and if the estimate is ever wrong,
+  // the box visibly exceeds the frame and scripts/check-pptx flags it (rather
+  // than the old clamp silently hiding overflow behind shrink-to-nothing).
+  // wrap + fit remain as a per-box safety net for long unbreakable tokens.
   let ty = bodyTop;
   if (s.bullets && s.bullets.length > 0) {
-    const h = Math.min(bulletsH(s.bullets, textW, 11.5), bodyBottom - ty);
+    const h = bulletsH(s.bullets, textW, BULLET_PT * scale);
     slide.addText(
       s.bullets.map((b) => ({
         text: b,
         options: {
           bullet: { code: "2022", indent: 10, color: CLAY },
           breakLine: true,
-          paraSpaceAfter: 9,
+          paraSpaceAfter: 9 * scale,
         },
       })),
       {
@@ -391,12 +363,13 @@ export function addSectionSlide(
         y: ty,
         w: textW,
         h,
-        fontSize: 11.5,
+        fontSize: BULLET_PT * scale,
         fontFace: SANS,
         color: INK_SOFT,
         valign: "top",
+        wrap: true,
         fit: "shrink",
-        lineSpacingMultiple: 1.14,
+        lineSpacingMultiple: scale < 1 ? 1.06 : 1.14,
       },
     );
     ty += h + 0.12;
@@ -405,8 +378,8 @@ export function addSectionSlide(
   let vy = twoCol ? bodyTop : ty;
 
   if (s.table) {
-    const th = Math.min(tableH(s.table, visW), bodyBottom - vy);
-    addOpenTable(slide, s.table, visX, vy, visW);
+    const th = tableH(s.table, visW, TABLE_PT * scale);
+    addOpenTable(slide, s.table, visX, vy, visW, TABLE_PT * scale);
     vy += th + 0.2;
   }
 
@@ -416,7 +389,7 @@ export function addSectionSlide(
     const rightRemain = bodyBottom - vy;
     const useLeft = twoCol && leftRemain > rightRemain;
     const h = useLeft ? leftRemain : rightRemain;
-    if (h < 1.4) return null;
+    if (h < CHART_MIN) return null;
     if (useLeft) {
       const slot = { x: MARGIN, y: ty, w: textW, h };
       ty = bodyBottom;
@@ -479,12 +452,13 @@ function addOpenTable(
   x: number,
   y: number,
   w: number,
+  pt: number = TABLE_PT,
 ): void {
   const rows: PptxGenJS.TableRow[] = [
     table.columns.map((c) => ({
       text: c.toUpperCase(),
       options: {
-        fontSize: 7.5,
+        fontSize: Math.min(7.5, pt * 0.75),
         color: SLATE2,
         fontFace: SANS,
         charSpacing: 1.5,
@@ -497,7 +471,7 @@ function addOpenTable(
         text: String(cell),
         options: {
           fontFace: SANS,
-          fontSize: TABLE_FONT,
+          fontSize: pt,
           color: ci === 0 ? INK : INK_SOFT,
           bold: ci === 0,
           border: rowBorder,
@@ -827,13 +801,37 @@ export function addAppendixDivider(
     },
   );
 
-  appendixTitles.forEach((title, i) => {
+  // Lay the appendix index out in a bounded grid (≤ 3 per row, wrapping to a
+  // second row) so titles NEVER run off the right edge regardless of count.
+  const COLS = Math.min(3, Math.max(1, appendixTitles.length));
+  const gridGap = 0.3;
+  const cellW = (CONTENT_W - gridGap * (COLS - 1)) / COLS;
+  const rowH = 0.46;
+  const gridTop = 5.15;
+  const maxRows = 2;
+  const shown = appendixTitles.slice(0, COLS * maxRows);
+  shown.forEach((title, i) => {
+    const col = i % COLS;
+    const row = Math.floor(i / COLS);
+    const isOverflowLabel =
+      i === shown.length - 1 && appendixTitles.length > shown.length;
+    const label = isOverflowLabel
+      ? `+ ${appendixTitles.length - shown.length + 1} more`
+      : title;
     slide.addText(
       [
-        { text: `A${i + 1}  `, options: { fontSize: 16, fontFace: SERIF, color: CLAY } },
-        { text: title, options: { fontSize: 12.5, fontFace: SANS, color: "CFC9BB" } },
+        { text: `A${i + 1}  `, options: { fontSize: 15, fontFace: SERIF, color: CLAY } },
+        { text: label, options: { fontSize: 12, fontFace: SANS, color: "CFC9BB" } },
       ],
-      { x: MARGIN + i * 4.2, y: 5.35, w: 4.0, h: 0.4, valign: "middle", fit: "shrink" },
+      {
+        x: MARGIN + col * (cellW + gridGap),
+        y: gridTop + row * rowH,
+        w: cellW,
+        h: rowH,
+        valign: "middle",
+        wrap: true,
+        fit: "shrink",
+      },
     );
   });
 

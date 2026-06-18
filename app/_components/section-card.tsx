@@ -9,20 +9,57 @@ import SimpleChart from "./charts/simple-chart";
  * the same object drives the PPTX exporter, so anything shown here must come
  * from the structured fields, never ad-hoc per-section markup.
  */
-export default function SectionCard({ section }: { section: SectionOutput }) {
+export default function SectionCard({
+  section,
+  collapsed = false,
+  onToggleCollapse,
+}: {
+  section: SectionOutput;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
+}) {
   return (
     <article
       className="rounded-xl border border-line bg-surface p-6 shadow-card"
       data-section={section.kind}
     >
-      <header className="border-b border-line pb-3">
-        <h2 className="font-serif text-2xl font-semibold tracking-tight">
-          {section.title}
-        </h2>
-        {section.subtitle && (
-          <p className="mt-1 text-sm text-ink-secondary">{section.subtitle}</p>
+      <header
+        className={`flex items-start justify-between gap-3 ${
+          collapsed ? "" : "border-b border-line pb-3"
+        }`}
+      >
+        <div>
+          <h2 className="font-serif text-2xl font-semibold tracking-tight">
+            {section.title}
+          </h2>
+          {section.subtitle && !collapsed && (
+            <p className="mt-1 text-sm text-ink-secondary">{section.subtitle}</p>
+          )}
+        </div>
+        {onToggleCollapse && (
+          <button
+            onClick={onToggleCollapse}
+            title={collapsed ? "Expand section" : "Collapse section"}
+            aria-expanded={!collapsed}
+            className="mt-1 shrink-0 rounded p-1 text-ink-tertiary hover:bg-muted"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              className={`transition-transform ${collapsed ? "" : "rotate-180"}`}
+            >
+              <path d="M4 6l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
         )}
       </header>
+
+      {collapsed ? null : (
+        <>
 
       {section.stats && section.stats.length > 0 && (
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -117,6 +154,8 @@ export default function SectionCard({ section }: { section: SectionOutput }) {
             </p>
           )}
         </details>
+      )}
+        </>
       )}
     </article>
   );

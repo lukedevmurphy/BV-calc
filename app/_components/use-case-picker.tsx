@@ -73,7 +73,7 @@ export default function UseCasePicker({ selectedIds, onChange }: Props) {
               />
               <span>
                 <span className="block text-xs font-medium leading-snug">{uc.label}</span>
-                <span className="mt-1 flex flex-wrap gap-1">
+                <span className="mt-1 flex flex-wrap items-center gap-1">
                   {(uc.tags ?? []).map((t: UseCaseTag) => (
                     <span
                       key={t}
@@ -82,6 +82,18 @@ export default function UseCasePicker({ selectedIds, onChange }: Props) {
                       {t}
                     </span>
                   ))}
+                  {uc.source && (
+                    <a
+                      href={uc.source.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      title={uc.source.label}
+                      className="text-[9px] font-medium text-accent underline-offset-2 hover:underline"
+                    >
+                      source ↗
+                    </a>
+                  )}
                 </span>
               </span>
             </label>

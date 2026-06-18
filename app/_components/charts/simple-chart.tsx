@@ -3,6 +3,7 @@
 import {
   Bar,
   BarChart,
+  LabelList,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -29,7 +30,7 @@ export default function SimpleChart({ series }: { series: ChartSeries }) {
           <BarChart
             data={series.points}
             layout="vertical"
-            margin={{ top: 4, right: 24, bottom: 4, left: 8 }}
+            margin={{ top: 4, right: 64, bottom: 4, left: 8 }}
           >
             <XAxis
               type="number"
@@ -56,7 +57,17 @@ export default function SimpleChart({ series }: { series: ChartSeries }) {
               fill="var(--chart-value)"
               radius={[0, 4, 4, 0]}
               isAnimationActive={false}
-            />
+            >
+              {/* The value label is the visible signal that the bars track the
+                  sliders: bars scale proportionally so the auto-fit axis hides
+                  the change, but the dollar figure here updates live. */}
+              <LabelList
+                dataKey="y"
+                position="right"
+                formatter={(v) => fmt(Number(v))}
+                style={{ fontSize: 12, fill: "var(--text-secondary)" }}
+              />
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>

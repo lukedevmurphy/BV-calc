@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   DndContext,
   PointerSensor,
@@ -34,6 +35,19 @@ export default function SectionList({ sections, config, onConfigChange }: Props)
   );
   const ids = sections.map((s) => s.kind);
 
+  // Per-card collapse is pure preview state — it never touches sectionConfig,
+  // so it can't affect the pptx export or a saved proposal.
+  const [collapsed, setCollapsed] = useState<Set<SectionKind>>(new Set());
+  const collapseAll = () => setCollapsed(new Set(ids));
+  const expandAll = () => setCollapsed(new Set());
+  const toggleCollapse = (kind: SectionKind) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(kind)) next.delete(kind);
+      else next.add(kind);
+      return next;
+    });
+
   function handleDragEnd(e: DragEndEvent) {
     const { active, over } = e;
     if (!over || active.id === over.id) return;
@@ -54,9 +68,29 @@ export default function SectionList({ sections, config, onConfigChange }: Props)
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+        <div className="mb-3 flex items-center justify-end gap-2 text-xs">
+          <button
+            onClick={expandAll}
+            className="rounded-md border border-line px-2.5 py-1 font-medium text-ink-secondary hover:bg-muted"
+          >
+            Expand all
+          </button>
+          <button
+            onClick={collapseAll}
+            className="rounded-md border border-line px-2.5 py-1 font-medium text-ink-secondary hover:bg-muted"
+          >
+            Collapse all
+          </button>
+        </div>
         <div className="space-y-4">
           {sections.map((s) => (
-            <SortableSection key={s.kind} section={s} onToggle={() => toggle(s.kind)} />
+            <SortableSection
+              key={s.kind}
+              section={s}
+              collapsed={collapsed.has(s.kind)}
+              onToggle={() => toggle(s.kind)}
+              onToggleCollapse={() => toggleCollapse(s.kind)}
+            />
           ))}
         </div>
       </SortableContext>
@@ -66,10 +100,14 @@ export default function SectionList({ sections, config, onConfigChange }: Props)
 
 function SortableSection({
   section,
+  collapsed,
   onToggle,
+  onToggleCollapse,
 }: {
   section: SectionOutput;
+  collapsed: boolean;
   onToggle: () => void;
+  onToggleCollapse: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: section.kind });
@@ -108,7 +146,11 @@ function SortableSection({
       </div>
 
       {section.enabled ? (
-        <SectionCard section={section} />
+        <SectionCard
+          section={section}
+          collapsed={collapsed}
+          onToggleCollapse={onToggleCollapse}
+        />
       ) : (
         <div className="rounded-xl border border-dashed border-line bg-muted/60 px-6 py-3 text-sm text-ink-tertiary">
           {section.title} — excluded from preview and export

@@ -181,6 +181,7 @@ function addHeader(
   headline: string,
   lede: string | undefined,
   dark = false,
+  cornerTag?: string,
 ): number {
   let y = 0.55;
 
@@ -192,10 +193,39 @@ function addHeader(
     fill: { color: CLAY },
     line: { type: "none" },
   });
+  // A scenario "nugget" pill ("Base case" etc.) sits just LEFT of the page
+  // number; the kicker shrinks to leave room so no shapes overlap.
+  const nugW = 1.95;
+  const nugX = PAGE_W - MARGIN - 0.82 - nugW; // 0.82 = page-number width + gap
+  if (cornerTag) {
+    slide.addShape("roundRect", {
+      x: nugX,
+      y: y - 0.02,
+      w: nugW,
+      h: 0.34,
+      rectRadius: 0.17,
+      fill: { color: dark ? "26241D" : CREAM2 },
+      line: { color: dark ? DARK_FOOT_LINE : LINE2, width: 0.75 },
+    });
+    slide.addText(cornerTag.toUpperCase(), {
+      x: nugX,
+      y: y - 0.02,
+      w: nugW,
+      h: 0.34,
+      fontSize: 8,
+      bold: true,
+      fontFace: SANS,
+      color: dark ? CLAY : CLAY_DEEP,
+      align: "center",
+      valign: "middle",
+      charSpacing: 2,
+      fit: "shrink",
+    });
+  }
   slide.addText(kicker.toUpperCase(), {
     x: MARGIN + 0.42,
     y,
-    w: CONTENT_W - 1.5,
+    w: cornerTag ? nugX - (MARGIN + 0.42) - 0.2 : CONTENT_W - 1.5,
     h: 0.26,
     fontSize: 10.5,
     bold: true,
@@ -268,7 +298,15 @@ export function addSectionSlide(
   const kicker = opts.appendixIndex
     ? `Appendix A${opts.appendixIndex} · ${s.title}`
     : s.title;
-  let y = addHeader(slide, kicker, opts.pageNo, s.subtitle ?? s.title, s.narrative);
+  let y = addHeader(
+    slide,
+    kicker,
+    opts.pageNo,
+    s.subtitle ?? s.title,
+    s.narrative,
+    false,
+    s.scenarioTag,
+  );
 
   // Exec-summary value strip is reserved at the bottom before laying out the
   // body, so the budget math keeps everything collision-free.

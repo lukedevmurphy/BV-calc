@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import type { SectionOutput } from "@/lib/types";
 import { READOUT_ORDER } from "@/lib/sections/index";
-import SectionCard from "../section-card";
+import { scenarioAppendixSlides } from "@/lib/sections/scenario";
+import SlideView from "../slide-view";
 import ExportButton from "../export-button";
 
 interface Props {
@@ -13,41 +14,59 @@ interface Props {
   onBack: () => void;
 }
 
+type Slide =
+  | { type: "section"; section: SectionOutput }
+  | { type: "divider" };
+
+function inferFinalYear(sections: SectionOutput[]): number {
+  let max = 0;
+  for (const s of sections)
+    for (const st of s.stats ?? []) {
+      const m = st.label.match(/Y(?:ear)?\s*(\d+)/i);
+      if (m) max = Math.max(max, Number(m[1]));
+    }
+  return max || 3;
+}
+
 /**
- * Presentation-mode slideshow. Renders the SAME SectionOutput objects as the
- * Build screen, one per slide, but RE-SEQUENCED into readout order (lead with
- * value, then where it comes from, cost, break-even, the ask, then narrative).
- * Opens on the Executive Summary. Export to PowerPoint lives here, at the end,
- * and uses the normal build order via the unchanged /api/pptx path.
+ * Presentation-mode slideshow — a full-frame, 16:9 what-you-see-is-what-you-
+ * export view of the deck. MAIN deck is re-sequenced into readout order (value
+ * first), opens on the Executive Summary; the APPENDIX (sections dragged below
+ * the divider, plus the auto-generated conservative / upside scenario slides)
+ * follows a dark divider slide — exactly the order /api/pptx exports.
  */
 export default function PreviewScreen({ sections, companyName, onBack }: Props) {
-  const enabled = sections.filter((s) => s.enabled);
-
-  // Readout sequence for the on-screen slideshow only.
-  const slides = useMemo(() => {
+  const slides: Slide[] = useMemo(() => {
+    const enabled = sections.filter((s) => s.enabled);
     const rank = (k: SectionOutput["kind"]) => {
       const i = READOUT_ORDER.indexOf(k);
       return i === -1 ? Number.MAX_SAFE_INTEGER : i;
     };
-    return [...enabled].sort((a, b) => rank(a.kind) - rank(b.kind));
-  }, [enabled]);
+    const main = enabled.filter((s) => !s.appendix).sort((a, b) => rank(a.kind) - rank(b.kind));
+    const appendixSecs = enabled.filter((s) => s.appendix).sort((a, b) => a.order - b.order);
+    const scenarios = scenarioAppendixSlides(enabled, inferFinalYear(enabled));
+    const appendix = [...appendixSecs, ...scenarios];
+
+    const out: Slide[] = main.map((section) => ({ type: "section", section }));
+    if (appendix.length > 0) {
+      out.push({ type: "divider" });
+      appendix.forEach((section) => out.push({ type: "section", section }));
+    }
+    return out;
+  }, [sections]);
 
   const [i, setI] = useState(0);
   const last = slides.length - 1;
   const clampedI = Math.min(i, Math.max(0, last));
   const current = slides[clampedI];
 
-  const prev = () => setI((n) => Math.max(0, n - 1));
-  const next = () => setI((n) => Math.min(last, n + 1));
-
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight" || e.key === "PageDown") next();
-      else if (e.key === "ArrowLeft" || e.key === "PageUp") prev();
+      if (e.key === "ArrowRight" || e.key === "PageDown") setI((n) => Math.min(last, n + 1));
+      else if (e.key === "ArrowLeft" || e.key === "PageUp") setI((n) => Math.max(0, n - 1));
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [last]);
 
   if (!current) {
@@ -67,19 +86,27 @@ export default function PreviewScreen({ sections, companyName, onBack }: Props) 
   }
 
   const atEnd = clampedI === last;
+  const label =
+    current.type === "divider"
+      ? "Appendix"
+      : current.section.title.split("—")[0].trim();
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-6">
-      {/* Slide stage */}
+    <div className="mx-auto max-w-[1120px] px-6 py-5">
       <div className="relative">
-        <div className="min-h-[60vh] rounded-2xl border border-line bg-surface p-2 shadow-card">
-          {/* Reuse the section component, expanded, no collapse control. */}
-          <SectionCard section={current} />
+        {/* 16:9 slide frame — fills the stage like a slide being presented */}
+        <div className="aspect-[16/9] w-full overflow-hidden rounded-2xl border border-line bg-surface shadow-card">
+          {current.type === "divider" ? (
+            <AppendixDividerSlide />
+          ) : (
+            <div className="h-full overflow-y-auto px-10 py-8">
+              <SlideView section={current.section} />
+            </div>
+          )}
         </div>
 
-        {/* On-screen arrows */}
         <button
-          onClick={prev}
+          onClick={() => setI((n) => Math.max(0, n - 1))}
           disabled={clampedI === 0}
           aria-label="Previous slide"
           className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-line bg-canvas p-2 shadow-card hover:bg-muted disabled:opacity-30"
@@ -89,7 +116,7 @@ export default function PreviewScreen({ sections, companyName, onBack }: Props) 
           </svg>
         </button>
         <button
-          onClick={next}
+          onClick={() => setI((n) => Math.min(last, n + 1))}
           disabled={atEnd}
           aria-label="Next slide"
           className="absolute right-0 top-1/2 translate-x-1/2 -translate-y-1/2 rounded-full border border-line bg-canvas p-2 shadow-card hover:bg-muted disabled:opacity-30"
@@ -100,7 +127,6 @@ export default function PreviewScreen({ sections, companyName, onBack }: Props) 
         </button>
       </div>
 
-      {/* Footer: back, position, dots, export-at-end */}
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
         <button
           onClick={onBack}
@@ -111,12 +137,12 @@ export default function PreviewScreen({ sections, companyName, onBack }: Props) 
 
         <div className="flex items-center gap-3 text-xs text-ink-secondary">
           <span>
-            Slide {clampedI + 1} / {slides.length} · {current.title.split("—")[0].trim()}
+            Slide {clampedI + 1} / {slides.length} · {label}
           </span>
           <span className="hidden items-center gap-1 sm:flex">
             {slides.map((s, idx) => (
               <button
-                key={s.kind}
+                key={idx}
                 onClick={() => setI(idx)}
                 aria-label={`Go to slide ${idx + 1}`}
                 className={`h-1.5 w-1.5 rounded-full ${idx === clampedI ? "bg-accent" : "bg-line-strong"}`}
@@ -126,11 +152,30 @@ export default function PreviewScreen({ sections, companyName, onBack }: Props) 
           <span className="text-ink-tertiary">use ← → keys</span>
         </div>
 
-        {/* Export lives at the end of Preview (highlighted on the last slide). */}
-        <div className={atEnd ? "" : "opacity-90"}>
-          <ExportButton companyName={companyName} sections={sections} />
-        </div>
+        {/* Export to PowerPoint lives at the end of Preview. */}
+        <ExportButton companyName={companyName} sections={sections} />
       </div>
+    </div>
+  );
+}
+
+/** Dark appendix divider slide — mirrors addAppendixDivider in the pptx deck. */
+function AppendixDividerSlide() {
+  return (
+    <div className="flex h-full flex-col justify-center bg-ink px-12 py-10 text-surface">
+      <div className="flex items-center gap-2">
+        <span className="h-0.5 w-5 rounded-full bg-accent-bright" />
+        <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-accent-bright">
+          Appendix
+        </span>
+      </div>
+      <h2 className="mt-3 font-serif text-4xl font-semibold tracking-tight text-surface">
+        The numbers behind the case.
+      </h2>
+      <p className="mt-3 max-w-xl text-sm text-surface/70">
+        Scenario modeling and supporting detail — including the conservative and upside
+        cases — for the teams who want to pressure-test the plan.
+      </p>
     </div>
   );
 }

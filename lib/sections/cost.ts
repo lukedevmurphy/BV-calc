@@ -7,6 +7,7 @@ import {
   costValueByAdoption,
 } from "@/lib/economics/engine";
 import {
+  fmtCurrency,
   fmtCurrencySmall,
   fmtMonth,
   fmtPercent,
@@ -74,7 +75,7 @@ export function costSection(ctx: ProposalContext): SectionOutput {
       `Cost = active users (breadth) × tasks per user (depth) × tokens per task × blended price per token`,
       `Higher adoption raises cost — that is the consumption truth, and it is the success case: spend tracks realized usage, not shelfware seats`,
       `Blended price per task is ${fmtCurrencySmall(pricePerTask)} at the current model mix — every price and share below is editable`,
-      `Break-even: value covers consumption plus the one-time implementation cost (${fmtRange(a.implementationCost)}) at ${fmtMonth(be.base)} in the base case`,
+      `Break-even: value covers consumption plus the one-time implementation cost (${fmtCurrency(a.implementationCost.base)}) at ${fmtMonth(be.base)} in the base case`,
     ],
     stats: [
       { label: "Annual cost, Year 1", value: fmtRange(costY1) },

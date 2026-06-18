@@ -1,6 +1,6 @@
 import type { ProposalContext, SectionOutput } from "@/lib/types";
 import { annualValueByUseCase } from "@/lib/economics/engine";
-import { fmtRange } from "@/lib/format";
+import { fmtCurrency, fmtRange } from "@/lib/format";
 
 /**
  * Value aligned to demand: maps each value driver to the concrete
@@ -20,7 +20,7 @@ export function proposalSection(ctx: ProposalContext): SectionOutput {
     bullets: [
       `Nothing below is generic AI enthusiasm: every row pairs a workflow you run today with the value it returns and the ask that unlocks it`,
       totalValue
-        ? `Total annual value at maturity: ${fmtRange(totalValue)} — the asks are small relative to what they unlock`
+        ? `Total annual value at maturity: ${fmtCurrency(totalValue.base)} — the asks are small relative to what they unlock`
         : `The asks are small relative to the value they unlock`,
       `The first ask is not budget — it is access: the documents, the systems, and two hours a week from the people who do the work`,
     ],

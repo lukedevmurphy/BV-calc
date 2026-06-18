@@ -166,7 +166,11 @@ export type SectionKind =
   | "cost"
   | "forecast"
   | "roadmap"
-  | "next_steps";
+  | "next_steps"
+  // Auto-generated scenario appendix slides (not user-configurable; produced by
+  // lib/sections/scenario.ts for Preview + export, never by computeAllSections).
+  | "scenario_conservative"
+  | "scenario_upside";
 
 export interface TableData {
   columns: string[];
@@ -221,6 +225,13 @@ export interface SectionOutput {
   assumptionsUsed?: string[];
   order: number;
   enabled: boolean;
+  /** Appendix placement (stamped from sectionConfig): true → renders after the
+   *  main deck, behind the appendix divider, in both Preview and pptx. */
+  appendix?: boolean;
+  /** Corner "nugget" label naming the scenario shown — "Base case" on the main
+   *  deck, "Conservative case" / "Upside case" on the auto-generated scenario
+   *  appendix slides. Exec summary (full range) carries none. */
+  scenarioTag?: string;
 }
 
 // ── Module contract ──────────────────────────────────────────────────────────
@@ -249,6 +260,9 @@ export interface SectionConfigEntry {
   kind: SectionKind;
   order: number;
   enabled: boolean;
+  /** True → this section sits in the appendix lane (after the appendix divider
+   *  on the Build screen, and after the main deck in Preview / export). */
+  appendix?: boolean;
 }
 
 export interface ProposalPayload {

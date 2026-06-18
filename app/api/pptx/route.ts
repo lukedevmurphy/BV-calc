@@ -1,6 +1,6 @@
 import PptxGenJS from "pptxgenjs";
-import type { SectionKind, SectionOutput } from "@/lib/types";
-import { APPENDIX_KINDS } from "@/lib/sections/index";
+import type { SectionOutput } from "@/lib/types";
+import { scenarioAppendixSlides } from "@/lib/sections/scenario";
 import {
   addAppendixDivider,
   addSectionSlide,
@@ -40,18 +40,15 @@ export async function POST(req: Request): Promise<Response> {
     .filter((s) => s.enabled)
     .sort((a, b) => a.order - b.order);
 
-  // Appendix = the trailing run of appendix-kind sections (scenario detail,
-  // consumption economics). If the user reorders them into the main flow,
-  // they render as ordinary slides and no divider appears.
-  let appendixStart = sections.length;
-  while (
-    appendixStart > 0 &&
-    APPENDIX_KINDS.has(sections[appendixStart - 1].kind as SectionKind)
-  ) {
-    appendixStart--;
-  }
-  const main = sections.slice(0, appendixStart);
-  const appendix = sections.slice(appendixStart);
+  // Appendix lane = sections the user dragged below the appendix divider
+  // (s.appendix), in order, PLUS the auto-generated conservative / upside
+  // scenario slides that carry the low / high figures. Main deck shows the base
+  // case only; the divider appears whenever the appendix is non-empty.
+  const main = sections.filter((s) => !s.appendix);
+  const draggedAppendix = sections.filter((s) => s.appendix);
+  const finalYear = inferFinalYear(sections);
+  const scenarios = scenarioAppendixSlides(sections, finalYear);
+  const appendix: SectionOutput[] = [...draggedAppendix, ...scenarios];
 
   addTitleSlide(pptx, body.companyName, sections.length);
 
@@ -87,4 +84,17 @@ export async function POST(req: Request): Promise<Response> {
 
 function slugify(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "proposal";
+}
+
+/** Horizon year, read from the "Year N" / "YN" stat labels the sections emit
+ *  (so the scenario slides label their figures consistently). Defaults to 3. */
+function inferFinalYear(sections: SectionOutput[]): number {
+  let max = 0;
+  for (const s of sections) {
+    for (const st of s.stats ?? []) {
+      const m = st.label.match(/Y(?:ear)?\s*(\d+)/i);
+      if (m) max = Math.max(max, Number(m[1]));
+    }
+  }
+  return max || 3;
 }

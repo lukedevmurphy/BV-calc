@@ -12,7 +12,7 @@ export function roadmapSection(ctx: ProposalContext): SectionOutput {
 
   const rows = a.adoptionBreadth.map((p, i) => {
     const phase = phases[Math.min(i, phases.length - 1)];
-    const target = `${fmtPercent(p.low)}–${fmtPercent(p.high)} of ${a.targetUserCount.toLocaleString("en-US")} users (base ${fmtPercent(p.base)})`;
+    const target = `${fmtPercent(p.base)} of ${a.targetUserCount.toLocaleString("en-US")} users`;
     return [phase, `Year ${p.year}`, target, focusFor(i, selectedUseCases.length)];
   });
 
@@ -27,7 +27,7 @@ export function roadmapSection(ctx: ProposalContext): SectionOutput {
       `Consumption pricing makes the ramp self-regulating: spend follows real usage at every phase`,
     ],
     table: {
-      columns: ["Phase", "Timeframe", "Adoption target (low–high)", "Focus"],
+      columns: ["Phase", "Timeframe", "Adoption target", "Focus"],
       rows,
     },
     speakerNotes:

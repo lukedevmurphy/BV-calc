@@ -55,8 +55,9 @@ async function main() {
   const slideNames = Object.keys(zip.files).filter((f) =>
     /^ppt\/slides\/slide\d+\.xml$/.test(f),
   );
-  // cover + 10 main sections + appendix divider + 2 appendix sections
-  assert.strictEqual(slideNames.length, 14, `expected 14 slides, got ${slideNames.length}`);
+  // cover + 10 main sections + appendix divider + 2 appendix sections (forecast,
+  // cost) + 2 auto-generated scenario slides (conservative, upside) = 16
+  assert.strictEqual(slideNames.length, 16, `expected 16 slides, got ${slideNames.length}`);
 
   const allSlidesXml = (
     await Promise.all(slideNames.map((n) => zip.files[n].async("string")))
@@ -106,6 +107,12 @@ async function main() {
     slides.includes(ILLUSTRATIVE_FLAG),
     "illustrative-seed provenance flag present in exported deck",
   );
+
+  // Part 4: the main deck shows the base case behind a "Base case" nugget; the
+  // conservative / upside detail relocates to auto-generated appendix slides.
+  assert(slides.includes("BASE CASE"), "Base-case nugget present on main slides");
+  assert(slides.includes("Conservative Case"), "Conservative case appendix slide present");
+  assert(slides.includes("Upside Case"), "Upside case appendix slide present");
 
   // LAYOUT INVARIANT: no two shapes on a slide may overlap. Parse each
   // slide's shape tree (sp / pic / graphicFrame bounding boxes in EMU) and

@@ -10,6 +10,8 @@ import {
   defaultSectionConfig,
 } from "@/lib/sections/index";
 import { resolveSubIndustry } from "@/lib/value-model/sub-industry";
+import { scenarioAppendixSlides } from "@/lib/sections/scenario";
+import { fmtCurrency } from "@/lib/format";
 import type { CompanyProfile, Ranged, ValueApproach } from "@/lib/types";
 
 const demoCompany: CompanyProfile = {
@@ -51,21 +53,31 @@ assert(byKind.cost.rangedFigures?.annualCostFinalYear, "cost figures exposed");
 assert((byKind.cost.assumptionsUsed ?? []).length >= 5, "cost audit trail");
 assert(byKind.forecast.bandedCharts?.length === 2, "forecast has value+cost bands");
 
-// Exec summary must exactly match the sections it summarizes (it runs last
-// and assembles deterministically — verify the contract holds).
+// Scenario display (Part 4): the Exec Summary shows the FULL range; every other
+// main slide shows the BASE case only + a "Base case" nugget. The underlying
+// ranged data is unchanged, so the bases must still agree.
 const execStats = byKind.executive_summary.stats ?? [];
 const valueStat = execStats.find((s) => s.label.startsWith("Annual value"));
 const bvStat = (byKind.business_value.stats ?? []).find((s) =>
   s.label.startsWith("Annual value, Year 3"),
 );
-assert(valueStat && bvStat && valueStat.value === bvStat.value,
-  "exec summary value matches business_value exactly");
-const costStat = execStats.find((s) => s.label.startsWith("Annual cost"));
-const costSectionStat = (byKind.cost.stats ?? []).find((s) =>
-  s.label.startsWith("Annual cost, Year 3"),
+const isRange = (v: string) => /\(.*–.*\)/.test(v);
+assert(valueStat && isRange(valueStat.value), "exec summary shows the full range");
+assert(bvStat && !isRange(bvStat.value), "business_value shows base case only (no inline range)");
+assert(
+  byKind.executive_summary.scenarioTag === undefined,
+  "exec summary carries no scenario nugget",
 );
-assert(costStat && costSectionStat && costStat.value === costSectionStat.value,
-  "exec summary cost matches cost section exactly");
+assert(byKind.business_value.scenarioTag === "Base case", "business_value tagged Base case");
+// Same underlying base despite different display.
+assert(
+  byKind.executive_summary.rangedFigures!.annualValueFinalYear.base ===
+    byKind.business_value.rangedFigures!.annualValueFinalYear.base,
+  "exec summary and business_value share the same base value",
+);
+// Cost slide is base-only too.
+const costStat = (byKind.cost.stats ?? []).find((s) => s.label.startsWith("Annual cost, Year 3"));
+assert(costStat && !isRange(costStat.value), "cost shows base case only");
 
 // Default ordering: exec summary first on the page, computed last
 assert.strictEqual(sections[0].kind, "executive_summary", "exec summary ordered first");
@@ -192,6 +204,21 @@ assert(
 console.log(
   `reinvestment re-routes composition (total unchanged ${Math.round(capacity.total) === Math.round(offset.total)}):\n` +
     `  capacity: ${capacity.composition}\n  offset:   ${offset.composition} ✓`,
+);
+
+// ── Scenario appendix slides carry the low / high figures (Part 4) ───────────
+const scenarios = scenarioAppendixSlides(sections, DEFAULT_ASSUMPTIONS.horizonYears);
+assert.strictEqual(scenarios.length, 2, "two scenario appendix slides generated");
+const [conservative, upside] = scenarios;
+assert(conservative.scenarioTag === "Conservative case" && conservative.appendix, "conservative slide tagged + appendix");
+assert(upside.scenarioTag === "Upside case" && upside.appendix, "upside slide tagged + appendix");
+const bvRange = byKind.business_value.rangedFigures!.annualValueFinalYear;
+const consValue = (conservative.stats ?? []).find((s) => s.label.startsWith("Annual value"));
+const upValue = (upside.stats ?? []).find((s) => s.label.startsWith("Annual value"));
+assert(consValue?.value === fmtCurrency(bvRange.low), "conservative slide shows LOW value");
+assert(upValue?.value === fmtCurrency(bvRange.high), "upside slide shows HIGH value");
+console.log(
+  `scenario appendix: conservative value=${consValue?.value} (low), upside value=${upValue?.value} (high) ✓`,
 );
 
 console.log("Section contract holds across all 12. ✓");

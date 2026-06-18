@@ -26,20 +26,22 @@ interface Props {
   onConfigChange: (config: SectionConfigEntry[]) => void;
 }
 
+const DIVIDER_ID = "__appendix_divider__";
+
 /**
- * The Build screen body — FLIPPED layout: the section list / nav lives on the
- * LEFT (drag to reorder, toggle to include/exclude, click to jump), the section
- * work / edit area (the cards) on the RIGHT. Reordering rewrites the shared
- * sectionConfig so web preview and pptx export stay in lockstep.
+ * The Build screen body — FLIPPED layout (nav left, cards right). The left nav
+ * has an APPENDIX LANE: a draggable divider splits the list, sections dragged
+ * BELOW it become appendix content (rendered after the main deck in Preview and
+ * export). Reordering / re-laning rewrites sectionConfig so all consumers stay
+ * in lockstep.
  */
 export default function SectionList({ sections, config, onConfigChange }: Props) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
   );
-  const ids = sections.map((s) => s.kind);
 
   const [collapsed, setCollapsed] = useState<Set<SectionKind>>(new Set());
-  const collapseAll = () => setCollapsed(new Set(ids));
+  const collapseAll = () => setCollapsed(new Set(sections.map((s) => s.kind)));
   const expandAll = () => setCollapsed(new Set());
   const toggleCollapse = (kind: SectionKind) =>
     setCollapsed((prev) => {
@@ -62,13 +64,36 @@ export default function SectionList({ sections, config, onConfigChange }: Props)
     }, 0);
   };
 
+  const ordered = [...sections].sort((a, b) => a.order - b.order);
+  const main = ordered.filter((s) => !s.appendix);
+  const appendix = ordered.filter((s) => s.appendix);
+  // Sortable list: main kinds, the divider sentinel, then appendix kinds.
+  const navIds = [
+    ...main.map((s) => s.kind as string),
+    DIVIDER_ID,
+    ...appendix.map((s) => s.kind as string),
+  ];
+
   function handleDragEnd(e: DragEndEvent) {
     const { active, over } = e;
     if (!over || active.id === over.id) return;
-    const oldIndex = ids.indexOf(active.id as SectionKind);
-    const newIndex = ids.indexOf(over.id as SectionKind);
-    const newOrder = arrayMove(ids, oldIndex, newIndex);
-    onConfigChange(config.map((c) => ({ ...c, order: newOrder.indexOf(c.kind) })));
+    const moved = arrayMove(
+      navIds,
+      navIds.indexOf(active.id as string),
+      navIds.indexOf(over.id as string),
+    );
+    const divIdx = moved.indexOf(DIVIDER_ID);
+    let order = 0;
+    const updates = new Map<string, { order: number; appendix: boolean }>();
+    moved.forEach((id, i) => {
+      if (id === DIVIDER_ID) return;
+      updates.set(id, { order: order++, appendix: i > divIdx });
+    });
+    onConfigChange(
+      config.map((c) =>
+        updates.has(c.kind) ? { ...c, ...updates.get(c.kind)! } : c,
+      ),
+    );
   }
 
   function toggle(kind: SectionKind) {
@@ -77,9 +102,25 @@ export default function SectionList({ sections, config, onConfigChange }: Props)
     );
   }
 
+  const renderCard = (s: SectionOutput) => (
+    <div key={s.kind} id={`section-${s.kind}`} className="scroll-mt-24">
+      {s.enabled ? (
+        <SectionCard
+          section={s}
+          collapsed={collapsed.has(s.kind)}
+          onToggleCollapse={() => toggleCollapse(s.kind)}
+        />
+      ) : (
+        <div className="rounded-xl border border-dashed border-line bg-muted/60 px-6 py-3 text-sm text-ink-tertiary">
+          {s.title} — excluded from preview and export
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
-      {/* LEFT — section nav / control */}
+      {/* LEFT — section nav / control with appendix lane */}
       <aside className="lg:sticky lg:top-20 lg:h-fit lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto rounded-xl border border-line bg-surface p-3 shadow-card">
         <div className="mb-2 flex items-center justify-between">
           <h2 className="text-sm font-semibold">Sections</h2>
@@ -99,9 +140,18 @@ export default function SectionList({ sections, config, onConfigChange }: Props)
           </div>
         </div>
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+          <SortableContext items={navIds} strategy={verticalListSortingStrategy}>
             <ul className="space-y-1">
-              {sections.map((s) => (
+              {main.map((s) => (
+                <SortableNavItem
+                  key={s.kind}
+                  section={s}
+                  onToggle={() => toggle(s.kind)}
+                  onJump={() => jumpTo(s.kind)}
+                />
+              ))}
+              <AppendixDivider count={appendix.length} />
+              {appendix.map((s) => (
                 <SortableNavItem
                   key={s.kind}
                   section={s}
@@ -112,27 +162,64 @@ export default function SectionList({ sections, config, onConfigChange }: Props)
             </ul>
           </SortableContext>
         </DndContext>
+        <p className="mt-2 px-1 text-[10px] leading-snug text-ink-tertiary">
+          Drag a section below the divider to move it into the appendix. Conservative
+          &amp; upside scenario slides are appended automatically.
+        </p>
       </aside>
 
-      {/* RIGHT — section work / edit area */}
+      {/* RIGHT — section work / edit area (main, then the appendix lane) */}
       <div className="space-y-4">
-        {sections.map((s) => (
-          <div key={s.kind} id={`section-${s.kind}`} className="scroll-mt-24">
-            {s.enabled ? (
-              <SectionCard
-                section={s}
-                collapsed={collapsed.has(s.kind)}
-                onToggleCollapse={() => toggleCollapse(s.kind)}
-              />
-            ) : (
-              <div className="rounded-xl border border-dashed border-line bg-muted/60 px-6 py-3 text-sm text-ink-tertiary">
-                {s.title} — excluded from preview and export
-              </div>
-            )}
-          </div>
-        ))}
+        {main.map(renderCard)}
+        <div className="flex items-center gap-3 pt-2">
+          <span className="h-px flex-1 bg-line-strong" />
+          <span className="rounded-full border border-line-strong bg-muted px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-ink-secondary">
+            Appendix
+          </span>
+          <span className="h-px flex-1 bg-line-strong" />
+        </div>
+        {appendix.length > 0 ? (
+          appendix.map(renderCard)
+        ) : (
+          <p className="text-center text-xs text-ink-tertiary">
+            No appendix sections — drag one below the divider in the section list.
+          </p>
+        )}
       </div>
     </div>
+  );
+}
+
+/** The draggable appendix divider — main-deck sections above it, appendix below. */
+function AppendixDivider({ count }: { count: number }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: DIVIDER_ID });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : undefined,
+  };
+  return (
+    <li
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className="my-1 flex cursor-grab items-center gap-2 rounded-md border border-dashed border-accent/60 bg-accent-soft px-1.5 py-1 active:cursor-grabbing"
+    >
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" className="text-accent">
+        <circle cx="5" cy="3" r="1.5" />
+        <circle cx="11" cy="3" r="1.5" />
+        <circle cx="5" cy="8" r="1.5" />
+        <circle cx="11" cy="8" r="1.5" />
+        <circle cx="5" cy="13" r="1.5" />
+        <circle cx="11" cy="13" r="1.5" />
+      </svg>
+      <span className="flex-1 text-[11px] font-semibold uppercase tracking-wide text-accent">
+        Appendix divider
+      </span>
+      <span className="text-[10px] text-ink-tertiary">{count}</span>
+    </li>
   );
 }
 
@@ -166,7 +253,7 @@ function SortableNavItem({
       <button
         {...attributes}
         {...listeners}
-        title="Drag to reorder"
+        title="Drag to reorder / move to appendix"
         className="cursor-grab rounded p-0.5 text-ink-tertiary hover:bg-muted active:cursor-grabbing"
       >
         <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">

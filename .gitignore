@@ -27,6 +27,9 @@ npm-debug.log*
 # local verification artifacts
 scripts/out-proposal.pptx
 
+# exported workflow screenshots (for design review, not source)
+/UserWorkflow/
+
 # local Claude Code guidance — kept private
 CLAUDE.md
 

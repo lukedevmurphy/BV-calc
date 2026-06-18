@@ -5,7 +5,6 @@ import {
   DEFAULT_REALIZATION_FACTOR,
   DEFAULT_UPLIFT_PCT,
   UNCITED,
-  poolTemplatesForIndustry,
 } from "@/lib/value-model/constants";
 
 // TODO: confirm current Claude model names + pricing at build time — do not
@@ -73,14 +72,13 @@ export const DEFAULT_ASSUMPTIONS: ScenarioAssumptions = {
 };
 
 /**
- * Static fallback value-model inputs (top_down / middle approaches). Used as
- * builder initial state before company pre-fill runs, and by computeAllSections
- * when no valueModel is supplied (e.g. verification scripts / pre-feature saved
+ * Static fallback value-model inputs (top_down approach). Used as builder
+ * initial state before company pre-fill runs, and by computeAllSections when no
+ * valueModel is supplied (e.g. verification scripts / pre-feature saved
  * payloads). bottom_up never reads it. Topline sized off a 1,000-person labor
- * base; pool sizes split half that base across the generic templates.
+ * base.
  */
 const DEFAULT_TOPLINE_BASE = 180_000_000; // 1,000 × ~$180k loaded annual cost
-const defaultPoolTemplates = poolTemplatesForIndustry(undefined);
 
 export const DEFAULT_VALUE_MODEL: ValueModelInputs = {
   topline: ranged(
@@ -92,11 +90,4 @@ export const DEFAULT_VALUE_MODEL: ValueModelInputs = {
   upliftPct: DEFAULT_UPLIFT_PCT,
   upliftSource: UNCITED,
   realizationFactor: DEFAULT_REALIZATION_FACTOR,
-  valuePools: defaultPoolTemplates.map((t) => {
-    const size = (DEFAULT_TOPLINE_BASE * 0.5) / defaultPoolTemplates.length;
-    return {
-      ...t,
-      size: ranged(Math.round(size * 0.75), Math.round(size), Math.round(size * 1.25)),
-    };
-  }),
 };

@@ -43,11 +43,12 @@ export interface ModelMixEntry {
  * the input burden, and the confidence-band width — but NOT the output
  * schema: all three emit identical rangedFigures keys, so downstream
  * sections (cost, forecast, exec summary) stay agnostic.
- *   top_down  — whole company, few inputs, benchmark %, widest band
- *   middle    — per value-pool sizing, moderate inputs, medium band
- *   bottom_up — per use case rolled up, many inputs, tightest band (today's path)
+ *   top_down  — whole company: derive value drivers from the top-line numbers
+ *               via benchmark uplift. Few inputs, more assumptive, widest band.
+ *   bottom_up — build each value driver up from use cases and sum them. Many
+ *               inputs, more defensible, tightest band (today's path).
  */
-export type ValueApproach = "top_down" | "middle" | "bottom_up";
+export type ValueApproach = "top_down" | "bottom_up";
 
 export interface ScenarioAssumptions {
   /** Value-case altitude. Absent on pre-feature saved payloads → treat as
@@ -72,27 +73,13 @@ export interface ScenarioAssumptions {
   horizonYears: number;
 }
 
-// ── Value model (top_down / middle inputs; bottom_up reuses use cases) ───────
-
-/** One function/department-level value pool, used by the `middle` approach. */
-export interface ValuePool {
-  id: string;
-  label: string;
-  /** Pool size in $ (or FTE-cost) the uplift applies to. */
-  size: Ranged;
-  /** Pool-specific efficiency/productivity uplift, 0..1 fraction. */
-  upliftPct: Ranged;
-  /** Pool adoption assumption, 0..1 fraction. */
-  adoption: Ranged;
-  /** Citation; "uncited — user to verify" when none — never fabricated. */
-  source?: string;
-}
+// ── Value model (top_down inputs; bottom_up reuses use cases) ────────────────
 
 /**
- * Inputs for the shallower value approaches. Kept whole in state regardless of
- * the active approach so toggling the slider never loses work; the section
- * reads only the groups its approach needs. (bottom_up needs none of these —
- * it reuses selectedUseCases + ScenarioAssumptions.)
+ * Inputs for the top_down value approach. Kept whole in state regardless of
+ * the active approach so toggling the control never loses work; the section
+ * reads these only for top_down. (bottom_up needs none of them — it reuses
+ * selectedUseCases + ScenarioAssumptions.)
  */
 export interface ValueModelInputs {
   // top_down group — whole-company benchmark math
@@ -103,8 +90,6 @@ export interface ValueModelInputs {
    *  source — never a fabricated citation. */
   upliftSource?: string;
   realizationFactor: Ranged; // 0..1 discount on the theoretical uplift
-  // middle group — per value-pool sizing
-  valuePools: ValuePool[];
 }
 
 // ── Company & enrichment ─────────────────────────────────────────────────────
@@ -152,6 +137,9 @@ export interface UseCase {
   hoursSavedPerInstance?: Ranged;
   instancesPerMonthPerUser?: Ranged;
   tags?: UseCaseTag[];
+  /** Where this use case / agent template comes from, for "more info" links
+   *  (e.g. the Anthropic financial-services agent catalog). */
+  source?: { label: string; url: string };
 }
 
 // ── SectionOutput — the keystone object every module returns ────────────────
@@ -231,7 +219,7 @@ export interface ProposalContext {
   company: CompanyProfile;
   assumptions: ScenarioAssumptions;
   selectedUseCases: UseCase[];
-  /** Inputs for the top_down / middle value approaches. Always present
+  /** Inputs for the top_down value approach. Always present
    *  (computeAllSections fills a default); bottom_up ignores it. */
   valueModel: ValueModelInputs;
   /** For sections that summarize others (exec summary runs last). */
@@ -257,8 +245,8 @@ export interface ProposalPayload {
   company: CompanyProfile;
   assumptions: ScenarioAssumptions;
   selectedUseCaseIds: string[];
-  /** Inputs for the top_down / middle value approaches. Optional so pre-
-   *  feature saved payloads still rehydrate (builder falls back to default). */
+  /** Inputs for the top_down value approach. Optional so pre-feature saved
+   *  payloads still rehydrate (builder falls back to default). */
   valueModel?: ValueModelInputs;
   sectionConfig: SectionConfigEntry[];
   /** Last computed snapshot — fast load/share; recomputed live after edit. */

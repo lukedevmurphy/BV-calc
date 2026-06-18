@@ -1,6 +1,6 @@
 "use client";
 
-import type { ValueApproach, ValueModelInputs, ValuePool } from "@/lib/types";
+import type { ValueApproach, ValueModelInputs } from "@/lib/types";
 import {
   ACTIVE_INPUT_GROUPS,
   APPROACH_BAND_HALF_WIDTH_PCT,
@@ -16,9 +16,33 @@ interface Props {
 
 const APPROACH_OPTIONS: { value: ValueApproach; label: string }[] = [
   { value: "top_down", label: "Top-down" },
-  { value: "middle", label: "Middle" },
   { value: "bottom_up", label: "Bottom-up" },
 ];
+
+/** One-line explainer (next to the control) + the fuller version (help text /
+ *  tooltip). The contrast to make explicit: top-down DERIVES drivers from
+ *  revenue (quick, assumptive); bottom-up BUILDS UP to the top line from use
+ *  cases (rigorous, defensible). */
+const APPROACH_COPY: Record<
+  ValueApproach,
+  { short: string; long: string }
+> = {
+  top_down: {
+    short: "Less work, more assumptive — derive the drivers from the top-line numbers.",
+    long:
+      "Start from the company's high-level numbers — revenue, margin, headcount, growth rate, " +
+      "operating expense, and fully-loaded cost per employee — and apply benchmark uplift to back " +
+      "INTO the value drivers. Faster and fewer inputs, but more assumptive: it infers the drivers " +
+      "from the top line rather than building them up.",
+  },
+  bottom_up: {
+    short: "More work, more credible — build each driver up from use cases and sum them.",
+    long:
+      "Calculate each value driver independently. Individual use cases contribute to value drivers, " +
+      "and multiple use cases can roll up into a single driver. The total value is the sum of the " +
+      "drivers, derived not assumed. More inputs and more effort, but more defensible to a skeptical CFO.",
+  },
+};
 
 /**
  * The value-case altitude control. Swaps which input groups are shown (and
@@ -33,23 +57,19 @@ export default function ValueModelPanel({
   onValueModelChange,
 }: Props) {
   const patch = (p: Partial<ValueModelInputs>) => onValueModelChange({ ...vm, ...p });
-  const patchPool = (id: string, p: Partial<ValuePool>) =>
-    patch({
-      valuePools: vm.valuePools.map((pool) =>
-        pool.id === id ? { ...pool, ...p } : pool,
-      ),
-    });
 
   const groups = ACTIVE_INPUT_GROUPS[approach];
   const bandPct = Math.round(APPROACH_BAND_HALF_WIDTH_PCT[approach] * 100);
+  const copy = APPROACH_COPY[approach];
 
   return (
     <div className="space-y-4">
       <div>
         <h2 className="text-sm font-semibold">Value approach</h2>
         <p className="mt-1 text-[11px] leading-snug text-ink-tertiary">
-          Bottom-up: more inputs, tighter confidence, more defensible. Top-down:
-          fast, benchmark-cited, coarser.
+          Top-down derives the value drivers from revenue (quick, assumptive);
+          bottom-up builds up to the top line from use cases (rigorous,
+          defensible).
         </p>
       </div>
 
@@ -59,9 +79,39 @@ export default function ValueModelPanel({
         onChange={onApproachChange}
       />
 
-      <p className="text-[11px] text-ink-tertiary">
-        Confidence band at this altitude: <span className="font-medium text-ink-secondary">±{bandPct}%</span>
+      {/* Short explainer for the active approach, with the full definition in a
+          hover tooltip; both definitions live in the help disclosure below. */}
+      <p
+        className="text-[11px] leading-snug text-ink-secondary"
+        title={copy.long}
+      >
+        <span className="font-medium">
+          {approach === "top_down" ? "Top-down" : "Bottom-up"}:
+        </span>{" "}
+        {copy.short}
       </p>
+
+      <p className="text-[11px] text-ink-tertiary">
+        Confidence band at this altitude:{" "}
+        <span className="font-medium text-ink-secondary">±{bandPct}%</span>
+        {approach === "bottom_up"
+          ? " — the tightest, because every figure traces to quantified knobs."
+          : " — the widest, because the drivers are inferred from the top line."}
+      </p>
+
+      <details className="text-[11px] text-ink-tertiary">
+        <summary className="cursor-pointer select-none font-medium">
+          How the two approaches compare
+        </summary>
+        <p className="mt-2 leading-snug">
+          <span className="font-medium text-ink-secondary">Top-down</span> (less
+          work, more assumptive): {APPROACH_COPY.top_down.long}
+        </p>
+        <p className="mt-2 leading-snug">
+          <span className="font-medium text-ink-secondary">Bottom-up</span> (more
+          work, more credible): {APPROACH_COPY.bottom_up.long}
+        </p>
+      </details>
 
       {groups.includes("topline") && (
         <div className="space-y-3 border-t border-line pt-3">
@@ -101,43 +151,6 @@ export default function ValueModelPanel({
               className="mt-1 w-full rounded-md border border-line bg-surface px-2 py-1.5 text-sm"
             />
           </label>
-        </div>
-      )}
-
-      {groups.includes("valuePool") && (
-        <div className="space-y-4 border-t border-line pt-3">
-          <FieldLabel>Value pools</FieldLabel>
-          {vm.valuePools.map((pool) => (
-            <div key={pool.id} className="space-y-2 rounded-lg bg-muted/60 p-2.5">
-              <input
-                type="text"
-                value={pool.label}
-                onChange={(e) => patchPool(pool.id, { label: e.target.value })}
-                className="w-full rounded-md border border-line bg-surface px-2 py-1 text-sm font-medium"
-              />
-              <RangedField
-                label="Pool size"
-                value={pool.size}
-                step={1_000_000}
-                prefix="$"
-                onChange={(r) => patchPool(pool.id, { size: r })}
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <RangedField
-                  label="Uplift (0–1)"
-                  value={pool.upliftPct}
-                  step={0.05}
-                  onChange={(r) => patchPool(pool.id, { upliftPct: r })}
-                />
-                <RangedField
-                  label="Adoption (0–1)"
-                  value={pool.adoption}
-                  step={0.05}
-                  onChange={(r) => patchPool(pool.id, { adoption: r })}
-                />
-              </div>
-            </div>
-          ))}
         </div>
       )}
 

@@ -85,11 +85,10 @@ const valueFor = (approach: ValueApproach) => {
 };
 
 const td = valueFor("top_down");
-const mid = valueFor("middle");
 const bu = valueFor("bottom_up");
 
-// All three emit the identical rangedFigures key set (downstream-agnostic)
-for (const approach of ["top_down", "middle", "bottom_up"] as ValueApproach[]) {
+// Both approaches emit the identical rangedFigures key set (downstream-agnostic)
+for (const approach of ["top_down", "bottom_up"] as ValueApproach[]) {
   const out = computeAllSections({
     company: demoCompany,
     assumptions: { ...DEFAULT_ASSUMPTIONS, valueApproach: approach },
@@ -101,10 +100,11 @@ for (const approach of ["top_down", "middle", "bottom_up"] as ValueApproach[]) {
   assert.deepStrictEqual(keys, ["annualValueFinalYear", "annualValueY1"], `${approach} rangedFigures keys`);
 }
 
-// Confidence band strictly narrows as the approach deepens
+// Confidence band: top_down (assumptive) is wider than bottom_up (defensible).
+// This is the on-screen demo claim — it must actually hold.
 assert(
-  halfWidth(td) > halfWidth(mid) && halfWidth(mid) > halfWidth(bu),
-  `band narrows top_down(${(halfWidth(td) * 100).toFixed(0)}%) > middle(${(halfWidth(mid) * 100).toFixed(0)}%) > bottom_up(${(halfWidth(bu) * 100).toFixed(0)}%)`,
+  halfWidth(td) > halfWidth(bu),
+  `top_down band (${(halfWidth(td) * 100).toFixed(0)}%) must be WIDER than bottom_up (${(halfWidth(bu) * 100).toFixed(0)}%)`,
 );
 
 // bottom_up base is the engine value, unchanged by the band normalization
@@ -113,7 +113,7 @@ assert(
   "bottom_up base equals the engine annualValue base (regression guard)",
 );
 console.log(
-  `value-approach bands: top_down ±${(halfWidth(td) * 100).toFixed(0)}%, middle ±${(halfWidth(mid) * 100).toFixed(0)}%, bottom_up ±${(halfWidth(bu) * 100).toFixed(0)}% ✓`,
+  `value-approach bands: top_down ±${(halfWidth(td) * 100).toFixed(0)}% (wider) > bottom_up ±${(halfWidth(bu) * 100).toFixed(0)}% (tighter) ✓`,
 );
 
 console.log("Section contract holds across all 12. ✓");

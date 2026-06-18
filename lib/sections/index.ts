@@ -92,9 +92,9 @@ export interface ProposalInputs {
   company: CompanyProfile;
   assumptions: ScenarioAssumptions;
   selectedUseCases: UseCase[];
-  /** Inputs for the top_down / middle value approaches. Optional — callers
-   *  that only exercise the default bottom_up path (scripts, pre-feature saved
-   *  payloads) may omit it. */
+  /** Inputs for the top_down value approach. Optional — callers that only
+   *  exercise the default bottom_up path (scripts, pre-feature saved payloads)
+   *  may omit it. */
   valueModel?: ValueModelInputs;
   sectionConfig: SectionConfigEntry[];
 }

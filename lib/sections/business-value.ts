@@ -15,17 +15,19 @@ import { fmtCurrency, fmtPercent, fmtRange, fmtRangeTriple } from "@/lib/format"
 /**
  * The business-value case, built at the altitude the user picked
  * (assumptions.valueApproach):
- *   bottom_up — per use case, hours saved × loaded cost × volume (the original
- *               path; base values unchanged).
- *   middle    — per value pool, size × uplift × adoption.
+ *   bottom_up — per use case, hours saved × loaded cost × volume. BUILDS each
+ *               value driver up from use cases and sums them (the original
+ *               path; base values unchanged). More inputs, more defensible.
  *   top_down  — whole company, top-line × addressable share × benchmark uplift.
+ *               DERIVES the drivers from the top-line numbers. Fewer inputs,
+ *               more assumptive.
  *
- * All three emit the SAME rangedFigures keys (annualValueY1, annualValueFinal-
- * Year) and the same headline stats, so cost / forecast / exec summary stay
- * agnostic to which method produced the numbers. Only the derivation, the
- * detail table, and the confidence-band WIDTH differ — the band reflects
- * methodological confidence (coarser → wider) via bandAroundBase, not the
- * engine's mechanical compounding.
+ * Both emit the SAME rangedFigures keys (annualValueY1, annualValueFinalYear)
+ * and the same headline stats, so cost / forecast / exec summary stay agnostic
+ * to which method produced the numbers. Only the derivation, the detail table,
+ * and the confidence-band WIDTH differ — the band reflects methodological
+ * confidence (coarser → wider) via bandAroundBase, not the engine's mechanical
+ * compounding.
  */
 
 interface ApproachResult {
@@ -50,9 +52,7 @@ export function businessValueSection(ctx: ProposalContext): SectionOutput {
   const r =
     approach === "top_down"
       ? buildTopDown(ctx, finalYear)
-      : approach === "middle"
-        ? buildMiddle(ctx, finalYear)
-        : buildBottomUp(ctx, finalYear, halfWidth);
+      : buildBottomUp(ctx, finalYear, halfWidth);
 
   const annualValueY1 = bandAroundBase(r.y1Base, halfWidth);
   const annualValueFinalYear = bandAroundBase(r.finalBase, halfWidth);
@@ -91,7 +91,13 @@ function buildBottomUp(
   halfWidth: number,
 ): ApproachResult {
   const { assumptions: a, selectedUseCases } = ctx;
-  const byUseCase = annualValueByUseCase(a, selectedUseCases, finalYear);
+  // Sort highest → lowest by base value so the biggest contributors lead both
+  // the table and the chart. Order is stable under the global ramp/adoption
+  // multipliers (they scale every use case equally), so dragging sliders never
+  // reshuffles the rows.
+  const byUseCase = [...annualValueByUseCase(a, selectedUseCases, finalYear)].sort(
+    (x, y) => y.value.base - x.value.base,
+  );
 
   const table: TableData = {
     columns: [
@@ -129,7 +135,7 @@ function buildBottomUp(
     bullets: [
       `Each use case is sized as hours saved per instance × instances per user per month × fully loaded cost`,
       `Value scales with both adoption dimensions: how many people use it (breadth) and how heavily they use it (depth)`,
-      `Tightest confidence band of the three approaches — each figure traces to two quantified knobs per use case, so the spread is the narrowest`,
+      `Tighter confidence band than the top-down approach — each figure traces to two quantified knobs per use case, so the spread is the narrowest`,
     ],
     extraStats: [
       {
@@ -154,61 +160,6 @@ function buildBottomUp(
     ],
     y1Base: annualValue(a, selectedUseCases, 1).base,
     finalBase: annualValue(a, selectedUseCases, finalYear).base,
-  };
-}
-
-// ── middle — per value pool ──────────────────────────────────────────────────
-
-function buildMiddle(ctx: ProposalContext, finalYear: number): ApproachResult {
-  const { assumptions: a, valueModel } = ctx;
-  const pools = valueModel.valuePools;
-  const ratio = breadthRatio(ctx, finalYear);
-
-  const poolMature = (p: (typeof pools)[number]) =>
-    p.size.base * p.upliftPct.base * p.adoption.base;
-  const matureBase = pools.reduce((acc, p) => acc + poolMature(p), 0);
-
-  const table: TableData = {
-    columns: ["Value pool", "Pool size", "Uplift", "Adoption", `Annual value (Y${finalYear})`],
-    rows: pools.map((p) => [
-      p.label,
-      fmtRange(p.size),
-      fmtPercent(p.upliftPct.base),
-      fmtPercent(p.adoption.base),
-      fmtCurrency(poolMature(p)),
-    ]),
-  };
-
-  const charts: ChartSeries[] = [
-    {
-      name: `Annual value by value pool (base, Y${finalYear})`,
-      points: pools.map((p) => ({ x: p.label, y: Math.round(poolMature(p)) })),
-      format: "currency",
-    },
-  ];
-
-  return {
-    subtitle: `Sized per value pool across ${pools.length} functions — benchmark-anchored, medium confidence band`,
-    bullets: [
-      `Each value pool is sized as pool size × efficiency uplift × adoption`,
-      `Function-level resolution: more defensible than a single company-wide percentage, lighter than per-use-case`,
-      `Medium confidence band — wider than the bottom-up roll-up, tighter than the top-down benchmark`,
-    ],
-    extraStats: [{ label: "Value pools", value: `${pools.length}` }],
-    table,
-    charts,
-    speakerNotes:
-      `Each row is a function-level value pool sized from the company's labor base, with a benchmark uplift and an ` +
-      `adoption assumption you can pressure-test pool by pool. Use this altitude when per-use-case detail isn't yet ` +
-      `available but a single top-down percentage would feel hand-wavy.`,
-    assumptionsUsed: [
-      "valueApproach (middle)",
-      "valuePools (size × uplift × adoption)",
-      "adoptionBreadth (Year-1 time-shape)",
-      `horizonYears (${finalYear})`,
-    ],
-    y1Base: matureBase * ratio,
-    finalBase: matureBase,
   };
 }
 

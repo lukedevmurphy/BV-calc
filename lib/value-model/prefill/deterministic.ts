@@ -1,20 +1,16 @@
-import type { Ranged, ValueModelInputs, ValuePool } from "@/lib/types";
+import type { Ranged, ValueModelInputs } from "@/lib/types";
 import { ranged } from "@/lib/economics/ranged";
 import {
   DEFAULT_ADDRESSABLE_SHARE,
   DEFAULT_REALIZATION_FACTOR,
   DEFAULT_UPLIFT_PCT,
   UNCITED,
-  poolTemplatesForIndustry,
 } from "../constants";
 import type { ValuePrefillInput, ValuePrefillProvider } from "./provider";
 
 /** Fully-loaded annual cost per employee used to size a labor-base top-line
  *  when no revenue figure is available (placeholder — user-editable). */
 const ASSUMED_ANNUAL_LOADED_COST = 180_000;
-/** Fraction of the labor base that sits in AI-addressable functions, split
- *  across the value pools. */
-const ADDRESSABLE_LABOR_FRACTION = 0.5;
 
 /** Build a band ±pct around a base. */
 const band = (base: number, pct: number): Ranged =>
@@ -48,20 +44,12 @@ export class DeterministicValuePrefillProvider implements ValuePrefillProvider {
 
     const topline = band(toplineBase || 1_000 * ASSUMED_ANNUAL_LOADED_COST, 0.15);
 
-    const templates = poolTemplatesForIndustry(company.industry);
-    const perPoolSize = (topline.base * ADDRESSABLE_LABOR_FRACTION) / templates.length;
-    const valuePools: ValuePool[] = templates.map((t) => ({
-      ...t,
-      size: band(perPoolSize, 0.25),
-    }));
-
     return Promise.resolve({
       topline,
       addressableShare: DEFAULT_ADDRESSABLE_SHARE,
       upliftPct: DEFAULT_UPLIFT_PCT,
       upliftSource: UNCITED,
       realizationFactor: DEFAULT_REALIZATION_FACTOR,
-      valuePools,
     });
   }
 }

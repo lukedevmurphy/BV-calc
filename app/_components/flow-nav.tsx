@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import Link from "next/link";
 
 export type Screen = "inputs" | "build" | "preview" | "settings";
 
@@ -77,6 +78,12 @@ export default function FlowNav({
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
+          <Link
+            href="/admin"
+            className="rounded-lg border border-line px-2.5 py-2 text-xs font-medium text-ink-secondary hover:bg-muted"
+          >
+            Analytics
+          </Link>
           <button
             onClick={() => onNavigate("settings")}
             title="Assumptions & settings"

@@ -127,6 +127,39 @@ export default function CompanyStep({ onConfirm, initial }: Props) {
             />
           </div>
 
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <label className="block">
+              <FieldLabel>Headquarters</FieldLabel>
+              <input
+                type="text"
+                value={draft.headquarters ?? ""}
+                placeholder="New York, NY"
+                onChange={(e) => patch({ headquarters: e.target.value })}
+                className="mt-1 w-full rounded-md border border-line bg-surface px-2 py-1.5 text-sm"
+              />
+            </label>
+            <label className="block">
+              <FieldLabel>Region</FieldLabel>
+              <input
+                type="text"
+                value={draft.region ?? ""}
+                placeholder="Northeast"
+                onChange={(e) => patch({ region: e.target.value })}
+                className="mt-1 w-full rounded-md border border-line bg-surface px-2 py-1.5 text-sm"
+              />
+            </label>
+            <label className="block">
+              <FieldLabel>Country</FieldLabel>
+              <input
+                type="text"
+                value={draft.country ?? ""}
+                placeholder="United States"
+                onChange={(e) => patch({ country: e.target.value })}
+                className="mt-1 w-full rounded-md border border-line bg-surface px-2 py-1.5 text-sm"
+              />
+            </label>
+          </div>
+
           <label className="block">
             <FieldLabel>Revenue model</FieldLabel>
             <input

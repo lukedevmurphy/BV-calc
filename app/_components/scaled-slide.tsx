@@ -11,17 +11,35 @@ export const SLIDE_HEIGHT = 720;
  */
 export default function ScaledSlide({ children }: { children: ReactNode }) {
   const frameRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(0);
+  // Render visibly at full logical size on the first frame. The outer frame
+  // clips it until measurement completes, which is preferable to a blank slide
+  // when ResizeObserver is delayed or unavailable.
+  const [scale, setScale] = useState(1);
 
   useLayoutEffect(() => {
     const frame = frameRef.current;
     if (!frame) return;
 
-    const measure = () => setScale(frame.clientWidth / SLIDE_WIDTH);
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(frame);
-    return () => observer.disconnect();
+    const measure = () => {
+      const width = frame.getBoundingClientRect().width;
+      if (width > 0) setScale(width / SLIDE_WIDTH);
+    };
+    const animationFrame = requestAnimationFrame(measure);
+
+    if (typeof ResizeObserver !== "undefined") {
+      const observer = new ResizeObserver(measure);
+      observer.observe(frame);
+      return () => {
+        cancelAnimationFrame(animationFrame);
+        observer.disconnect();
+      };
+    }
+
+    window.addEventListener("resize", measure);
+    return () => {
+      cancelAnimationFrame(animationFrame);
+      window.removeEventListener("resize", measure);
+    };
   }, []);
 
   return (
@@ -29,8 +47,7 @@ export default function ScaledSlide({ children }: { children: ReactNode }) {
       <div
         className="absolute left-0 top-0 h-[720px] w-[1280px] origin-top-left"
         style={{
-          transform: `scale(${scale || 1})`,
-          visibility: scale ? "visible" : "hidden",
+          transform: `scale(${scale})`,
         }}
       >
         {children}

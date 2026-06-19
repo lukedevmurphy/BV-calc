@@ -139,6 +139,10 @@ export interface CompanyProfile {
   name: string;
   domain?: string;
   industry?: string;
+  /** Analytics dimensions captured at proposal creation time. */
+  headquarters?: string;
+  region?: string;
+  country?: string;
   employeeCount?: number;
   revenueModel?: string;
   /** e.g. from a 10-K — mocked for now. */

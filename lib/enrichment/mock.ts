@@ -18,6 +18,9 @@ const SEEDED: CompanyProfile[] = [
   {
     name: "Crestline Asset Management",
     domain: "crestlineam.example",
+    headquarters: "Boston, MA",
+    region: "Northeast",
+    country: "United States",
     industry: "Asset & Wealth Management",
     employeeCount: 4500,
     revenueModel: "Management fees on AUM (active equity, fixed income, multi-asset)",
@@ -32,6 +35,9 @@ const SEEDED: CompanyProfile[] = [
   {
     name: "Hawthorne Wealth Advisors",
     domain: "hawthornewealth.example",
+    headquarters: "Charlotte, NC",
+    region: "Southeast",
+    country: "United States",
     industry: "Asset & Wealth Management",
     employeeCount: 600,
     revenueModel: "Advisory fees on client assets (RIA, HNW/UHNW households)",
@@ -46,6 +52,9 @@ const SEEDED: CompanyProfile[] = [
   {
     name: "Beacon Mutual Investments",
     domain: "beaconmutual.example",
+    headquarters: "Springfield, MA",
+    region: "Northeast",
+    country: "United States",
     industry: "Asset & Wealth Management",
     employeeCount: 1800,
     revenueModel: "Insurer-affiliated manager: general-account + third-party fixed income",
@@ -59,6 +68,9 @@ const SEEDED: CompanyProfile[] = [
   {
     name: "Meridian Capital Partners",
     domain: "meridiancp.example",
+    headquarters: "New York, NY",
+    region: "Northeast",
+    country: "United States",
     industry: "Asset & Wealth Management",
     employeeCount: 350,
     revenueModel: "Private markets: management fees + carried interest (PE, private credit)",
@@ -75,6 +87,9 @@ const SEEDED: CompanyProfile[] = [
   {
     name: "JPMorgan Chase",
     domain: "jpmorganchase.com",
+    headquarters: "New York, NY",
+    region: "Northeast",
+    country: "United States",
     industry: "Banking & Capital Markets",
     employeeCount: 310_000,
     revenueModel:
@@ -90,6 +105,9 @@ const SEEDED: CompanyProfile[] = [
   {
     name: "Bank of America",
     domain: "bankofamerica.com",
+    headquarters: "Charlotte, NC",
+    region: "Southeast",
+    country: "United States",
     industry: "Banking & Capital Markets",
     employeeCount: 213_000,
     revenueModel:
@@ -105,6 +123,9 @@ const SEEDED: CompanyProfile[] = [
   {
     name: "Wells Fargo",
     domain: "wellsfargo.com",
+    headquarters: "San Francisco, CA",
+    region: "West",
+    country: "United States",
     industry: "Banking & Capital Markets",
     employeeCount: 226_000,
     revenueModel:
@@ -121,6 +142,9 @@ const SEEDED: CompanyProfile[] = [
   {
     name: "Goldman Sachs",
     domain: "goldmansachs.com",
+    headquarters: "New York, NY",
+    region: "Northeast",
+    country: "United States",
     industry: "Investment Banking",
     employeeCount: 46_000,
     revenueModel:
@@ -136,6 +160,9 @@ const SEEDED: CompanyProfile[] = [
   {
     name: "Morgan Stanley",
     domain: "morganstanley.com",
+    headquarters: "New York, NY",
+    region: "Northeast",
+    country: "United States",
     industry: "Investment Banking",
     employeeCount: 80_000,
     revenueModel:
@@ -152,6 +179,9 @@ const SEEDED: CompanyProfile[] = [
   {
     name: "Charles Schwab",
     domain: "schwab.com",
+    headquarters: "Westlake, TX",
+    region: "South",
+    country: "United States",
     industry: "Brokerage & Trading",
     employeeCount: 32_000,
     revenueModel:
@@ -168,6 +198,9 @@ const SEEDED: CompanyProfile[] = [
   {
     name: "Navy Federal Credit Union",
     domain: "navyfederal.org",
+    headquarters: "Vienna, VA",
+    region: "Mid-Atlantic",
+    country: "United States",
     industry: "Banking — Credit Union",
     employeeCount: 24_000,
     revenueModel:
@@ -185,6 +218,9 @@ const SEEDED: CompanyProfile[] = [
   {
     name: "BlackRock",
     domain: "blackrock.com",
+    headquarters: "New York, NY",
+    region: "Northeast",
+    country: "United States",
     industry: "Asset & Wealth Management",
     employeeCount: 20_000,
     revenueModel:
@@ -201,6 +237,9 @@ const SEEDED: CompanyProfile[] = [
   {
     name: "Visa",
     domain: "visa.com",
+    headquarters: "San Francisco, CA",
+    region: "West",
+    country: "United States",
     industry: "Payments & Card Networks",
     employeeCount: 28_000,
     revenueModel:
@@ -216,6 +255,9 @@ const SEEDED: CompanyProfile[] = [
   {
     name: "American Express",
     domain: "americanexpress.com",
+    headquarters: "New York, NY",
+    region: "Northeast",
+    country: "United States",
     industry: "Payments & Card Networks",
     employeeCount: 74_000,
     revenueModel:

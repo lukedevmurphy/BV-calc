@@ -287,6 +287,24 @@ export function addSectionSlide(
     const w = (CONTENT_W - gap * (s.stats.length - 1)) / s.stats.length;
     s.stats.forEach((stat, i) => {
       const x = MARGIN + i * (w + gap);
+      const rangeStart = s.kind === "executive_summary" ? stat.value.indexOf(" (") : -1;
+      const valueRuns = rangeStart >= 0
+        ? [
+            {
+              text: stat.value.slice(0, rangeStart),
+              options: { fontSize: STAT_VALUE_PT * scale, fontFace: SERIF, color: CLAY_DEEP, bold: true },
+            },
+            {
+              text: stat.value.slice(rangeStart),
+              options: { fontSize: STAT_VALUE_PT * scale, fontFace: SERIF, color: SLATE, bold: false, breakLine: true },
+            },
+          ]
+        : [
+            {
+              text: stat.value,
+              options: { fontSize: STAT_VALUE_PT * scale, fontFace: SERIF, color: CLAY_DEEP, bold: true, breakLine: true },
+            },
+          ];
       slide.addShape("roundRect", {
         x,
         y,
@@ -298,15 +316,7 @@ export function addSectionSlide(
       });
       slide.addText(
         [
-          {
-            text: stat.value,
-            options: {
-              fontSize: STAT_VALUE_PT * scale,
-              fontFace: SERIF,
-              color: CLAY_DEEP,
-              breakLine: true,
-            },
-          },
+          ...valueRuns,
           {
             text: stat.label.toUpperCase(),
             options: {

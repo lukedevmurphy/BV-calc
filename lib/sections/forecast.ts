@@ -119,7 +119,7 @@ function topDownForecast(ctx: ProposalContext): SectionOutput {
     subtitle: `${a.horizonYears}-year CFO view — value ramp plus optional direct cost SWAG`,
     bullets: [
       "Value follows the adoption ramp applied to the company-level directional estimate",
-      costs.some((cost) => cost.base > 0) ? "Annual costs are direct AE inputs, not token-derived estimates" : "No annual costs entered — the forecast intentionally remains value-only",
+      costs.some((cost) => cost.base > 0) ? "Annual costs are direct AE inputs with a ±25% confidence band — narrower than the ±35% directional value band" : "No annual costs entered — the forecast intentionally remains value-only",
       "The wide value band communicates the uncertainty of a top-down estimate",
     ],
     stats: [

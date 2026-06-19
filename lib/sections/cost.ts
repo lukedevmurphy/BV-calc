@@ -19,6 +19,7 @@ import {
   fmtMonth,
   fmtNumber,
   fmtPercent,
+  fmtRange,
 } from "@/lib/format";
 
 /**
@@ -53,6 +54,7 @@ export function costSection(ctx: ProposalContext): SectionOutput {
       bullets: hasCost
         ? [
             "Costs are direct annual inputs supplied by the account team; they are not derived from workflows, users, or tokens",
+            "The entered amount is the base case; the forecast applies a ±25% confidence band around each annual cost",
             "Use this only when there is a credible implementation or run-rate estimate to offset against value",
             "Set a year to $0 to keep that year value-only",
           ]
@@ -61,14 +63,14 @@ export function costSection(ctx: ProposalContext): SectionOutput {
             "An AE can add annual cost SWAGs from the Top-down Inputs screen if a credible estimate becomes available",
           ],
       stats: [
-        { label: "Annual cost, Year 1", value: fmtCurrency(costY1.base) },
-        { label: `Annual cost, Year ${finalYear}`, value: fmtCurrency(costFinal.base) },
+        { label: "Annual cost, Year 1", value: fmtRange(costY1) },
+        { label: `Annual cost, Year ${finalYear}`, value: fmtRange(costFinal) },
       ],
       bandedCharts: hasCost
         ? [{ name: "Direct annual cost", points: years.map((year, index) => ({ x: `Year ${year}`, ...costs[index] })), format: "currency" }]
         : undefined,
       rangedFigures: { annualCostY1: costY1, annualCostFinalYear: costFinal, implementationCost: exact(0) },
-      speakerNotes: "Top-down cost is optional and direct. Never imply token-level precision when the value case itself is directional.",
+      speakerNotes: "Top-down cost is optional and direct. Its ±25% band is intentionally narrower than the ±35% directional value band. Never imply token-level precision when the value case itself is directional.",
       assumptionsUsed: ["topDownAnnualCosts (optional direct input)"],
       order: 0,
       enabled: true,

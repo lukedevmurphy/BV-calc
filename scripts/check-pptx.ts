@@ -41,6 +41,13 @@ const decode = (s: string) =>
     .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'").replace(/&#39;/g, "'").replace(/&amp;/g, "&");
 
+// Compare rendered text rather than raw XML adjacency. A single visible value
+// may intentionally use multiple rich-text runs (for example, bold base value
+// plus a regular-weight confidence range) while remaining byte-identical on
+// the slide.
+const visibleText = (xml: string) =>
+  decode(xml.replace(/<a:br\s*\/>/g, "\n").replace(/<[^>]+>/g, ""));
+
 interface Box { x: number; y: number; w: number; h: number }
 
 function parseBoxes(xml: string): Box[] {
@@ -165,8 +172,8 @@ async function main() {
   ).join("\n");
   const chartNames = Object.keys(zip.files).filter((f) => /chart\d*\.xml$/.test(f));
 
-  const slides = decode(allSlidesXml);
-  const notes = decode(allNotesXml);
+  const slides = visibleText(allSlidesXml);
+  const notes = visibleText(allNotesXml);
 
   // The seam: web-preview text must appear verbatim somewhere in the deck (on a
   // main, split, or appendix slide).

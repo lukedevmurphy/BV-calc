@@ -228,6 +228,18 @@ assert.strictEqual(
   "top-down direct cost survives into the shared structured section output",
 );
 assert.strictEqual(
+  topDownWithCost.find((section) => section.kind === "cost")?.rangedFigures
+    ?.annualCostFinalYear.low,
+  directTopDownCost * 0.75,
+  "top-down cost confidence band is -25%",
+);
+assert.strictEqual(
+  topDownWithCost.find((section) => section.kind === "cost")?.rangedFigures
+    ?.annualCostFinalYear.high,
+  directTopDownCost * 1.25,
+  "top-down cost confidence band is +25%",
+);
+assert.strictEqual(
   topDownWithCost.find((section) => section.kind === "forecast")?.bandedCharts?.[1]
     ?.points.at(-1)?.base,
   directTopDownCost,

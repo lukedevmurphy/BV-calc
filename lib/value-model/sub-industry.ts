@@ -74,7 +74,7 @@ const ADDRESSABLE: Ranged = ranged(0.1, 0.18, 0.3);
 
 // Shared "Realization factor" field (same concept everywhere).
 const realization = {
-  realizationLabel: "Realization factor (0–1)",
+  realizationLabel: "Realization factor (%)",
   realizationHelp: "How much of the theoretical uplift is actually realized.",
   realizationRowLabel: "Realization factor",
 };
@@ -88,9 +88,9 @@ export const SUB_INDUSTRIES: Record<SubIndustryId, SubIndustry> = {
     topDown: {
       toplineLabel: "Total revenue",
       toplineHelp: "Net interest income + fee income — the revenue base the efficiency lens applies to.",
-      addressableLabel: "Addressable cost base (0–1)",
+      addressableLabel: "Addressable cost base (%)",
       addressableHelp: "Share of revenue tied to the cost base AI can compress (efficiency-ratio lens).",
-      upliftLabel: "Efficiency uplift (0–1)",
+      upliftLabel: "Efficiency uplift (%)",
       upliftHelp: "Improvement in the efficiency ratio attributable to AI.",
       ...realization,
       toplineRowLabel: "Total revenue",
@@ -108,9 +108,9 @@ export const SUB_INDUSTRIES: Record<SubIndustryId, SubIndustry> = {
     topDown: {
       toplineLabel: "Net revenues",
       toplineHelp: "Banking + markets net revenues the uplift applies to.",
-      addressableLabel: "Addressable share (0–1)",
+      addressableLabel: "Addressable share (%)",
       addressableHelp: "Share of net revenues' cost base addressable by AI.",
-      upliftLabel: "Productivity uplift (0–1)",
+      upliftLabel: "Productivity uplift (%)",
       upliftHelp: "Deal-team / analyst productivity uplift from AI.",
       ...realization,
       toplineRowLabel: "Net revenues",
@@ -128,9 +128,9 @@ export const SUB_INDUSTRIES: Record<SubIndustryId, SubIndustry> = {
     topDown: {
       toplineLabel: "Net revenue",
       toplineHelp: "Net interest + trading + advisory revenue.",
-      addressableLabel: "Addressable share (0–1)",
+      addressableLabel: "Addressable share (%)",
       addressableHelp: "Share of the cost base AI can streamline.",
-      upliftLabel: "Service-efficiency uplift (0–1)",
+      upliftLabel: "Service-efficiency uplift (%)",
       upliftHelp: "Client-servicing and operations efficiency uplift.",
       ...realization,
       toplineRowLabel: "Net revenue",
@@ -149,10 +149,10 @@ export const SUB_INDUSTRIES: Record<SubIndustryId, SubIndustry> = {
       toplineLabel: "Net interest + non-interest income",
       toplineHelp:
         "Member revenue base (NII + fees). A credit union is member-owned and not-for-profit — there is no commercial 'top-line revenue'.",
-      addressableLabel: "Addressable operating share (0–1)",
+      addressableLabel: "Addressable operating share (%)",
       addressableHelp:
         "Share of the income base tied to operations AI can streamline — member servicing and branch / back-office workload.",
-      upliftLabel: "Operating-efficiency uplift (0–1)",
+      upliftLabel: "Operating-efficiency uplift (%)",
       upliftHelp: "Efficiency uplift across member servicing, lending ops and compliance.",
       ...realization,
       toplineRowLabel: "Net interest + non-interest income",
@@ -170,9 +170,9 @@ export const SUB_INDUSTRIES: Record<SubIndustryId, SubIndustry> = {
     topDown: {
       toplineLabel: "Management-fee revenue",
       toplineHelp: "Revenue from fees on AUM / client assets.",
-      addressableLabel: "Addressable share (0–1)",
+      addressableLabel: "Addressable share (%)",
       addressableHelp: "Share of the fee-revenue cost base addressable by AI.",
-      upliftLabel: "Productivity uplift (0–1)",
+      upliftLabel: "Productivity uplift (%)",
       upliftHelp: "Investment and client-servicing productivity uplift.",
       ...realization,
       toplineRowLabel: "Management-fee revenue",
@@ -191,9 +191,9 @@ export const SUB_INDUSTRIES: Record<SubIndustryId, SubIndustry> = {
       toplineLabel: "Net revenue (volume × take-rate)",
       toplineHelp:
         "Net revenue ≈ total payments volume × take-rate. Card networks scale with transaction volume, not headcount.",
-      addressableLabel: "Addressable opex share (0–1)",
+      addressableLabel: "Addressable opex share (%)",
       addressableHelp: "Share of operating expense (ops, risk, servicing) AI can compress.",
-      upliftLabel: "Operating-efficiency uplift (0–1)",
+      upliftLabel: "Operating-efficiency uplift (%)",
       upliftHelp: "Efficiency uplift across transaction ops, risk and servicing.",
       ...realization,
       toplineRowLabel: "Net revenue (volume × take-rate)",
@@ -213,9 +213,9 @@ export const SUB_INDUSTRIES: Record<SubIndustryId, SubIndustry> = {
     topDown: {
       toplineLabel: "Company top-line",
       toplineHelp: "Annual revenue (or labor base) the AI uplift applies to.",
-      addressableLabel: "Addressable share (0–1)",
+      addressableLabel: "Addressable share (%)",
       addressableHelp: "Share of the top-line plausibly addressable by AI.",
-      upliftLabel: "Benchmark uplift (0–1)",
+      upliftLabel: "Benchmark uplift (%)",
       upliftHelp: "Benchmark efficiency uplift on the addressable base.",
       ...realization,
       toplineRowLabel: "Company top-line",

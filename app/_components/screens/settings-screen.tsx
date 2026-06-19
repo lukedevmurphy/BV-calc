@@ -28,6 +28,12 @@ const PRESETS = [
   { label: "Capacity (reinvest)", value: 1 },
 ];
 
+const REALIZATION_EDGE_HELP = {
+  low: "Conservative: the smallest share of freed hours expected to become measurable dollars.",
+  base: "Base: the most likely conversion of freed hours into avoided cost or monetized capacity.",
+  high: "Optimistic: the strongest credible conversion if operating changes fully capture the freed time.",
+};
+
 /**
  * Settings / assumptions — distinct from company identity. Ramp assumptions,
  * top-line → value-driver conversion ratios, and the reinvestment toggle (the
@@ -158,15 +164,21 @@ export default function SettingsScreen({
         </p>
         <div className="mt-3 space-y-3">
           <RangedField
-            label="Offset realization — freed hours → avoided cost (0–1)"
+            label="Offset realization — freed hours → avoided cost (%)"
             value={assumptions.offsetRealization ?? DEFAULT_VALUE_REALIZATION.offset}
             step={0.05}
+            format="percent"
+            help="The percentage of freed hours that becomes actual avoided cost through reduced spend, attrition absorption, or headcount avoidance."
+            edgeHelp={REALIZATION_EDGE_HELP}
             onChange={(r) => patch({ offsetRealization: r })}
           />
           <RangedField
-            label="Capacity realization — freed capacity → monetized output (0–1, lower)"
+            label="Capacity realization — freed capacity → monetized output (%)"
             value={assumptions.capacityRealization ?? DEFAULT_VALUE_REALIZATION.capacity}
             step={0.05}
+            format="percent"
+            help="The percentage of freed capacity expected to produce measurable revenue or output. It is usually lower because reinvested time is less directly captured than cost-out."
+            edgeHelp={REALIZATION_EDGE_HELP}
             onChange={(r) => patch({ capacityRealization: r })}
           />
           <div>

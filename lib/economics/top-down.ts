@@ -14,7 +14,8 @@ export function topDownMatureValue(vm: ValueModelInputs): number {
 
 export function annualTopDownCost(vm: ValueModelInputs, year: number): Ranged {
   const cost = vm.topDownAnnualCosts[String(Math.round(year))];
-  return exact(typeof cost === "number" && Number.isFinite(cost) && cost > 0 ? cost : 0);
+  const base = typeof cost === "number" && Number.isFinite(cost) && cost > 0 ? cost : 0;
+  return base > 0 ? bandAroundBase(base, 0.25) : exact(0);
 }
 
 export function annualTopDownValue(

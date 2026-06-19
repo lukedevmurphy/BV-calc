@@ -115,8 +115,12 @@ export default function SlideView({
         >
           {section.stats.map((s) => (
             <div key={s.label} className="rounded-lg border border-line bg-canvas px-3 py-2">
-              <div className="font-serif text-base font-semibold leading-snug text-accent">
-                {s.value}
+              <div className="font-serif text-base leading-snug text-accent">
+                {section.kind === "executive_summary" ? (
+                  <ExecutiveStatValue value={s.value} />
+                ) : (
+                  <span className="font-semibold">{s.value}</span>
+                )}
               </div>
               <div className="mt-0.5 text-[10px] font-medium uppercase tracking-wide text-ink-tertiary">
                 {s.label}
@@ -166,5 +170,16 @@ export default function SlideView({
         </div>
       )}
     </div>
+  );
+}
+
+function ExecutiveStatValue({ value }: { value: string }) {
+  const rangeStart = value.indexOf(" (");
+  if (rangeStart < 0) return <span className="font-semibold">{value}</span>;
+  return (
+    <>
+      <span className="font-semibold">{value.slice(0, rangeStart)}</span>
+      <span className="font-normal text-ink-secondary">{value.slice(rangeStart)}</span>
+    </>
   );
 }

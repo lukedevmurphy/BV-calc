@@ -16,6 +16,12 @@ const FUNCTION_OPTIONS = [
   "HR",
 ];
 
+const TOP_DOWN_EDGE_HELP = {
+  low: "Conservative: the lower bound used when adoption or financial impact underperforms the working thesis.",
+  base: "Base: the account team's most likely working estimate for the CFO conversation.",
+  high: "Optimistic: the upper bound if addressability, uplift, or realization outperform the base case.",
+};
+
 export default function ValueModelPanel({
   valueModel: vm,
   subIndustry,
@@ -56,10 +62,10 @@ export default function ValueModelPanel({
         </p>
 
         <div className="mt-5 space-y-4">
-          <RangedField label={v.toplineLabel} value={vm.topline} step={1_000_000} prefix="$" onChange={(topline) => patch({ topline })} />
-          <RangedField label={v.addressableLabel} value={vm.addressableShare} step={0.05} onChange={(addressableShare) => patch({ addressableShare })} />
-          <RangedField label={v.upliftLabel} value={vm.upliftPct} step={0.05} onChange={(upliftPct) => patch({ upliftPct })} />
-          <RangedField label={v.realizationLabel} value={vm.realizationFactor} step={0.05} onChange={(realizationFactor) => patch({ realizationFactor })} />
+          <RangedField label={v.toplineLabel} value={vm.topline} step={1_000_000} prefix="$" help={v.toplineHelp} edgeHelp={TOP_DOWN_EDGE_HELP} onChange={(topline) => patch({ topline })} />
+          <RangedField label={v.addressableLabel} value={vm.addressableShare} step={0.05} format="percent" help={v.addressableHelp} edgeHelp={TOP_DOWN_EDGE_HELP} onChange={(addressableShare) => patch({ addressableShare })} />
+          <RangedField label={v.upliftLabel} value={vm.upliftPct} step={0.05} format="percent" help={v.upliftHelp} edgeHelp={TOP_DOWN_EDGE_HELP} onChange={(upliftPct) => patch({ upliftPct })} />
+          <RangedField label={v.realizationLabel} value={vm.realizationFactor} step={0.05} format="percent" help={v.realizationHelp} edgeHelp={TOP_DOWN_EDGE_HELP} onChange={(realizationFactor) => patch({ realizationFactor })} />
           <label className="block">
             <FieldLabel>Uplift source / rationale</FieldLabel>
             <input
@@ -107,7 +113,8 @@ export default function ValueModelPanel({
         <h2 className="text-sm font-semibold">Optional annual cost SWAG</h2>
         <p className="mt-1 text-sm text-ink-secondary">
           Leave every year at $0 for a value-only CFO story. Enter direct annual costs only when
-          the AE has a credible estimate to offset against value.
+          the AE has a credible estimate to offset against value. Enter the base estimate; the
+          forecast displays a ±25% cost confidence band.
         </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           {[1, 2, 3].map((year) => (

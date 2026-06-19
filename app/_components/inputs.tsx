@@ -14,10 +14,27 @@ export const EDGE_LABELS: Record<"low" | "base" | "high", string> = {
   high: "optimistic",
 };
 
-export function FieldLabel({ children }: { children: React.ReactNode }) {
+export function InfoTip({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="text-[11px] font-medium uppercase tracking-wide text-ink-tertiary">
-      {children}
+    <details className="group relative inline-block normal-case tracking-normal">
+      <summary
+        aria-label={label}
+        className="ml-1 inline-flex h-4 w-4 cursor-pointer list-none items-center justify-center rounded-full border border-line-strong bg-canvas text-[10px] font-bold text-ink-secondary hover:border-accent hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent [&::-webkit-details-marker]:hidden"
+      >
+        i
+      </summary>
+      <div className="absolute left-0 top-6 z-40 w-64 rounded-lg border border-line-strong bg-ink p-3 text-left text-xs font-normal leading-relaxed text-surface shadow-lg">
+        {children}
+      </div>
+    </details>
+  );
+}
+
+export function FieldLabel({ children, help }: { children: React.ReactNode; help?: string }) {
+  return (
+    <div className="flex items-center text-[11px] font-medium uppercase tracking-wide text-ink-tertiary">
+      <span>{children}</span>
+      {help && <InfoTip label={`About ${String(children)}`}>{help}</InfoTip>}
     </div>
   );
 }
@@ -68,12 +85,18 @@ export function RangedField({
   onChange,
   step = 1,
   prefix,
+  format = "number",
+  help,
+  edgeHelp,
 }: {
   label: string;
   value: Ranged;
   onChange: (r: Ranged) => void;
   step?: number;
   prefix?: string;
+  format?: "number" | "percent";
+  help?: string;
+  edgeHelp?: Partial<Record<"low" | "base" | "high", string>>;
 }) {
   const set = (edge: "low" | "base" | "high", n: number) => {
     const next = { ...value, [edge]: n };
@@ -88,24 +111,31 @@ export function RangedField({
 
   return (
     <div>
-      <FieldLabel>{label}</FieldLabel>
+      <FieldLabel help={help}>{label}</FieldLabel>
       <div className="mt-1 grid grid-cols-3 gap-1.5">
         {(["low", "base", "high"] as const).map((edge) => (
           <div key={edge}>
-            <div className="text-[10px] text-ink-tertiary">{EDGE_LABELS[edge]}</div>
+            <div className="flex items-center text-[10px] text-ink-tertiary">
+              {EDGE_LABELS[edge]}
+              {edgeHelp?.[edge] && <InfoTip label={`About the ${EDGE_LABELS[edge]} estimate`}>{edgeHelp[edge]}</InfoTip>}
+            </div>
             <div className="flex items-center gap-1">
               {prefix && <span className="text-xs text-ink-tertiary">{prefix}</span>}
               <input
                 type="number"
-                value={value[edge]}
-                step={step}
+                aria-label={`${label}, ${EDGE_LABELS[edge]}${format === "percent" ? ", percent" : ""}`}
+                value={format === "percent" ? Number((value[edge] * 100).toFixed(4)) : value[edge]}
+                step={format === "percent" ? step * 100 : step}
                 min={0}
+                max={format === "percent" ? 100 : undefined}
                 onChange={(e) => {
                   const n = e.target.valueAsNumber;
-                  set(edge, Number.isFinite(n) ? n : 0);
+                  const normalized = Number.isFinite(n) ? n : 0;
+                  set(edge, format === "percent" ? normalized / 100 : normalized);
                 }}
                 className="w-full rounded-md border border-line bg-surface px-1.5 py-1 text-sm"
               />
+              {format === "percent" && <span className="text-xs font-medium text-ink-tertiary">%</span>}
             </div>
           </div>
         ))}

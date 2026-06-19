@@ -19,6 +19,8 @@ import {
   normalizeSectionConfig,
 } from "@/lib/sections/index";
 import { CURRENT_PROPOSAL_SCHEMA_VERSION } from "@/lib/proposals/migrate";
+import { annualTokenCost, annualValue } from "@/lib/economics/engine";
+import { annualTopDownCost, annualTopDownValue } from "@/lib/economics/top-down";
 import SaveButton from "./save-button";
 import CompanyStep from "./company-step";
 import SavedCasesList from "./saved-cases-list";
@@ -87,22 +89,38 @@ export default function Builder({
   const sectionsPending =
     deferredAssumptions !== assumptions || deferredValueModel !== valueModel;
 
+  const approach = assumptions.valueApproach ?? "bottom_up";
+  const effectiveUseCases = useMemo(
+    () => (approach === "top_down" ? [] : resolveUseCases(useCaseIds)),
+    [approach, useCaseIds],
+  );
+
   const sections = useMemo(
     () =>
       company
         ? computeAllSections({
             company,
             assumptions: deferredAssumptions,
-            selectedUseCases: resolveUseCases(useCaseIds),
+            selectedUseCases: effectiveUseCases,
             valueModel: deferredValueModel,
             sectionConfig,
           })
         : [],
-    [company, deferredAssumptions, deferredValueModel, useCaseIds, sectionConfig],
+    [company, deferredAssumptions, deferredValueModel, effectiveUseCases, sectionConfig],
   );
+  const impactYear = 3;
+  const impactValue =
+    approach === "top_down"
+      ? annualTopDownValue(deferredAssumptions, deferredValueModel, impactYear).base
+      : annualValue(deferredAssumptions, effectiveUseCases, impactYear).base;
+  const impactCost =
+    approach === "top_down"
+      ? annualTopDownCost(deferredValueModel, impactYear).base
+      : annualTokenCost(deferredAssumptions, effectiveUseCases, impactYear).base;
 
-  function confirmCompany(profile: CompanyProfile) {
+  function confirmCompany(profile: CompanyProfile, valueApproach: ScenarioAssumptions["valueApproach"]) {
     setCompany(profile);
+    setAssumptions((current) => ({ ...current, valueApproach }));
     setEditingCompany(false);
     setScreen("inputs");
     // Reactive to sub-industry: seed the default use-case selection from the
@@ -113,7 +131,7 @@ export default function Builder({
     getValuePrefillProvider()
       .prefill({
         company: profile,
-        approach: assumptions.valueApproach ?? "bottom_up",
+        approach: valueApproach,
         useCases: resolveUseCases(ids),
       })
       .then(setValueModel)
@@ -123,7 +141,11 @@ export default function Builder({
   if (!company || editingCompany) {
     return (
       <div className="px-6 py-12">
-        <CompanyStep initial={company ?? undefined} onConfirm={confirmCompany} />
+        <CompanyStep
+          initial={company ?? undefined}
+          initialApproach={company ? approach : undefined}
+          onConfirm={confirmCompany}
+        />
         {!company && <SavedCasesList />}
       </div>
     );
@@ -138,7 +160,7 @@ export default function Builder({
     const canonicalSections = computeAllSections({
       company: confirmedCompany,
       assumptions,
-      selectedUseCases: resolveUseCases(useCaseIds),
+      selectedUseCases: approach === "top_down" ? [] : resolveUseCases(useCaseIds),
       valueModel,
       sectionConfig,
     });
@@ -178,6 +200,9 @@ export default function Builder({
             }}
           />
         }
+        impactYear={impactYear}
+        annualValue={impactValue}
+        annualCost={impactCost}
       />
 
       {screen === "inputs" && (
@@ -190,6 +215,7 @@ export default function Builder({
           valueModel={valueModel}
           onValueModel={setValueModel}
           subIndustry={subIndustry}
+          onOpenSettings={() => navigate("settings")}
           onNext={() => setScreen("build")}
         />
       )}
@@ -217,9 +243,8 @@ export default function Builder({
         <SettingsScreen
           assumptions={assumptions}
           onAssumptions={setAssumptions}
-          valueModel={valueModel}
-          onValueModel={setValueModel}
           sections={sections}
+          selectedUseCases={effectiveUseCases}
           onBack={() => setScreen(returnScreen)}
         />
       )}

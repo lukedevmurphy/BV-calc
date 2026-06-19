@@ -14,6 +14,7 @@ import {
 } from "@/lib/economics/engine";
 import { interpolateRamp } from "@/lib/economics/ramp";
 import { bandAroundBase } from "@/lib/economics/ranged";
+import { annualTopDownValue, topDownMatureValue } from "@/lib/economics/top-down";
 import { savedHoursBasisFor } from "@/lib/data/hours-defaults";
 import { APPROACH_BAND_HALF_WIDTH_PCT } from "@/lib/value-model/constants";
 import {
@@ -266,31 +267,30 @@ function buildBottomUp(
 
 function buildTopDown(ctx: ProposalContext, finalYear: number): ApproachResult {
   const { valueModel: vm, company } = ctx;
-  const ratio = breadthRatio(ctx, finalYear);
   const source = vm.upliftSource?.trim() || "uncited — user to verify";
   // Sector vocabulary: same math, sector-specific driver labels.
   const sub = resolveSubIndustry(company.industry);
   const v = sub.topDown;
 
-  const matureBase =
-    vm.topline.base *
-    vm.addressableShare.base *
-    vm.upliftPct.base *
-    vm.realizationFactor.base;
+  const matureBase = topDownMatureValue(vm);
 
   // Allocate the whole-company total across the value drivers by the sector's
   // driver weighting (totals preserved), then route to outcomes.
   const perDriver = allocateByWeights(matureBase, subIndustryDrivers(sub.id).driverWeights);
   const tree = driverArtifacts(sub.id, perDriver, ctx, finalYear);
 
+  const functions = vm.topDownFunctions.length
+    ? vm.topDownFunctions
+    : ["Enterprise productivity"];
+  const perFunction = matureBase / functions.length;
   const table: TableData = {
-    columns: ["Driver", "Value"],
+    columns: ["Directional value pool", "Annual value"],
     rows: [
       [v.toplineRowLabel, fmtRange(vm.topline)],
       [v.addressableRowLabel, fmtPercent(vm.addressableShare.base)],
       [v.upliftRowLabel, fmtPercent(vm.upliftPct.base)],
-      [v.realizationRowLabel, fmtPercent(vm.realizationFactor.base)],
-      [`Annual value (Y${finalYear})`, fmtCurrency(matureBase)],
+      ...functions.map((label) => [label, fmtCurrency(perFunction)]),
+      ["Total directional value", fmtCurrency(matureBase)],
     ],
   };
 
@@ -301,6 +301,7 @@ function buildTopDown(ctx: ProposalContext, finalYear: number): ApproachResult {
     subtitle: `Top-down from ${v.toplineRowLabel.toLowerCase()} × ${v.addressableRowLabel.toLowerCase()} × ${v.upliftRowLabel.toLowerCase()} — fast, cited, widest band`,
     bullets: [
       `Annual value ≈ ${v.toplineRowLabel.toLowerCase()} × ${v.addressableRowLabel.toLowerCase()} × ${v.upliftRowLabel.toLowerCase()} × realization factor`,
+      `Directional value is allocated across ${functions.join(", ")} — functional pools, not use cases`,
       `${v.upliftRowLabel} ${fmtPercent(vm.upliftPct.base)} — source: ${source}`,
       `Widest confidence band of the two approaches — a fast, whole-company estimate to be refined by going deeper`,
       ...(flag ? [flag] : []),
@@ -323,10 +324,11 @@ function buildTopDown(ctx: ProposalContext, finalYear: number): ApproachResult {
       "addressableShare",
       `upliftPct (source: ${source})`,
       "realizationFactor",
+      "topDownFunctions (directional allocation)",
       "adoptionBreadth (Year-1 time-shape)",
       `horizonYears (${finalYear})`,
     ],
-    y1Base: matureBase * ratio,
+    y1Base: annualTopDownValue(ctx.assumptions, vm, 1).base,
     finalBase: matureBase,
   };
 }

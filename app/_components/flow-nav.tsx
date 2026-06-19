@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { fmtCurrency } from "@/lib/format";
 
 export type Screen = "inputs" | "build" | "preview" | "settings";
 
@@ -23,12 +24,18 @@ export default function FlowNav({
   companyName,
   onEditCompany,
   saveSlot,
+  impactYear,
+  annualValue,
+  annualCost,
 }: {
   screen: Screen;
   onNavigate: (s: Screen) => void;
   companyName: string;
   onEditCompany: () => void;
   saveSlot: ReactNode;
+  impactYear: number;
+  annualValue: number;
+  annualCost: number;
 }) {
   const activeN = STEPS.find((s) => s.id === screen)?.n ?? 0;
   return (
@@ -97,6 +104,18 @@ export default function FlowNav({
             </svg>
           </button>
           {saveSlot}
+        </div>
+      </div>
+      <div className="bg-ink text-surface">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-8 gap-y-1 px-6 py-2">
+          <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-surface/70">
+            Live impact · Year {impactYear}
+          </span>
+          <div className="flex items-baseline gap-6">
+            <span className="text-xs text-surface/70">Annual value <strong className="ml-1 font-serif text-lg text-white">{fmtCurrency(annualValue)}</strong></span>
+            <span className="text-xs text-surface/70">Annual cost <strong className="ml-1 font-serif text-lg text-white">{fmtCurrency(annualCost)}</strong></span>
+            <span className="hidden text-xs text-surface/70 sm:inline">Net <strong className="ml-1 text-white">{fmtCurrency(annualValue - annualCost)}</strong></span>
+          </div>
         </div>
       </div>
     </header>

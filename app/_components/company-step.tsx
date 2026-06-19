@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import type { CompanyProfile } from "@/lib/types";
+import type { CompanyProfile, ValueApproach } from "@/lib/types";
 import { SEEDED_COMPANY_NAMES } from "@/lib/enrichment/mock";
 import { FieldLabel, NumberField } from "./inputs";
 
 interface Props {
-  onConfirm: (profile: CompanyProfile) => void;
+  onConfirm: (profile: CompanyProfile, approach: ValueApproach) => void;
   initial?: CompanyProfile;
+  initialApproach?: ValueApproach;
 }
 
 /**
@@ -15,11 +16,12 @@ interface Props {
  * a feature, not a stopgap: the practitioner exercises discernment before
  * the AI's (currently mocked) research feeds the proposal.
  */
-export default function CompanyStep({ onConfirm, initial }: Props) {
+export default function CompanyStep({ onConfirm, initial, initialApproach }: Props) {
   const [name, setName] = useState(initial?.name ?? "");
   const [draft, setDraft] = useState<CompanyProfile | null>(initial ?? null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [approach, setApproach] = useState<ValueApproach | null>(initialApproach ?? null);
 
   async function lookup(lookupName: string) {
     if (!lookupName.trim()) return;
@@ -44,7 +46,7 @@ export default function CompanyStep({ onConfirm, initial }: Props) {
     setDraft((d) => (d ? { ...d, ...p } : d));
 
   return (
-    <div className="mx-auto max-w-2xl rounded-xl border border-line bg-surface p-6 shadow-card">
+    <div className="mx-auto max-w-3xl rounded-xl border border-line-strong bg-surface p-6 shadow-card">
       <h2 className="font-serif text-2xl font-semibold tracking-tight">
         Who is this proposal for?
       </h2>
@@ -60,7 +62,7 @@ export default function CompanyStep({ onConfirm, initial }: Props) {
           placeholder="Company name…"
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && lookup(name)}
-          className="flex-1 rounded-md border border-line bg-surface px-3 py-2 text-sm"
+          className="flex-1 rounded-md border border-line-strong bg-canvas px-3 py-2 text-sm"
         />
         <button
           onClick={() => lookup(name)}
@@ -79,7 +81,7 @@ export default function CompanyStep({ onConfirm, initial }: Props) {
               setName(n);
               lookup(n);
             }}
-            className="rounded-full border border-line bg-surface px-2.5 py-1 text-xs text-ink-secondary hover:border-line-strong hover:bg-muted"
+            className="min-h-10 rounded-full border border-line-strong bg-canvas px-3 py-2 text-xs font-medium text-ink-secondary hover:border-accent hover:bg-accent-soft"
           >
             {n}
           </button>
@@ -184,14 +186,70 @@ export default function CompanyStep({ onConfirm, initial }: Props) {
             </div>
           )}
 
+          <fieldset className="border-t border-line-strong pt-5">
+            <legend className="px-1 text-sm font-semibold">How should we size the value?</legend>
+            <p className="mt-1 text-sm text-ink-secondary">
+              This choice changes the inputs, economics, and full proposal story. You can return
+              here to switch methods without losing your draft.
+            </p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <MethodCard
+                active={approach === "top_down"}
+                title="Top-down directional value"
+                badge="Fast · directional"
+                description="Start with company financials, select functional value pools, and produce a CFO-level SWAG with a wider confidence band. No use cases."
+                onClick={() => setApproach("top_down")}
+              />
+              <MethodCard
+                active={approach === "bottom_up"}
+                title="Bottom-up business case"
+                badge="Detailed · defensible"
+                description="Select workflows and build value from hours, volume, adoption, and consumption cost. Best for pilots and budget approval."
+                onClick={() => setApproach("bottom_up")}
+              />
+            </div>
+          </fieldset>
+
           <button
-            onClick={() => onConfirm(draft)}
-            className="mt-2 w-full rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+            onClick={() => approach && onConfirm(draft, approach)}
+            disabled={!approach}
+            className="mt-2 w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Confirm profile & build proposal
+            {approach ? `Continue with ${approach === "top_down" ? "top-down" : "bottom-up"} →` : "Choose a sizing method"}
           </button>
         </div>
       )}
     </div>
+  );
+}
+
+function MethodCard({
+  active,
+  title,
+  badge,
+  description,
+  onClick,
+}: {
+  active: boolean;
+  title: string;
+  badge: string;
+  description: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={`min-h-40 rounded-xl border-2 p-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 ${
+        active
+          ? "border-accent bg-accent-soft shadow-card"
+          : "border-line-strong bg-canvas hover:border-accent hover:bg-accent-soft/40"
+      }`}
+    >
+      <span className="text-[10px] font-bold uppercase tracking-wide text-accent">{badge}</span>
+      <span className="mt-1 block text-base font-semibold text-ink">{title}</span>
+      <span className="mt-2 block text-sm leading-relaxed text-ink-secondary">{description}</span>
+    </button>
   );
 }

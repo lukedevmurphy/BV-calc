@@ -68,7 +68,7 @@ export default function UseCasePicker({
         <select
           value={industry}
           onChange={(e) => setIndustry(e.target.value)}
-          className="mt-1 w-full rounded-md border border-line bg-surface px-2 py-1.5 text-sm"
+          className="mt-1 w-full rounded-md border border-line-strong bg-canvas px-3 py-2 text-sm"
         >
           {INDUSTRIES.map((i) => (
             <option key={i}>{i}</option>
@@ -83,7 +83,7 @@ export default function UseCasePicker({
             <label
               key={uc.id}
               className={`flex cursor-pointer items-start gap-2 rounded-md border p-2 transition-colors ${
-                checked ? "border-accent bg-accent-soft" : "border-line bg-surface"
+                checked ? "border-2 border-accent bg-accent-soft" : "border-line-strong bg-canvas hover:border-accent"
               }`}
             >
               <input

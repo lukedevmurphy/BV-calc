@@ -169,6 +169,10 @@ export function annualTokenCost(
   useCases: UseCase[],
   year: number,
 ): Ranged {
+  const override = a.annualCostOverrides?.[String(Math.round(year))];
+  if (typeof override === "number" && Number.isFinite(override) && override > 0) {
+    return exact(override);
+  }
   return scale(monthlyCost(a, useCases, year), 12);
 }
 

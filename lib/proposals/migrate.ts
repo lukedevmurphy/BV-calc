@@ -1,7 +1,8 @@
 import type { ProposalPayload, SectionConfigEntry } from "@/lib/types";
 import { normalizeSectionConfig } from "@/lib/sections/index";
+import { DEFAULT_VALUE_MODEL } from "@/lib/data/defaults";
 
-export const CURRENT_PROPOSAL_SCHEMA_VERSION = 1;
+export const CURRENT_PROPOSAL_SCHEMA_VERSION = 2;
 
 type LegacyProposalPayload = Omit<ProposalPayload, "schemaVersion" | "revision"> & {
   schemaVersion?: number;
@@ -40,6 +41,15 @@ export function migrateProposalPayload(input: unknown): ProposalPayload {
       (id): id is string => typeof id === "string",
     ),
     sectionConfig: normalizeSectionConfig(legacy.sectionConfig),
+    valueModel: {
+      ...DEFAULT_VALUE_MODEL,
+      ...(legacy.valueModel ?? {}),
+      topDownFunctions:
+        legacy.valueModel?.topDownFunctions?.filter(
+          (label): label is string => typeof label === "string" && label.trim().length > 0,
+        ) ?? DEFAULT_VALUE_MODEL.topDownFunctions,
+      topDownAnnualCosts: legacy.valueModel?.topDownAnnualCosts ?? {},
+    },
   };
 }
 

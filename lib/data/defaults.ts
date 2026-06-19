@@ -150,4 +150,11 @@ export const DEFAULT_VALUE_MODEL: ValueModelInputs = {
   upliftPct: DEFAULT_UPLIFT_PCT,
   upliftSource: UNCITED,
   realizationFactor: DEFAULT_REALIZATION_FACTOR,
+  topDownFunctions: [
+    "Sales & marketing",
+    "Engineering / coding",
+    "Employee productivity",
+    "Operations",
+  ],
+  topDownAnnualCosts: {},
 };

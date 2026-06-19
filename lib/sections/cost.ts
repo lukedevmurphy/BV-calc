@@ -11,6 +11,8 @@ import {
   tokensForUseCase,
 } from "@/lib/economics/engine";
 import { tokenDefaultFor } from "@/lib/data/token-defaults";
+import { annualTopDownCost } from "@/lib/economics/top-down";
+import { exact } from "@/lib/economics/ranged";
 import {
   fmtCurrency,
   fmtCurrencySmall,
@@ -35,8 +37,47 @@ export function costSection(ctx: ProposalContext): SectionOutput {
   const { assumptions: a, selectedUseCases } = ctx;
   const finalYear = a.horizonYears;
 
+  if ((a.valueApproach ?? "bottom_up") === "top_down") {
+    const years = Array.from({ length: finalYear }, (_, index) => index + 1);
+    const costs = years.map((year) => annualTopDownCost(ctx.valueModel, year));
+    const costY1 = costs[0];
+    const costFinal = costs[costs.length - 1];
+    const hasCost = costs.some((cost) => cost.base > 0);
+    return {
+      id: "cost",
+      kind: "cost",
+      title: "Cost — Optional Directional Input",
+      subtitle: hasCost
+        ? "AE-entered annual cost SWAG — no use-case or token model implied"
+        : "Value-only CFO view — no cost estimate entered",
+      bullets: hasCost
+        ? [
+            "Costs are direct annual inputs supplied by the account team; they are not derived from workflows, users, or tokens",
+            "Use this only when there is a credible implementation or run-rate estimate to offset against value",
+            "Set a year to $0 to keep that year value-only",
+          ]
+        : [
+            "No costs were entered, so this proposal presents directional annual value without manufacturing a cost estimate",
+            "An AE can add annual cost SWAGs from the Top-down Inputs screen if a credible estimate becomes available",
+          ],
+      stats: [
+        { label: "Annual cost, Year 1", value: fmtCurrency(costY1.base) },
+        { label: `Annual cost, Year ${finalYear}`, value: fmtCurrency(costFinal.base) },
+      ],
+      bandedCharts: hasCost
+        ? [{ name: "Direct annual cost", points: years.map((year, index) => ({ x: `Year ${year}`, ...costs[index] })), format: "currency" }]
+        : undefined,
+      rangedFigures: { annualCostY1: costY1, annualCostFinalYear: costFinal, implementationCost: exact(0) },
+      speakerNotes: "Top-down cost is optional and direct. Never imply token-level precision when the value case itself is directional.",
+      assumptionsUsed: ["topDownAnnualCosts (optional direct input)"],
+      order: 0,
+      enabled: true,
+    };
+  }
+
   const costY1 = annualTokenCost(a, selectedUseCases, 1);
   const costFinal = annualTokenCost(a, selectedUseCases, finalYear);
+  const hasOverrides = Object.values(a.annualCostOverrides ?? {}).some((value) => value > 0);
   const be = breakEvenMonth(a, selectedUseCases);
   const beAdoption = breakEvenAdoption(a, selectedUseCases);
   const byAdoption = costValueByAdoption(a, selectedUseCases);
@@ -64,7 +105,16 @@ export function costSection(ctx: ProposalContext): SectionOutput {
     })
     .join("; ");
 
-  const bandedCharts = [
+  const bandedCharts = hasOverrides ? [
+    {
+      name: "Annual cost (direct overrides replace modeled years)",
+      points: Array.from({ length: finalYear }, (_, index) => {
+        const year = index + 1;
+        return { x: `Year ${year}`, ...annualTokenCost(a, selectedUseCases, year) };
+      }),
+      format: "currency" as const,
+    },
+  ] : [
     {
       name: "Annual cost vs. adoption breadth (band = token / implementation range)",
       points: byAdoption.map(({ breadth, cost }) => ({
@@ -99,14 +149,20 @@ export function costSection(ctx: ProposalContext): SectionOutput {
       `Cost = active users × tasks per use case × tokens per task × blended $/token — every task that creates value also spends tokens`,
       `Token volumes are ESTIMATES, not sourced facts: document-heavy tasks ingest source docs and emit long structured output, and a single agentic task can reach 400K–2M cumulative input tokens — the range is the message`,
       `Sourceable: model prices ($5/$25, $3/$15, $1/$5 per MTok), ~90% cached-input discount, ~50% Batch discount, a 10-K ≈ 100–300K tokens. Assumed: docs/task, output length, adoption, model mix`,
-      `Levers applied — ${cachePct}% prompt-cache hit + ${batchPct}% Batch — cut blended cost ~${Math.round(leverSavings * 100)}% vs no levers (${fmtCurrency(gross)} → ${fmtCurrency(costFinal.base)}); a Haiku-heavy vs Opus-heavy mix swings cost ~5× per token`,
-      `Break-even: cumulative value covers consumption plus the one-time implementation cost (${fmtCurrency(a.implementationCost.base)}, amortized) at ${fmtMonth(be.base)} in the base case`,
+      hasOverrides
+        ? "Direct annual overrides replace the token model for entered years; remaining years stay modeled"
+        : `Levers applied — ${cachePct}% prompt-cache hit + ${batchPct}% Batch — cut blended cost ~${Math.round(leverSavings * 100)}% vs no levers (${fmtCurrency(gross)} → ${fmtCurrency(costFinal.base)})`,
+      hasOverrides
+        ? "Forecast uses the overridden annual totals rather than implying token-level precision"
+        : `Break-even: cumulative value covers consumption plus the one-time implementation cost (${fmtCurrency(a.implementationCost.base)}, amortized) at ${fmtMonth(be.base)} in the base case`,
     ],
     stats: [
       { label: "Annual cost, Year 1", value: fmtCurrency(costY1.base) },
       { label: `Annual cost, Year ${finalYear}`, value: fmtCurrency(costFinal.base) },
-      { label: "Blended $/task (avg)", value: fmtCurrencySmall(avgCostPerTask(a, selectedUseCases)) },
-      {
+      hasOverrides
+        ? { label: "Cost basis", value: "Direct override + modeled years" }
+        : { label: "Blended $/task (avg)", value: fmtCurrencySmall(avgCostPerTask(a, selectedUseCases)) },
+      ...(!hasOverrides ? [{
         label: "Break-even period",
         value: `${fmtMonth(be.base)} (optimistic ${fmtMonth(be.high)}, conservative ${fmtMonth(be.low)})`,
       },
@@ -116,7 +172,7 @@ export function costSection(ctx: ProposalContext): SectionOutput {
           beAdoption === null
             ? "not within model"
             : `≥ ${fmtPercent(beAdoption)} of target users`,
-      },
+      }] : []),
     ],
     bandedCharts,
     rangedFigures,

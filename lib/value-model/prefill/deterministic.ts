@@ -52,6 +52,13 @@ export class DeterministicValuePrefillProvider implements ValuePrefillProvider {
       upliftPct: priors.upliftPct,
       upliftSource: priors.upliftSource,
       realizationFactor: priors.realizationFactor,
+      topDownFunctions: [
+        "Sales & marketing",
+        "Engineering / coding",
+        "Employee productivity",
+        "Operations",
+      ],
+      topDownAnnualCosts: {},
     });
   }
 }

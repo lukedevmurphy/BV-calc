@@ -28,6 +28,7 @@ import { nextStepsSection } from "./next-steps";
 import { executiveSummarySection } from "./executive-summary";
 import { peerProofSection } from "./peer-proof";
 import { applyBaseScenario } from "./scenario";
+import { topDownStorySection } from "./top-down-story";
 
 /** Default display ordering — executive-deck flow: story first, asks, then
  *  the scenario/cost detail as appendix material (the exporter inserts a
@@ -186,7 +187,8 @@ export function computeAllSections(inputs: ProposalInputs): SectionOutput[] {
   const ctx: ProposalContext = {
     company: inputs.company,
     assumptions: inputs.assumptions,
-    selectedUseCases: inputs.selectedUseCases,
+    selectedUseCases:
+      inputs.assumptions.valueApproach === "top_down" ? [] : inputs.selectedUseCases,
     valueModel: inputs.valueModel ?? DEFAULT_VALUE_MODEL,
     priorSections,
   };
@@ -200,7 +202,11 @@ export function computeAllSections(inputs: ProposalInputs): SectionOutput[] {
     const config = configByKind.get(kind);
     if (!module || !config) continue;
 
-    const output = module(ctx);
+    const topDownOutput =
+      inputs.assumptions.valueApproach === "top_down"
+        ? topDownStorySection(kind, ctx)
+        : undefined;
+    const output = topDownOutput ?? module(ctx);
     if (!output) continue; // module opted to omit itself (e.g. peer_proof, no match)
     output.order = config.order;
     output.enabled = config.enabled;

@@ -70,6 +70,17 @@ console.log(`break-even adoption (base): ${bea === null ? "none" : `${Math.round
 // Cost realism + ratio + band-width sanity (Part 4)
 const v3 = annualValue(a, ucs, 3);
 const c3 = annualTokenCost(a, ucs, 3);
+const directOverride = 1_234_567;
+const overriddenC3 = annualTokenCost(
+  { ...a, annualCostOverrides: { "3": directOverride } },
+  ucs,
+  3,
+);
+assert.deepStrictEqual(
+  overriddenC3,
+  { low: directOverride, base: directOverride, high: directOverride },
+  "bottom-up direct annual cost override replaces the modeled band",
+);
 const ratio3 = ratioVsCost(v3, c3);
 const relW = (r: { low: number; base: number; high: number }) => (r.high - r.low) / r.base;
 console.log(

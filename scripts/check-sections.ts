@@ -180,6 +180,60 @@ console.log(
   `sub-industry reactive: top-down label "${bank.label}" / "${cu.label}" / "${card.label}", value keys identical ✓`,
 );
 
+const topDownDeck = computeAllSections({
+  company: demoCompany,
+  assumptions: { ...DEFAULT_ASSUMPTIONS, valueApproach: "top_down" },
+  selectedUseCases: SEED_USE_CASES.slice(0, 4), // must be ignored by the pipeline
+  valueModel: DEFAULT_VALUE_MODEL,
+  sectionConfig: defaultSectionConfig(),
+});
+assert(
+  !(topDownDeck.find((section) => section.kind === "executive_summary")?.bullets ?? []).some(
+    (bullet) => bullet.includes("sized bottom-up"),
+  ),
+  "top-down executive story never falls back to bottom-up language",
+);
+assert.strictEqual(
+  topDownDeck.find((section) => section.kind === "cost")?.title,
+  "Cost — Optional Directional Input",
+  "top-down cost is direct/optional, not token-derived",
+);
+assert.strictEqual(
+  topDownDeck.find((section) => section.kind === "cost")?.rangedFigures
+    ?.implementationCost.base,
+  0,
+  "top-down value-only mode does not inherit bottom-up implementation cost",
+);
+assert(
+  topDownDeck.find((section) => section.kind === "current_state")?.title.includes("Value Pools"),
+  "top-down current state uses functional pools",
+);
+console.log("top-down story: no workflow dependency + optional direct cost ✓");
+
+const directTopDownCost = 2_500_000;
+const topDownWithCost = computeAllSections({
+  company: demoCompany,
+  assumptions: { ...DEFAULT_ASSUMPTIONS, valueApproach: "top_down" },
+  selectedUseCases: SEED_USE_CASES.slice(0, 4),
+  valueModel: {
+    ...DEFAULT_VALUE_MODEL,
+    topDownAnnualCosts: { "3": directTopDownCost },
+  },
+  sectionConfig: defaultSectionConfig(),
+});
+assert.strictEqual(
+  topDownWithCost.find((section) => section.kind === "cost")?.rangedFigures
+    ?.annualCostFinalYear.base,
+  directTopDownCost,
+  "top-down direct cost survives into the shared structured section output",
+);
+assert.strictEqual(
+  topDownWithCost.find((section) => section.kind === "forecast")?.bandedCharts?.[1]
+    ?.points.at(-1)?.base,
+  directTopDownCost,
+  "top-down forecast uses the direct cost rather than the token engine",
+);
+
 // ── Reinvestment toggle: with the value-realism fix it moves BOTH the outcome
 //    composition AND the realized TOTAL — capacity realizes less than offset, so
 //    full-capacity value is strictly lower than full cost-out (this proves the

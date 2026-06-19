@@ -107,6 +107,11 @@ export interface ScenarioAssumptions {
    *  only a subset. 0..1; editable. Corrects the "everyone does everything"
    *  overcount. Absent on pre-feature payloads → DEFAULT_USE_CASE_COVERAGE. */
   useCaseCoverage?: number;
+  /** Optional direct annual run-rate overrides keyed by year ("1", "2", ...).
+   * Top-down uses these as the entire cost story; bottom-up uses them instead
+   * of calculated token cost for the specified year. Missing/blank = modeled
+   * bottom-up cost, or zero cost for top-down. */
+  annualCostOverrides?: Record<string, number>;
 }
 
 // ── Value model (top_down inputs; bottom_up reuses use cases) ────────────────
@@ -126,6 +131,12 @@ export interface ValueModelInputs {
    *  source — never a fabricated citation. */
   upliftSource?: string;
   realizationFactor: Ranged; // 0..1 discount on the theoretical uplift
+  /** High-level functions named in the top-down value thesis. These allocate
+   * the directional value equally; they are not workflow/use-case inputs. */
+  topDownFunctions: string[];
+  /** Optional direct AE-entered annual cost SWAG by year. Kept separate from
+   * bottom-up token-cost overrides so switching methods never leaks costs. */
+  topDownAnnualCosts: Record<string, number>;
 }
 
 // ── Company & enrichment ─────────────────────────────────────────────────────

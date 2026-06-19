@@ -3,10 +3,12 @@
 import type {
   ScenarioAssumptions,
   SectionOutput,
-  ValueModelInputs,
+  UseCase,
 } from "@/lib/types";
-import { FieldLabel, RangedField, Slider } from "../inputs";
+import { FieldLabel, NumberField, RangedField, Slider } from "../inputs";
 import RampEditor from "../ramp-editor";
+import ModelMixEditor from "../model-mix-editor";
+import TokenModelEditor from "../token-model-editor";
 import { DEFAULT_VALUE_REALIZATION, DEFAULT_USE_CASE_COVERAGE } from "@/lib/data/defaults";
 import { valueRealization } from "@/lib/economics/engine";
 import { fmtCurrency } from "@/lib/format";
@@ -14,10 +16,9 @@ import { fmtCurrency } from "@/lib/format";
 interface Props {
   assumptions: ScenarioAssumptions;
   onAssumptions: (a: ScenarioAssumptions) => void;
-  valueModel: ValueModelInputs;
-  onValueModel: (v: ValueModelInputs) => void;
   /** Computed sections — used to show the live value composition. */
   sections: SectionOutput[];
+  selectedUseCases: UseCase[];
   onBack: () => void;
 }
 
@@ -35,13 +36,11 @@ const PRESETS = [
 export default function SettingsScreen({
   assumptions,
   onAssumptions,
-  valueModel,
-  onValueModel,
   sections,
+  selectedUseCases,
   onBack,
 }: Props) {
   const patch = (p: Partial<ScenarioAssumptions>) => onAssumptions({ ...assumptions, ...p });
-  const patchVM = (p: Partial<ValueModelInputs>) => onValueModel({ ...valueModel, ...p });
   const cap = assumptions.reinvestmentCapacity ?? 0.6;
   const capPct = Math.round(cap * 100);
   const coverage = assumptions.useCaseCoverage ?? DEFAULT_USE_CASE_COVERAGE;
@@ -49,6 +48,7 @@ export default function SettingsScreen({
   // The blended realization rate at the current posture — shown live so the user
   // sees the realized total move as they slide the toggle / edit the rates.
   const realizedPct = Math.round(valueRealization(assumptions).base * 100);
+  const approach = assumptions.valueApproach ?? "bottom_up";
 
   // Live composition: the Business Value section already routes value to
   // outcomes by this posture — surface its "→ outcome" stats here so the user
@@ -78,7 +78,7 @@ export default function SettingsScreen({
       </div>
 
       {/* Reinvestment toggle — the headline assumption */}
-      <section className="rounded-xl border border-line bg-surface p-5 shadow-card">
+      {approach === "bottom_up" && <section className="rounded-xl border border-line-strong bg-surface p-5 shadow-card">
         <h2 className="text-sm font-semibold">How is freed time realized?</h2>
         <p className="mt-1 text-[13px] leading-snug text-ink-secondary">
           The single most-contested assumption. It sets <span className="font-medium">both</span> the
@@ -145,10 +145,10 @@ export default function SettingsScreen({
             </p>
           </div>
         )}
-      </section>
+      </section>}
 
       {/* Value realization — the saved-hours → dollars haircut (value-realism fix) */}
-      <section className="mt-6 rounded-xl border border-line bg-surface p-5 shadow-card">
+      {approach === "bottom_up" && <section className="mt-6 rounded-xl border border-line-strong bg-surface p-5 shadow-card">
         <h2 className="text-sm font-semibold">Value realization &amp; coverage</h2>
         <p className="mt-1 text-[13px] leading-snug text-ink-secondary">
           Saved hours are not dollars at full freight. These editable estimates turn the gross
@@ -186,43 +186,13 @@ export default function SettingsScreen({
             </p>
           </div>
         </div>
-      </section>
-
-      {/* Conversion ratios */}
-      <section className="mt-6 rounded-xl border border-line bg-surface p-5 shadow-card">
-        <h2 className="text-sm font-semibold">Top-line → value-driver conversion ratios</h2>
-        <p className="mt-1 text-[13px] leading-snug text-ink-secondary">
-          The named assumptions that convert the top-line into value (used by the top-down
-          approach). All are placeholders to confirm — never cited facts.
-        </p>
-        <div className="mt-3 space-y-3">
-          <RangedField
-            label="Addressable share (0–1)"
-            value={valueModel.addressableShare}
-            step={0.05}
-            onChange={(r) => patchVM({ addressableShare: r })}
-          />
-          <RangedField
-            label="Benchmark uplift (0–1)"
-            value={valueModel.upliftPct}
-            step={0.05}
-            onChange={(r) => patchVM({ upliftPct: r })}
-          />
-          <RangedField
-            label="Realization factor (0–1)"
-            value={valueModel.realizationFactor}
-            step={0.05}
-            onChange={(r) => patchVM({ realizationFactor: r })}
-          />
-        </div>
-      </section>
+      </section>}
 
       {/* Ramp assumptions */}
-      <section className="mt-6 rounded-xl border border-line bg-surface p-5 shadow-card">
+      <section className="mt-6 rounded-xl border border-line-strong bg-surface p-5 shadow-card">
         <h2 className="text-sm font-semibold">Ramp assumptions</h2>
         <p className="mt-1 text-[13px] leading-snug text-ink-secondary">
-          Adoption breadth and usage depth over the horizon (also editable on the Inputs
-          screen — same underlying assumptions).
+          The single editing location for the adoption and consumption forecast.
         </p>
         <div className="mt-3 space-y-5">
           <RampEditor
@@ -231,12 +201,36 @@ export default function SettingsScreen({
             points={assumptions.adoptionBreadth}
             onChange={(adoptionBreadth) => patch({ adoptionBreadth })}
           />
-          <RampEditor
-            label="Usage depth (consumption multiplier per adopter)"
-            mode="multiplier"
-            points={assumptions.usageDepth}
-            onChange={(usageDepth) => patch({ usageDepth })}
-          />
+          {approach === "bottom_up" && <RampEditor label="Usage depth (consumption multiplier per adopter)" mode="multiplier" points={assumptions.usageDepth} onChange={(usageDepth) => patch({ usageDepth })} />}
+        </div>
+      </section>
+
+      {approach === "bottom_up" && (
+        <section className="mt-6 rounded-xl border border-line-strong bg-surface p-5 shadow-card">
+          <h2 className="text-sm font-semibold">Bottom-up cost model &amp; overrides</h2>
+          <p className="mt-1 text-[13px] leading-snug text-ink-secondary">
+            Token economics calculate annual cost by default. Enter a direct annual override
+            for any year to replace the modeled figure with an AE-provided SWAG.
+          </p>
+          <div className="mt-4 space-y-5">
+            <ModelMixEditor mix={assumptions.modelMix} onChange={(modelMix) => patch({ modelMix })} />
+            <TokenModelEditor assumptions={assumptions} selectedUseCases={selectedUseCases} onChange={onAssumptions} />
+            <div className="grid gap-3 sm:grid-cols-3">
+              {[1, 2, 3].map((year) => (
+                <NumberField key={year} label={`Year ${year} override ($0 = modeled)`} value={assumptions.annualCostOverrides?.[String(year)] ?? 0} min={0} step={25_000} onChange={(value) => patch({ annualCostOverrides: { ...(assumptions.annualCostOverrides ?? {}), [String(year)]: Math.max(0, value) } })} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      <section className="mt-6 rounded-xl border border-line-strong bg-surface p-5 shadow-card">
+        <h2 className="text-sm font-semibold">
+          {approach === "bottom_up" ? "Case horizon & enablement" : "Case horizon"}
+        </h2>
+        <div className={`mt-3 grid gap-4 ${approach === "bottom_up" ? "sm:grid-cols-2" : ""}`}>
+          <NumberField label="Horizon (years)" value={assumptions.horizonYears} min={1} step={1} onChange={(horizonYears) => patch({ horizonYears: Math.max(1, Math.min(5, Math.round(horizonYears))) })} />
+          {approach === "bottom_up" && <RangedField label="One-time implementation cost" value={assumptions.implementationCost} prefix="$" step={25_000} onChange={(implementationCost) => patch({ implementationCost })} />}
         </div>
       </section>
 

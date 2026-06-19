@@ -299,6 +299,10 @@ export interface SectionConfigEntry {
 }
 
 export interface ProposalPayload {
+  /** Wire-format version. Increment when persisted proposal semantics change. */
+  schemaVersion: number;
+  /** Monotonic saved-state revision, incremented after every successful save. */
+  revision: number;
   company: CompanyProfile;
   assumptions: ScenarioAssumptions;
   selectedUseCaseIds: string[];

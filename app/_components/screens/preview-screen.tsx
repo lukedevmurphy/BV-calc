@@ -7,11 +7,13 @@ import { scenarioAppendixSlides } from "@/lib/sections/scenario";
 import { planSection } from "@/lib/slide-fit/plan";
 import SlideView from "../slide-view";
 import ExportButton from "../export-button";
+import ScaledSlide from "../scaled-slide";
 
 interface Props {
   /** All computed sections (build order); Preview filters + re-sequences. */
   sections: SectionOutput[];
   companyName: string;
+  sectionsPending: boolean;
   onBack: () => void;
 }
 
@@ -36,7 +38,12 @@ function inferFinalYear(sections: SectionOutput[]): number {
  * the divider, plus the auto-generated conservative / upside scenario slides)
  * follows a dark divider slide — exactly the order /api/pptx exports.
  */
-export default function PreviewScreen({ sections, companyName, onBack }: Props) {
+export default function PreviewScreen({
+  sections,
+  companyName,
+  sectionsPending,
+  onBack,
+}: Props) {
   const slides: Slide[] = useMemo(() => {
     const enabled = sections.filter((s) => s.enabled);
     const rank = (k: SectionOutput["kind"]) => {
@@ -115,25 +122,29 @@ export default function PreviewScreen({ sections, companyName, onBack }: Props) 
     <div className="mx-auto max-w-[1120px] px-6 py-5">
       <div className="relative">
         {/* 16:9 slide frame — fills the stage like a slide being presented */}
-        <div className="aspect-[16/9] w-full overflow-hidden rounded-2xl border border-line bg-surface shadow-card">
-          {current.type === "divider" ? (
-            <AppendixDividerSlide />
-          ) : (
-            <div className="h-full overflow-y-auto px-10 py-8">
-              {/* Mirror the export's compaction: a compacted slide renders its
-                  content slightly smaller here too (zoom leaves the same
-                  shrink-to-fit footprint the PPTX shows). */}
-              <div
-                style={
-                  current.fontScale < 1
-                    ? ({ zoom: current.fontScale } as React.CSSProperties)
-                    : undefined
-                }
-              >
-                <SlideView section={current.section} />
+        <div className="w-full overflow-hidden rounded-2xl border border-line bg-surface shadow-card">
+          <ScaledSlide>
+            {current.type === "divider" ? (
+              <AppendixDividerSlide />
+            ) : (
+              <div className="h-full px-12 py-10">
+                <div
+                  className="origin-top-left"
+                  style={
+                    current.fontScale < 1
+                      ? {
+                          transform: `scale(${current.fontScale})`,
+                          width: `${100 / current.fontScale}%`,
+                          height: `${100 / current.fontScale}%`,
+                        }
+                      : undefined
+                  }
+                >
+                  <SlideView section={current.section} fixedLayout />
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </ScaledSlide>
         </div>
 
         <button
@@ -184,7 +195,11 @@ export default function PreviewScreen({ sections, companyName, onBack }: Props) 
         </div>
 
         {/* Export to PowerPoint lives at the end of Preview. */}
-        <ExportButton companyName={companyName} sections={sections} />
+        <ExportButton
+          companyName={companyName}
+          sections={sections}
+          sectionsPending={sectionsPending}
+        />
       </div>
     </div>
   );

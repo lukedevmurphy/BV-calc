@@ -140,6 +140,40 @@ export function defaultSectionConfig(): SectionConfigEntry[] {
 }
 
 /**
+ * Reconciles persisted configuration with the current registry. Existing user
+ * ordering and enablement win; newly introduced sections are appended with
+ * their current defaults so older proposals never silently lose new content.
+ */
+export function normalizeSectionConfig(
+  config?: readonly SectionConfigEntry[] | null,
+): SectionConfigEntry[] {
+  const defaults = defaultSectionConfig();
+  if (!config?.length) return defaults;
+
+  const knownKinds = new Set(DEFAULT_SECTION_ORDER);
+  const seen = new Set<SectionKind>();
+  const normalized: SectionConfigEntry[] = [];
+
+  for (const entry of [...config].sort((a, b) => a.order - b.order)) {
+    if (!knownKinds.has(entry.kind) || seen.has(entry.kind)) continue;
+    seen.add(entry.kind);
+    normalized.push({
+      kind: entry.kind,
+      order: normalized.length,
+      enabled: entry.enabled,
+      appendix: entry.appendix ?? APPENDIX_KINDS.has(entry.kind),
+    });
+  }
+
+  for (const entry of defaults) {
+    if (seen.has(entry.kind)) continue;
+    normalized.push({ ...entry, order: normalized.length });
+  }
+
+  return normalized;
+}
+
+/**
  * Runs every registered module in dependency order, accumulating
  * priorSections, then stamps order/enabled from sectionConfig. Disabled
  * sections are still COMPUTED (their rangedFigures stay available to the
@@ -157,7 +191,8 @@ export function computeAllSections(inputs: ProposalInputs): SectionOutput[] {
     priorSections,
   };
 
-  const configByKind = new Map(inputs.sectionConfig.map((c) => [c.kind, c]));
+  const normalizedConfig = normalizeSectionConfig(inputs.sectionConfig);
+  const configByKind = new Map(normalizedConfig.map((c) => [c.kind, c]));
   const outputs: SectionOutput[] = [];
 
   for (const kind of COMPUTE_ORDER) {

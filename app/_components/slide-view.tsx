@@ -12,7 +12,13 @@ import SimpleChart from "./charts/simple-chart";
  * Used by both the Build cards and the Preview slideshow, so Preview is a
  * what-you-see-is-what-you-export view of the PowerPoint.
  */
-export default function SlideView({ section }: { section: SectionOutput }) {
+export default function SlideView({
+  section,
+  fixedLayout = false,
+}: {
+  section: SectionOutput;
+  fixedLayout?: boolean;
+}) {
   const hasCharts =
     (section.charts?.length ?? 0) > 0 || (section.bandedCharts?.length ?? 0) > 0;
   const twoCol = (section.bullets?.length ?? 0) > 0 && (hasCharts || !!section.table);
@@ -98,8 +104,14 @@ export default function SlideView({ section }: { section: SectionOutput }) {
       {/* Stat cards — cream, serif clay-deep value over uppercase slate label */}
       {section.stats && section.stats.length > 0 && (
         <div
-          className="mt-4 grid gap-3"
-          style={{ gridTemplateColumns: `repeat(${Math.min(section.stats.length, 4)}, minmax(0, 1fr))` }}
+          className={`mt-4 grid gap-3 ${fixedLayout ? "" : "grid-cols-1 sm:grid-cols-2"}`}
+          style={
+            fixedLayout
+              ? {
+                  gridTemplateColumns: `repeat(${Math.min(section.stats.length, 4)}, minmax(0, 1fr))`,
+                }
+              : undefined
+          }
         >
           {section.stats.map((s) => (
             <div key={s.label} className="rounded-lg border border-line bg-canvas px-3 py-2">
@@ -115,7 +127,15 @@ export default function SlideView({ section }: { section: SectionOutput }) {
       )}
 
       {/* Body: bullets left, visual right (mirrors the pptx two-column body) */}
-      <div className={`mt-4 grid flex-1 gap-6 ${twoCol ? "lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]" : "grid-cols-1"}`}>
+      <div
+        className={`mt-4 grid flex-1 gap-6 ${
+          twoCol
+            ? fixedLayout
+              ? "grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]"
+              : "lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]"
+            : "grid-cols-1"
+        }`}
+      >
         {section.bullets && section.bullets.length > 0 && (
           <ul className="space-y-2">
             {section.bullets.map((b, i) => (

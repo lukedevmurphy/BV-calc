@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getDb } from "@/db/client";
 import { proposals } from "@/db/schema";
 import Builder from "@/app/_components/builder";
+import { migrateProposalPayload } from "@/lib/proposals/migrate";
 
 export const dynamic = "force-dynamic";
 
@@ -20,11 +21,12 @@ export default async function ProposalPage({
     const [row] = await db.select().from(proposals).where(eq(proposals.id, id));
     if (!row) return <Message text="Proposal not found." />;
 
-    const p = row.payload;
+    const p = migrateProposalPayload(row.payload);
     return (
       <Builder
         proposalId={row.id}
         initial={{
+          revision: p.revision,
           company: p.company,
           assumptions: p.assumptions,
           useCaseIds: p.selectedUseCaseIds,

@@ -6,6 +6,7 @@ import type { SectionOutput } from "@/lib/types";
 interface Props {
   companyName: string;
   sections: SectionOutput[];
+  sectionsPending?: boolean;
 }
 
 /**
@@ -13,7 +14,11 @@ interface Props {
  * and downloads the result — one source object, two outputs. Download goes
  * through a blob + anchor click (window.open would lose the POST body).
  */
-export default function ExportButton({ companyName, sections }: Props) {
+export default function ExportButton({
+  companyName,
+  sections,
+  sectionsPending = false,
+}: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,10 +52,14 @@ export default function ExportButton({ companyName, sections }: Props) {
     <div className="flex items-center gap-3">
       <button
         onClick={exportPptx}
-        disabled={busy || sections.length === 0}
+        disabled={busy || sectionsPending || sections.length === 0}
         className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white shadow-card transition-opacity hover:opacity-90 disabled:opacity-50"
       >
-        {busy ? "Exporting…" : "Export to PowerPoint"}
+        {busy
+          ? "Exporting…"
+          : sectionsPending
+            ? "Updating preview…"
+            : "Export to PowerPoint"}
       </button>
       {error && <span className="text-sm text-red-600">{error}</span>}
     </div>

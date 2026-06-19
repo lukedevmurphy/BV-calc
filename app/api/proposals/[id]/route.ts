@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { proposals } from "@/db/schema";
 import type { ProposalPayload } from "@/lib/types";
+import { migrateProposalPayload } from "@/lib/proposals/migrate";
 import { dbError } from "../helpers";
 
 export const runtime = "nodejs";
@@ -14,7 +15,7 @@ export async function GET(_req: Request, { params }: Params): Promise<Response> 
     const db = getDb();
     const [row] = await db.select().from(proposals).where(eq(proposals.id, id));
     if (!row) return Response.json({ error: "not found" }, { status: 404 });
-    return Response.json(row);
+    return Response.json({ ...row, payload: migrateProposalPayload(row.payload) });
   } catch (e) {
     return dbError(e);
   }
@@ -24,14 +25,10 @@ export async function PUT(req: Request, { params }: Params): Promise<Response> {
   const { id } = await params;
   let payload: ProposalPayload;
   try {
-    payload = (await req.json()) as ProposalPayload;
+    payload = migrateProposalPayload(await req.json());
   } catch {
     return Response.json({ error: "invalid JSON body" }, { status: 400 });
   }
-  if (!payload?.company?.name || !Array.isArray(payload.sections)) {
-    return Response.json({ error: "invalid ProposalPayload" }, { status: 400 });
-  }
-
   try {
     const db = getDb();
     const [row] = await db

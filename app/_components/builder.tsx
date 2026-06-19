@@ -1,6 +1,7 @@
 "use client";
 
 import { useDeferredValue, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import type {
   CompanyProfile,
   ProposalPayload,
@@ -12,15 +13,29 @@ import { DEFAULT_ASSUMPTIONS, DEFAULT_VALUE_MODEL } from "@/lib/data/defaults";
 import { resolveUseCases } from "@/lib/data/use-cases";
 import { resolveSubIndustry } from "@/lib/value-model/sub-industry";
 import { getValuePrefillProvider } from "@/lib/value-model/prefill/provider";
-import { computeAllSections, defaultSectionConfig } from "@/lib/sections/index";
+import {
+  computeAllSections,
+  defaultSectionConfig,
+  normalizeSectionConfig,
+} from "@/lib/sections/index";
+import { CURRENT_PROPOSAL_SCHEMA_VERSION } from "@/lib/proposals/migrate";
 import SaveButton from "./save-button";
 import CompanyStep from "./company-step";
 import SavedCasesList from "./saved-cases-list";
 import FlowNav, { type Screen } from "./flow-nav";
-import InputsScreen from "./screens/inputs-screen";
-import BuildScreen from "./screens/build-screen";
-import PreviewScreen from "./screens/preview-screen";
-import SettingsScreen from "./screens/settings-screen";
+
+const InputsScreen = dynamic(() => import("./screens/inputs-screen"), {
+  loading: ScreenLoading,
+});
+const BuildScreen = dynamic(() => import("./screens/build-screen"), {
+  loading: ScreenLoading,
+});
+const PreviewScreen = dynamic(() => import("./screens/preview-screen"), {
+  loading: ScreenLoading,
+});
+const SettingsScreen = dynamic(() => import("./screens/settings-screen"), {
+  loading: ScreenLoading,
+});
 
 const DEFAULT_USE_CASE_IDS = [
   "awm-meeting-prep",
@@ -30,6 +45,7 @@ const DEFAULT_USE_CASE_IDS = [
 ];
 
 export interface BuilderInitialState {
+  revision?: number;
   company: CompanyProfile;
   assumptions: ScenarioAssumptions;
   useCaseIds: string[];
@@ -56,9 +72,10 @@ export default function Builder({
     initial?.valueModel ?? DEFAULT_VALUE_MODEL,
   );
   const [sectionConfig, setSectionConfig] = useState<SectionConfigEntry[]>(
-    initial?.sectionConfig ?? defaultSectionConfig(),
+    normalizeSectionConfig(initial?.sectionConfig ?? defaultSectionConfig()),
   );
   const [proposalId, setProposalId] = useState<string | null>(initialProposalId ?? null);
+  const [revision, setRevision] = useState(initial?.revision ?? 0);
 
   // Three-screen flow state — lives here, so moving Inputs ↔ Build ↔ Preview
   // (and the Settings page) never loses work.
@@ -67,6 +84,8 @@ export default function Builder({
 
   const deferredAssumptions = useDeferredValue(assumptions);
   const deferredValueModel = useDeferredValue(valueModel);
+  const sectionsPending =
+    deferredAssumptions !== assumptions || deferredValueModel !== valueModel;
 
   const sections = useMemo(
     () =>
@@ -110,16 +129,30 @@ export default function Builder({
     );
   }
 
-  const subIndustry = resolveSubIndustry(company.industry);
+  const confirmedCompany = company;
+  const subIndustry = resolveSubIndustry(confirmedCompany.industry);
 
-  const payload: ProposalPayload = {
-    company,
-    assumptions: deferredAssumptions,
-    selectedUseCaseIds: useCaseIds,
-    valueModel: deferredValueModel,
-    sectionConfig,
-    sections,
-  };
+  // Saving is an explicit consistency boundary. Recompute from the immediate
+  // inputs at click time rather than persisting useDeferredValue's prior frame.
+  function createPayload(): ProposalPayload {
+    const canonicalSections = computeAllSections({
+      company: confirmedCompany,
+      assumptions,
+      selectedUseCases: resolveUseCases(useCaseIds),
+      valueModel,
+      sectionConfig,
+    });
+    return {
+      schemaVersion: CURRENT_PROPOSAL_SCHEMA_VERSION,
+      revision: revision + 1,
+      company: confirmedCompany,
+      assumptions,
+      selectedUseCaseIds: useCaseIds,
+      valueModel,
+      sectionConfig: normalizeSectionConfig(sectionConfig),
+      sections: canonicalSections,
+    };
+  }
 
   // Settings is reachable from any step; returning from it goes back to where
   // the user came from.
@@ -136,7 +169,14 @@ export default function Builder({
         companyName={company.name}
         onEditCompany={() => setEditingCompany(true)}
         saveSlot={
-          <SaveButton proposalId={proposalId} payload={payload} onSaved={setProposalId} />
+          <SaveButton
+            proposalId={proposalId}
+            createPayload={createPayload}
+            onSaved={(id, savedRevision) => {
+              setProposalId(id);
+              setRevision(savedRevision);
+            }}
+          />
         }
       />
 
@@ -168,6 +208,7 @@ export default function Builder({
         <PreviewScreen
           sections={sections}
           companyName={company.name}
+          sectionsPending={sectionsPending}
           onBack={() => setScreen("build")}
         />
       )}
@@ -182,6 +223,15 @@ export default function Builder({
           onBack={() => setScreen(returnScreen)}
         />
       )}
+    </div>
+  );
+}
+
+function ScreenLoading() {
+  return (
+    <div className="mx-auto min-h-[320px] max-w-7xl px-6 py-6" aria-busy="true">
+      <div className="h-8 w-32 animate-pulse rounded bg-muted" />
+      <div className="mt-5 h-64 animate-pulse rounded-xl border border-line bg-surface" />
     </div>
   );
 }

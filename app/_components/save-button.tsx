@@ -5,13 +5,13 @@ import type { ProposalPayload } from "@/lib/types";
 
 interface Props {
   proposalId: string | null;
-  payload: ProposalPayload;
-  onSaved: (id: string) => void;
+  createPayload: () => ProposalPayload;
+  onSaved: (id: string, revision: number) => void;
 }
 
 /** Persists the full proposal (inputs + computed snapshot) to Neon.
  *  First save POSTs, later saves PUT the same row. */
-export default function SaveButton({ proposalId, payload, onSaved }: Props) {
+export default function SaveButton({ proposalId, createPayload, onSaved }: Props) {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
 
@@ -19,6 +19,7 @@ export default function SaveButton({ proposalId, payload, onSaved }: Props) {
     setBusy(true);
     setStatus(null);
     try {
+      const payload = createPayload();
       const res = await fetch(
         proposalId ? `/api/proposals/${proposalId}` : "/api/proposals",
         {
@@ -31,7 +32,7 @@ export default function SaveButton({ proposalId, payload, onSaved }: Props) {
       if (!res.ok || !data.id) {
         throw new Error(data.error ?? `save failed (${res.status})`);
       }
-      onSaved(data.id);
+      onSaved(data.id, payload.revision);
       setStatus("saved");
       setTimeout(() => setStatus(null), 2500);
     } catch (e) {

@@ -2,6 +2,7 @@ import { desc } from "drizzle-orm";
 import { getDb } from "@/db/client";
 import { proposals } from "@/db/schema";
 import type { ProposalPayload } from "@/lib/types";
+import { migrateProposalPayload } from "@/lib/proposals/migrate";
 import { dbError } from "./helpers";
 
 export const runtime = "nodejs";
@@ -29,14 +30,10 @@ export async function GET(): Promise<Response> {
 export async function POST(req: Request): Promise<Response> {
   let payload: ProposalPayload;
   try {
-    payload = (await req.json()) as ProposalPayload;
+    payload = migrateProposalPayload(await req.json());
   } catch {
     return Response.json({ error: "invalid JSON body" }, { status: 400 });
   }
-  if (!payload?.company?.name || !Array.isArray(payload.sections)) {
-    return Response.json({ error: "invalid ProposalPayload" }, { status: 400 });
-  }
-
   try {
     const db = getDb();
     const [row] = await db

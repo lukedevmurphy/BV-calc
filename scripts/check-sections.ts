@@ -8,7 +8,12 @@ import { annualValue, breakEvenMonth } from "@/lib/economics/engine";
 import {
   computeAllSections,
   defaultSectionConfig,
+  normalizeSectionConfig,
 } from "@/lib/sections/index";
+import {
+  CURRENT_PROPOSAL_SCHEMA_VERSION,
+  migrateProposalPayload,
+} from "@/lib/proposals/migrate";
 import { resolveSubIndustry } from "@/lib/value-model/sub-industry";
 import { scenarioAppendixSlides } from "@/lib/sections/scenario";
 import { fmtCurrency } from "@/lib/format";
@@ -300,5 +305,23 @@ assert(
 console.log(
   `peer proof: payments → "${payments!.subtitle}" (sourced); AWM → omitted ✓`,
 );
+
+// Persisted proposal evolution: an unversioned payload and a config missing a
+// newly registered section upgrade without losing existing configuration.
+const legacyConfig = defaultSectionConfig().filter((c) => c.kind !== "cost");
+const normalizedConfig = normalizeSectionConfig(legacyConfig);
+assert(normalizedConfig.some((c) => c.kind === "cost"), "new section merged into old config");
+const migrated = migrateProposalPayload({
+  company: demoCompany,
+  assumptions: DEFAULT_ASSUMPTIONS,
+  selectedUseCaseIds: ucs4.map((u) => u.id),
+  valueModel: DEFAULT_VALUE_MODEL,
+  sectionConfig: legacyConfig,
+  sections,
+});
+assert.strictEqual(migrated.schemaVersion, CURRENT_PROPOSAL_SCHEMA_VERSION);
+assert.strictEqual(migrated.revision, 0, "legacy proposal starts at revision zero");
+assert(migrated.sectionConfig.some((c) => c.kind === "cost"));
+console.log("proposal migration: unversioned payload upgraded + missing section restored ✓");
 
 console.log("Section contract holds across all 12. ✓");

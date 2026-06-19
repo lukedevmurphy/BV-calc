@@ -16,6 +16,7 @@ import type {
 import { DEFAULT_VALUE_MODEL } from "@/lib/data/defaults";
 import { problemSection } from "./problem";
 import { businessValueSection } from "./business-value";
+import { valueCalculationSection } from "./value-calculation";
 import { costSection } from "./cost";
 import { currentStateSection } from "./current-state";
 import { futureStateSection } from "./future-state";
@@ -47,12 +48,14 @@ export const DEFAULT_SECTION_ORDER: SectionKind[] = [
   "next_steps",
   "forecast",
   "cost",
+  "value_calculation",
 ];
 
 /** Kinds that read as appendix detail when they trail the deck. */
 export const APPENDIX_KINDS: ReadonlySet<SectionKind> = new Set([
   "forecast",
   "cost",
+  "value_calculation",
 ]);
 
 /** Preview (readout) sequence — a CFO readout leads with the answer: value,
@@ -93,6 +96,7 @@ const SECTION_MODULES: Partial<Record<SectionKind, SyncSectionModule>> = {
   use_case_persona: useCasePersonaSection,
   peer_proof: peerProofSection,
   business_value: businessValueSection,
+  value_calculation: valueCalculationSection,
   proposal: proposalSection,
   cost: costSection,
   forecast: forecastSection,
@@ -110,6 +114,7 @@ const COMPUTE_ORDER: SectionKind[] = [
   "use_case_persona",
   "peer_proof",
   "business_value",
+  "value_calculation",
   "cost",
   "forecast",
   "proposal",

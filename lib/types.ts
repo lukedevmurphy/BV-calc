@@ -203,6 +203,9 @@ export type SectionKind =
   | "product"
   | "use_case_persona"
   | "business_value"
+  // Appendix "show your work" slide: the arithmetic behind the Business Value
+  // headline (input × assumption = value). Auto-included, defaults to appendix.
+  | "value_calculation"
   | "proposal"
   | "cost"
   | "forecast"

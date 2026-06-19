@@ -16,12 +16,6 @@ const FUNCTION_OPTIONS = [
   "HR",
 ];
 
-const TOP_DOWN_EDGE_HELP = {
-  low: "Conservative: the lower bound used when adoption or financial impact underperforms the working thesis.",
-  base: "Base: the account team's most likely working estimate for the CFO conversation.",
-  high: "Optimistic: the upper bound if addressability, uplift, or realization outperform the base case.",
-};
-
 export default function ValueModelPanel({
   valueModel: vm,
   subIndustry,
@@ -62,10 +56,10 @@ export default function ValueModelPanel({
         </p>
 
         <div className="mt-5 space-y-4">
-          <RangedField label={v.toplineLabel} value={vm.topline} step={1_000_000} prefix="$" help={v.toplineHelp} edgeHelp={TOP_DOWN_EDGE_HELP} onChange={(topline) => patch({ topline })} />
-          <RangedField label={v.addressableLabel} value={vm.addressableShare} step={0.05} format="percent" help={v.addressableHelp} edgeHelp={TOP_DOWN_EDGE_HELP} onChange={(addressableShare) => patch({ addressableShare })} />
-          <RangedField label={v.upliftLabel} value={vm.upliftPct} step={0.05} format="percent" help={v.upliftHelp} edgeHelp={TOP_DOWN_EDGE_HELP} onChange={(upliftPct) => patch({ upliftPct })} />
-          <RangedField label={v.realizationLabel} value={vm.realizationFactor} step={0.05} format="percent" help={v.realizationHelp} edgeHelp={TOP_DOWN_EDGE_HELP} onChange={(realizationFactor) => patch({ realizationFactor })} />
+          <RangedField label={v.toplineLabel} value={vm.topline} step={1_000_000} prefix="$" format="currency" help={v.toplineHelp} onChange={(topline) => patch({ topline })} />
+          <RangedField label={v.addressableLabel} value={vm.addressableShare} step={0.05} format="percent" help={v.addressableHelp} onChange={(addressableShare) => patch({ addressableShare })} />
+          <RangedField label={v.upliftLabel} value={vm.upliftPct} step={0.05} format="percent" help={v.upliftHelp} onChange={(upliftPct) => patch({ upliftPct })} />
+          <RangedField label={v.realizationLabel} value={vm.realizationFactor} step={0.05} format="percent" help={v.realizationHelp} onChange={(realizationFactor) => patch({ realizationFactor })} />
           <label className="block">
             <FieldLabel>Uplift source / rationale</FieldLabel>
             <input
@@ -118,7 +112,7 @@ export default function ValueModelPanel({
         </p>
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           {[1, 2, 3].map((year) => (
-            <NumberField key={year} label={`Year ${year} annual cost`} value={vm.topDownAnnualCosts[String(year)] ?? 0} min={0} step={25_000} onChange={(value) => setCost(year, value)} />
+            <NumberField key={year} label={`Year ${year} annual cost`} value={vm.topDownAnnualCosts[String(year)] ?? 0} min={0} step={25_000} prefix="$" format="currency" onChange={(value) => setCost(year, value)} />
           ))}
         </div>
       </section>

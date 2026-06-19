@@ -28,12 +28,6 @@ const PRESETS = [
   { label: "Capacity (reinvest)", value: 1 },
 ];
 
-const REALIZATION_EDGE_HELP = {
-  low: "Conservative: the smallest share of freed hours expected to become measurable dollars.",
-  base: "Base: the most likely conversion of freed hours into avoided cost or monetized capacity.",
-  high: "Optimistic: the strongest credible conversion if operating changes fully capture the freed time.",
-};
-
 /**
  * Settings / assumptions — distinct from company identity. Ramp assumptions,
  * top-line → value-driver conversion ratios, and the reinvestment toggle (the
@@ -169,7 +163,6 @@ export default function SettingsScreen({
             step={0.05}
             format="percent"
             help="The percentage of freed hours that becomes actual avoided cost through reduced spend, attrition absorption, or headcount avoidance."
-            edgeHelp={REALIZATION_EDGE_HELP}
             onChange={(r) => patch({ offsetRealization: r })}
           />
           <RangedField
@@ -178,7 +171,6 @@ export default function SettingsScreen({
             step={0.05}
             format="percent"
             help="The percentage of freed capacity expected to produce measurable revenue or output. It is usually lower because reinvested time is less directly captured than cost-out."
-            edgeHelp={REALIZATION_EDGE_HELP}
             onChange={(r) => patch({ capacityRealization: r })}
           />
           <div>
@@ -229,7 +221,7 @@ export default function SettingsScreen({
             <TokenModelEditor assumptions={assumptions} selectedUseCases={selectedUseCases} onChange={onAssumptions} />
             <div className="grid gap-3 sm:grid-cols-3">
               {[1, 2, 3].map((year) => (
-                <NumberField key={year} label={`Year ${year} override ($0 = modeled)`} value={assumptions.annualCostOverrides?.[String(year)] ?? 0} min={0} step={25_000} onChange={(value) => patch({ annualCostOverrides: { ...(assumptions.annualCostOverrides ?? {}), [String(year)]: Math.max(0, value) } })} />
+                <NumberField key={year} label={`Year ${year} override ($0 = modeled)`} value={assumptions.annualCostOverrides?.[String(year)] ?? 0} min={0} step={25_000} prefix="$" format="currency" onChange={(value) => patch({ annualCostOverrides: { ...(assumptions.annualCostOverrides ?? {}), [String(year)]: Math.max(0, value) } })} />
               ))}
             </div>
           </div>
@@ -242,7 +234,7 @@ export default function SettingsScreen({
         </h2>
         <div className={`mt-3 grid gap-4 ${approach === "bottom_up" ? "sm:grid-cols-2" : ""}`}>
           <NumberField label="Horizon (years)" value={assumptions.horizonYears} min={1} step={1} onChange={(horizonYears) => patch({ horizonYears: Math.max(1, Math.min(5, Math.round(horizonYears))) })} />
-          {approach === "bottom_up" && <RangedField label="One-time implementation cost" value={assumptions.implementationCost} prefix="$" step={25_000} onChange={(implementationCost) => patch({ implementationCost })} />}
+          {approach === "bottom_up" && <RangedField label="One-time implementation cost" value={assumptions.implementationCost} prefix="$" format="currency" step={25_000} onChange={(implementationCost) => patch({ implementationCost })} />}
         </div>
       </section>
 

@@ -33,7 +33,7 @@ const sections = computeAllSections({
   sectionConfig: defaultSectionConfig(),
 });
 
-assert.strictEqual(sections.length, 12, "all twelve sections registered");
+assert.strictEqual(sections.length, 13, "all thirteen sections registered");
 
 for (const s of sections) {
   // Wire-format guard: must survive JSON round-trip losslessly
@@ -83,6 +83,20 @@ assert(
 // Cost slide is base-only too.
 const costStat = (byKind.cost.stats ?? []).find((s) => s.label.startsWith("Annual cost, Year 3"));
 assert(costStat && !isRange(costStat.value), "cost shows base case only");
+
+// Value Calculation appendix slide: present, in the appendix lane, and its
+// realized total ties out EXACTLY to the Business Value base (it must never
+// drift from the slide it explains).
+const vc = byKind.value_calculation;
+assert(vc, "value_calculation section registered");
+assert(vc.appendix === true, "value_calculation defaults into the appendix lane");
+assert(vc.table && vc.table.rows.length > 0, "value_calculation carries a calculation table");
+const realizedStat = (vc.stats ?? []).find((s) => s.label.startsWith("Realized annual value"));
+assert(
+  realizedStat?.value === fmtCurrency(byKind.business_value.rangedFigures!.annualValueFinalYear.base),
+  "value_calculation realized total ties out to the business_value base",
+);
+console.log(`value calculation: realized total ${realizedStat?.value} ties to business value base ✓`);
 
 // Default ordering: exec summary first on the page, computed last
 assert.strictEqual(sections[0].kind, "executive_summary", "exec summary ordered first");
@@ -390,4 +404,4 @@ assert.strictEqual(migrated.revision, 0, "legacy proposal starts at revision zer
 assert(migrated.sectionConfig.some((c) => c.kind === "cost"));
 console.log("proposal migration: unversioned payload upgraded + missing section restored ✓");
 
-console.log("Section contract holds across all 12. ✓");
+console.log("Section contract holds across all 13. ✓");

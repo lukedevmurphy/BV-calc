@@ -2,7 +2,7 @@ import type { ProposalPayload, SectionConfigEntry } from "@/lib/types";
 import { normalizeSectionConfig } from "@/lib/sections/index";
 import { DEFAULT_VALUE_MODEL } from "@/lib/data/defaults";
 
-export const CURRENT_PROPOSAL_SCHEMA_VERSION = 2;
+export const CURRENT_PROPOSAL_SCHEMA_VERSION = 3;
 
 type LegacyProposalPayload = Omit<ProposalPayload, "schemaVersion" | "revision"> & {
   schemaVersion?: number;
@@ -44,6 +44,9 @@ export function migrateProposalPayload(input: unknown): ProposalPayload {
     valueModel: {
       ...DEFAULT_VALUE_MODEL,
       ...(legacy.valueModel ?? {}),
+      // v3: topline was a Ranged {low,base,high}; it's now a single current-state
+      // actual. Collapse any legacy range to its base.
+      topline: coerceTopline(legacy.valueModel?.topline, DEFAULT_VALUE_MODEL.topline),
       topDownFunctions:
         legacy.valueModel?.topDownFunctions?.filter(
           (label): label is string => typeof label === "string" && label.trim().length > 0,
@@ -51,6 +54,16 @@ export function migrateProposalPayload(input: unknown): ProposalPayload {
       topDownAnnualCosts: legacy.valueModel?.topDownAnnualCosts ?? {},
     },
   };
+}
+
+/** Accepts the new number form or a legacy Ranged {low,base,high}, returning a
+ *  single figure. Falls back to the default when neither is usable. */
+function coerceTopline(value: unknown, fallback: number): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (isRecord(value) && typeof value.base === "number" && Number.isFinite(value.base)) {
+    return value.base;
+  }
+  return fallback;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

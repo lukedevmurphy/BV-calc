@@ -5,7 +5,7 @@ import { APPROACH_BAND_HALF_WIDTH_PCT } from "@/lib/value-model/constants";
 
 export function topDownMatureValue(vm: ValueModelInputs): number {
   return (
-    vm.topline.base *
+    vm.topline *
     vm.addressableShare.base *
     vm.upliftPct.base *
     vm.realizationFactor.base

@@ -56,7 +56,20 @@ export default function ValueModelPanel({
         </p>
 
         <div className="mt-5 space-y-4">
-          <RangedField label={v.toplineLabel} value={vm.topline} step={1_000_000} prefix="$" format="currency" help={v.toplineHelp} onChange={(topline) => patch({ topline })} />
+          <div>
+            <NumberField label={v.toplineLabel} value={vm.topline} step={1_000_000} prefix="$" format="currency" onChange={(topline) => patch({ topline })} />
+            <label className="mt-1.5 block">
+              <FieldLabel help="Where this figure came from — IR site, 10-K/10-Q, earnings call, or an AI lookup. Leave blank to flag it as unverified.">
+                Topline source
+              </FieldLabel>
+              <input
+                value={vm.toplineSource ?? ""}
+                onChange={(event) => patch({ toplineSource: event.target.value })}
+                placeholder="IR / SEC filing / public comment — or leave blank to verify"
+                className="mt-1 w-full rounded-md border border-line-strong bg-canvas px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              />
+            </label>
+          </div>
           <RangedField label={v.addressableLabel} value={vm.addressableShare} step={0.05} format="percent" help={v.addressableHelp} onChange={(addressableShare) => patch({ addressableShare })} />
           <RangedField label={v.upliftLabel} value={vm.upliftPct} step={0.05} format="percent" help={v.upliftHelp} onChange={(upliftPct) => patch({ upliftPct })} />
           <RangedField label={v.realizationLabel} value={vm.realizationFactor} step={0.05} format="percent" help={v.realizationHelp} onChange={(realizationFactor) => patch({ realizationFactor })} />

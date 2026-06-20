@@ -124,7 +124,13 @@ export interface ScenarioAssumptions {
  */
 export interface ValueModelInputs {
   // top_down group — whole-company benchmark math
-  topline: Ranged;
+  /** A single current-state actual (latest FY / TTM) — not a scenario. The
+   *  output confidence band comes from the conversion assumptions below and the
+   *  fixed top-down half-width, never from a range on the reported figure. */
+  topline: number;
+  /** Where the topline came from — IR site, SEC filing, public comment, or
+   *  "uncited — user to verify". Populated when an AE (or AI) sources it. */
+  toplineSource?: string;
   addressableShare: Ranged; // 0..1 share of topline addressable by AI
   upliftPct: Ranged; // 0..1 benchmark efficiency uplift
   /** Required (non-empty) for top_down; "uncited — user to verify" if no

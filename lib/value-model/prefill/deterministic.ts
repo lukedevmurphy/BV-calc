@@ -1,15 +1,11 @@
-import type { Ranged, ValueModelInputs } from "@/lib/types";
-import { ranged } from "@/lib/economics/ranged";
+import type { ValueModelInputs } from "@/lib/types";
+import { UNCITED } from "@/lib/value-model/constants";
 import { resolveSubIndustry } from "../sub-industry";
 import type { ValuePrefillInput, ValuePrefillProvider } from "./provider";
 
 /** Fully-loaded annual cost per employee used to size a labor-base top-line
  *  when no revenue figure is available (placeholder — user-editable). */
 const ASSUMED_ANNUAL_LOADED_COST = 180_000;
-
-/** Build a band ±pct around a base. */
-const band = (base: number, pct: number): Ranged =>
-  ranged(Math.round(base * (1 - pct)), Math.round(base), Math.round(base * (1 + pct)));
 
 /** Parse "$3.1B" / "$610M" / "$1,200" into a number; 0 if unparseable. */
 function parseMoney(raw: string): number {
@@ -33,11 +29,14 @@ export class DeterministicValuePrefillProvider implements ValuePrefillProvider {
     const revenue = (company.financialHighlights ?? []).find((h) =>
       /revenue/i.test(h.label),
     );
-    const toplineBase = revenue
-      ? parseMoney(revenue.value)
-      : (company.employeeCount ?? 1000) * ASSUMED_ANNUAL_LOADED_COST;
-
-    const topline = band(toplineBase || 1_000 * ASSUMED_ANNUAL_LOADED_COST, 0.15);
+    const parsedRevenue = revenue ? parseMoney(revenue.value) : 0;
+    // A single current-state actual: the company's revenue highlight if we have
+    // one, else a labor-base estimate. The source field records which.
+    const topline =
+      parsedRevenue || (company.employeeCount ?? 1000) * ASSUMED_ANNUAL_LOADED_COST;
+    const toplineSource = parsedRevenue
+      ? `Company financial highlight: ${revenue?.label ?? "revenue"}`
+      : UNCITED;
 
     // Sector-aware benchmark priors (still all uncited placeholders).
     // TODO(model-enrichment): a Claude-backed ValuePrefillProvider will replace
@@ -48,6 +47,7 @@ export class DeterministicValuePrefillProvider implements ValuePrefillProvider {
 
     return Promise.resolve({
       topline,
+      toplineSource,
       addressableShare: priors.addressableShare,
       upliftPct: priors.upliftPct,
       upliftSource: priors.upliftSource,

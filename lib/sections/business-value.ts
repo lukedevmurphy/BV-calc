@@ -268,6 +268,7 @@ function buildBottomUp(
 function buildTopDown(ctx: ProposalContext, finalYear: number): ApproachResult {
   const { valueModel: vm, company } = ctx;
   const source = vm.upliftSource?.trim() || "uncited — user to verify";
+  const toplineSource = vm.toplineSource?.trim() || "uncited — user to verify";
   // Sector vocabulary: same math, sector-specific driver labels.
   const sub = resolveSubIndustry(company.industry);
   const v = sub.topDown;
@@ -286,7 +287,7 @@ function buildTopDown(ctx: ProposalContext, finalYear: number): ApproachResult {
   const table: TableData = {
     columns: ["Directional value pool", "Annual value"],
     rows: [
-      [v.toplineRowLabel, fmtRange(vm.topline)],
+      [v.toplineRowLabel, fmtCurrency(vm.topline)],
       [v.addressableRowLabel, fmtPercent(vm.addressableShare.base)],
       [v.upliftRowLabel, fmtPercent(vm.upliftPct.base)],
       ...functions.map((label) => [label, fmtCurrency(perFunction)]),
@@ -302,6 +303,7 @@ function buildTopDown(ctx: ProposalContext, finalYear: number): ApproachResult {
     bullets: [
       `Annual value ≈ ${v.toplineRowLabel.toLowerCase()} × ${v.addressableRowLabel.toLowerCase()} × ${v.upliftRowLabel.toLowerCase()} × realization factor`,
       `Directional value is allocated across ${functions.join(", ")} — functional pools, not use cases`,
+      `${v.toplineRowLabel} ${fmtCurrency(vm.topline)} — source: ${toplineSource}`,
       `${v.upliftRowLabel} ${fmtPercent(vm.upliftPct.base)} — source: ${source}`,
       `Widest confidence band of the two approaches — a fast, whole-company estimate to be refined by going deeper`,
       ...(flag ? [flag] : []),

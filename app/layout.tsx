@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Hanken_Grotesk, Newsreader } from "next/font/google";
 import "./globals.css";
+import { LoginTracker } from "./_components/login-tracker";
 
 // The Executive Business Case template's faces: Newsreader (Tiempos-like
 // editorial serif for display/headings), Hanken Grotesk (Styrene-like body).
@@ -23,6 +24,7 @@ export default function RootLayout({
       <body
         className={`${serif.variable} ${sans.variable} font-sans antialiased min-h-screen`}
       >
+        <LoginTracker />
         {children}
       </body>
     </html>

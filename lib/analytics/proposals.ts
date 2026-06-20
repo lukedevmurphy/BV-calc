@@ -4,6 +4,7 @@ import { migrateProposalPayload } from "@/lib/proposals/migrate";
 export interface AnalyticsRow {
   id: string;
   companyName: string;
+  createdByEmail?: string | null;
   payload: unknown;
   createdAt: Date;
   updatedAt: Date;
@@ -32,6 +33,7 @@ export interface RecentCase {
   industry: string;
   region: string;
   headquarters: string;
+  createdBy: string;
   value: number;
   cost: number;
   updatedAt: Date;
@@ -55,6 +57,7 @@ interface CaseMetric {
   region: string;
   country: string;
   headquarters: string;
+  createdBy: string;
   value: number;
   cost: number;
   net: number;
@@ -91,6 +94,7 @@ export function aggregateProposalAnalytics(rows: readonly AnalyticsRow[]): Propo
         industry: m.industry,
         region: m.region,
         headquarters: m.headquarters,
+        createdBy: m.createdBy,
         value: m.value,
         cost: m.cost,
         updatedAt: m.updatedAt,
@@ -109,6 +113,7 @@ function toMetric(row: AnalyticsRow, payload: ProposalPayload): CaseMetric {
     region: dimension(payload.company.region),
     country: dimension(payload.company.country),
     headquarters: dimension(payload.company.headquarters),
+    createdBy: row.createdByEmail?.trim() || "—",
     value,
     cost,
     net: value - cost,

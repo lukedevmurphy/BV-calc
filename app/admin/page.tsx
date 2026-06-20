@@ -1,7 +1,8 @@
 import Link from "next/link";
+import { desc } from "drizzle-orm";
 import { auth } from "@/auth";
 import { getDb } from "@/db/client";
-import { proposals } from "@/db/schema";
+import { proposals, logins, type LoginRow } from "@/db/schema";
 import { aggregateProposalAnalytics, type ProposalAnalytics, type SegmentBucket } from "@/lib/analytics/proposals";
 import { fmtCurrency, fmtNumber } from "@/lib/format";
 import { isAdminEmail } from "@/lib/auth/admin";
@@ -14,7 +15,7 @@ export default async function AdminPage() {
   if (!session?.user?.email) return <SignInScreen />;
   if (!isAdminEmail(session.user.email)) return <UnauthorizedScreen />;
 
-  const result = await loadAnalytics();
+  const [result, recentLogins] = await Promise.all([loadAnalytics(), loadLogins()]);
   return (
     <main className="min-h-screen pb-16">
       <header className="border-b border-line bg-canvas/90">
@@ -41,7 +42,7 @@ export default async function AdminPage() {
         {result.error ? (
           <DataError message={result.error} />
         ) : (
-          <Dashboard analytics={result.analytics!} />
+          <Dashboard analytics={result.analytics!} logins={recentLogins} />
         )}
       </div>
     </main>
@@ -55,6 +56,7 @@ async function loadAnalytics(): Promise<{ analytics?: ProposalAnalytics; error?:
       .select({
         id: proposals.id,
         companyName: proposals.companyName,
+        createdByEmail: proposals.createdByEmail,
         payload: proposals.payload,
         createdAt: proposals.createdAt,
         updatedAt: proposals.updatedAt,
@@ -65,6 +67,17 @@ async function loadAnalytics(): Promise<{ analytics?: ProposalAnalytics; error?:
     return {
       error: error instanceof Error ? error.message : "The analytics database could not be read.",
     };
+  }
+}
+
+/** Most recent sign-ins for the audit trail. Failures are swallowed to a empty
+ *  list so a logins-table hiccup never blanks the whole dashboard. */
+async function loadLogins(): Promise<LoginRow[]> {
+  try {
+    const db = getDb();
+    return await db.select().from(logins).orderBy(desc(logins.createdAt)).limit(25);
+  } catch {
+    return [];
   }
 }
 
@@ -98,7 +111,7 @@ function UnauthorizedScreen() {
   );
 }
 
-function Dashboard({ analytics }: { analytics: ProposalAnalytics }) {
+function Dashboard({ analytics, logins }: { analytics: ProposalAnalytics; logins: LoginRow[] }) {
   const { summary } = analytics;
   return (
     <div className="space-y-8">
@@ -135,7 +148,8 @@ function Dashboard({ analytics }: { analytics: ProposalAnalytics }) {
             <table className="w-full min-w-[760px] text-sm">
               <thead><tr className="border-b border-line-strong text-left text-xs text-ink-tertiary">
                 <th className="py-2 pr-4">Company</th><th className="py-2 pr-4">Industry</th>
-                <th className="py-2 pr-4">Region / HQ</th><th className="py-2 pr-4 text-right">Value</th>
+                <th className="py-2 pr-4">Region / HQ</th><th className="py-2 pr-4">Created by</th>
+                <th className="py-2 pr-4 text-right">Value</th>
                 <th className="py-2 pr-4 text-right">Cost</th><th className="py-2 text-right">Updated</th>
               </tr></thead>
               <tbody>{analytics.recentCases.map((item) => (
@@ -143,6 +157,7 @@ function Dashboard({ analytics }: { analytics: ProposalAnalytics }) {
                   <td className="py-3 pr-4 font-medium">{item.companyName}</td>
                   <td className="py-3 pr-4 text-ink-secondary">{item.industry}</td>
                   <td className="py-3 pr-4 text-ink-secondary">{item.region} · {item.headquarters}</td>
+                  <td className="py-3 pr-4 text-ink-secondary">{item.createdBy}</td>
                   <td className="py-3 pr-4 text-right font-medium text-[var(--chart-value)]">{fmtCurrency(item.value)}</td>
                   <td className="py-3 pr-4 text-right text-accent">{fmtCurrency(item.cost)}</td>
                   <td className="py-3 text-right text-ink-tertiary">{item.updatedAt.toLocaleDateString("en-US")}</td>
@@ -153,11 +168,41 @@ function Dashboard({ analytics }: { analytics: ProposalAnalytics }) {
         ) : <EmptyState />}
       </section>
 
+      <section className="rounded-xl border border-line bg-surface p-5 shadow-card">
+        <SectionHeading title="Recent sign-ins" subtitle="Who entered the site, from where, and when · latest 25" />
+        {logins.length ? (
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[680px] text-sm">
+              <thead><tr className="border-b border-line-strong text-left text-xs text-ink-tertiary">
+                <th className="py-2 pr-4">Email</th><th className="py-2 pr-4">Name</th>
+                <th className="py-2 pr-4">Location</th><th className="py-2 pr-4">IP</th>
+                <th className="py-2 text-right">When</th>
+              </tr></thead>
+              <tbody>{logins.map((row) => (
+                <tr key={row.id} className="border-b border-line last:border-0">
+                  <td className="py-3 pr-4 font-medium">{row.email}</td>
+                  <td className="py-3 pr-4 text-ink-secondary">{row.name ?? "—"}</td>
+                  <td className="py-3 pr-4 text-ink-secondary">{formatLocation(row)}</td>
+                  <td className="py-3 pr-4 text-ink-tertiary">{row.ipAddress ?? "—"}</td>
+                  <td className="py-3 text-right text-ink-tertiary">{row.createdAt.toLocaleString("en-US")}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        ) : <EmptyState label="No sign-ins recorded yet." />}
+      </section>
+
       {analytics.skippedRows > 0 && (
         <p className="text-xs text-amber-700">{analytics.skippedRows} malformed saved row(s) were excluded.</p>
       )}
     </div>
   );
+}
+
+/** "City, Region, Country" from whichever geo parts the proxy provided. */
+function formatLocation(row: LoginRow): string {
+  const parts = [row.city, row.region, row.country].filter((p): p is string => Boolean(p));
+  return parts.length ? parts.join(", ") : "—";
 }
 
 function Metric({ label, value, tone }: { label: string; value: string; tone?: "value" | "cost" | "net" }) {
@@ -190,5 +235,5 @@ function SectionHeading({ title, subtitle }: { title: string; subtitle: string }
   return <div><h2 className="font-serif text-xl font-semibold tracking-tight">{title}</h2><p className="mt-0.5 text-xs text-ink-tertiary">{subtitle}</p></div>;
 }
 
-function EmptyState() { return <p className="mt-4 rounded-lg bg-muted px-4 py-6 text-center text-sm text-ink-tertiary">No saved business cases yet.</p>; }
+function EmptyState({ label = "No saved business cases yet." }: { label?: string }) { return <p className="mt-4 rounded-lg bg-muted px-4 py-6 text-center text-sm text-ink-tertiary">{label}</p>; }
 function DataError({ message }: { message: string }) { return <section className="rounded-xl border border-red-200 bg-red-50 p-5"><h2 className="font-semibold text-red-900">Analytics unavailable</h2><p className="mt-1 text-sm text-red-700">{message}</p></section>; }

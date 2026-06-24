@@ -250,11 +250,8 @@ export const DEFAULT_ASSUMPTIONS: ScenarioAssumptions = {
 const DEFAULT_TOPLINE_BASE = 180_000_000; // 1,000 × ~$180k loaded annual cost
 
 export const DEFAULT_VALUE_MODEL: ValueModelInputs = {
-  topline: ranged(
-    Math.round(DEFAULT_TOPLINE_BASE * 0.85),
-    DEFAULT_TOPLINE_BASE,
-    Math.round(DEFAULT_TOPLINE_BASE * 1.15),
-  ),
+  topline: DEFAULT_TOPLINE_BASE,
+  toplineSource: UNCITED,
   addressableShare: DEFAULT_ADDRESSABLE_SHARE,
   upliftPct: DEFAULT_UPLIFT_PCT,
   upliftSource: UNCITED,

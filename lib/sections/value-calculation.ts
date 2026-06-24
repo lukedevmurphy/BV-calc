@@ -30,7 +30,7 @@ export function valueCalculationSection(ctx: ProposalContext): SectionOutput {
 function topDownCalc(ctx: ProposalContext): SectionOutput {
   const { valueModel: vm, company } = ctx;
   const v = resolveSubIndustry(company.industry).topDown;
-  const topline = vm.topline.base;
+  const topline = vm.topline;
   const addr = vm.addressableShare.base;
   const uplift = vm.upliftPct.base;
   const rz = vm.realizationFactor.base;

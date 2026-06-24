@@ -1,4 +1,5 @@
 import { desc } from "drizzle-orm";
+import { auth } from "@/auth";
 import { getDb } from "@/db/client";
 import { proposals } from "@/db/schema";
 import type { ProposalPayload } from "@/lib/types";
@@ -34,11 +35,16 @@ export async function POST(req: Request): Promise<Response> {
   } catch {
     return Response.json({ error: "invalid JSON body" }, { status: 400 });
   }
+  const session = await auth();
   try {
     const db = getDb();
     const [row] = await db
       .insert(proposals)
-      .values({ companyName: payload.company.name, payload })
+      .values({
+        companyName: payload.company.name,
+        createdByEmail: session?.user?.email ?? null,
+        payload,
+      })
       .returning({ id: proposals.id });
     return Response.json({ id: row.id }, { status: 201 });
   } catch (e) {

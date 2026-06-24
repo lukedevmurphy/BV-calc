@@ -104,20 +104,30 @@ export function topDownStorySection(
       };
     case "executive_summary": {
       const value = ctx.priorSections.business_value?.rangedFigures?.annualValueFinalYear;
+      const coding = ctx.priorSections.coding_efficiency?.rangedFigures?.codingTotalFinalYear;
+      const itTakeout = ctx.priorSections.it_takeout?.rangedFigures?.itTakeoutFinalYear;
       const cost = ctx.priorSections.cost?.rangedFigures?.annualCostFinalYear;
       const net = ctx.priorSections.forecast?.rangedFigures?.netFinalYear;
       const flag = illustrativeFlag(ctx.company);
       return {
         ...base("Executive Summary", `Directional AI value thesis for ${ctx.company.name}`),
         bullets: [
-          `Company-level value is allocated across ${functions.join(", ")} — no use cases or token assumptions are used`,
+          `Company-level value is allocated across ${functions.join(", ")}, plus an explicit engineering coding-efficiency driver`,
           value ? `Directional annual value at maturity: ${fmtRange(value)}` : "Directional value pending",
+          ...(coding && coding.base > 1
+            ? [`Of that, engineering coding efficiency contributes ${fmtRange(coding)} — split cost-out / revenue-growth on Settings`]
+            : []),
+          ...(itTakeout && itTakeout.base > 1
+            ? [`IT cost takeout (legacy rationalization) adds ${fmtRange(itTakeout)} — hard-dollar run-rate eliminated`]
+            : []),
           cost?.base ? `Direct annual cost entered by the account team: ${fmtRange(cost)}` : "No annual cost entered — this is intentionally a value-only CFO view",
           "The next step is to validate the largest pools and replace the widest assumptions with evidence",
           ...(flag ? [flag] : []),
         ],
         stats: [
           ...(value ? [{ label: "Annual value", value: fmtRange(value) }] : []),
+          ...(coding && coding.base > 1 ? [{ label: "Coding value", value: fmtRange(coding) }] : []),
+          ...(itTakeout && itTakeout.base > 1 ? [{ label: "IT takeout", value: fmtRange(itTakeout) }] : []),
           ...(cost ? [{ label: "Annual cost", value: fmtRange(cost) }] : []),
           ...(net ? [{ label: "Net value", value: fmtRange(net) }] : []),
         ],

@@ -1,8 +1,10 @@
 import type { ProposalPayload, SectionConfigEntry } from "@/lib/types";
 import { normalizeSectionConfig } from "@/lib/sections/index";
-import { DEFAULT_VALUE_MODEL } from "@/lib/data/defaults";
+import { DEFAULT_CODING, DEFAULT_IT_TAKEOUT, DEFAULT_VALUE_MODEL } from "@/lib/data/defaults";
 
-export const CURRENT_PROPOSAL_SCHEMA_VERSION = 2;
+// v3: coding-efficiency driver (assumptions.coding). v4: IT cost takeout driver
+// (assumptions.itTakeout) — both backfilled from defaults on load.
+export const CURRENT_PROPOSAL_SCHEMA_VERSION = 4;
 
 type LegacyProposalPayload = Omit<ProposalPayload, "schemaVersion" | "revision"> & {
   schemaVersion?: number;
@@ -41,6 +43,12 @@ export function migrateProposalPayload(input: unknown): ProposalPayload {
       (id): id is string => typeof id === "string",
     ),
     sectionConfig: normalizeSectionConfig(legacy.sectionConfig),
+    assumptions: {
+      ...legacy.assumptions,
+      // Backfill the coding-efficiency + IT-takeout drivers; a stored partial wins per-field.
+      coding: { ...DEFAULT_CODING, ...(legacy.assumptions.coding ?? {}) },
+      itTakeout: { ...DEFAULT_IT_TAKEOUT, ...(legacy.assumptions.itTakeout ?? {}) },
+    },
     valueModel: {
       ...DEFAULT_VALUE_MODEL,
       ...(legacy.valueModel ?? {}),

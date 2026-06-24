@@ -9,7 +9,7 @@ import type {
   SectionConfigEntry,
   ValueModelInputs,
 } from "@/lib/types";
-import { DEFAULT_ASSUMPTIONS, DEFAULT_VALUE_MODEL } from "@/lib/data/defaults";
+import { codingForCompany, DEFAULT_ASSUMPTIONS, DEFAULT_VALUE_MODEL } from "@/lib/data/defaults";
 import { resolveUseCases } from "@/lib/data/use-cases";
 import { resolveSubIndustry } from "@/lib/value-model/sub-industry";
 import { getValuePrefillProvider } from "@/lib/value-model/prefill/provider";
@@ -120,7 +120,13 @@ export default function Builder({
 
   function confirmCompany(profile: CompanyProfile, valueApproach: ScenarioAssumptions["valueApproach"]) {
     setCompany(profile);
-    setAssumptions((current) => ({ ...current, valueApproach }));
+    // Seed the coding driver from the profile (coders, geo-adjusted rate,
+    // topline, baseline growth), preserving the user's editorial posture.
+    setAssumptions((current) => ({
+      ...current,
+      valueApproach,
+      coding: codingForCompany(profile, current.coding),
+    }));
     setEditingCompany(false);
     setScreen("inputs");
     // Reactive to sub-industry: seed the default use-case selection from the

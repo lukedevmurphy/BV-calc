@@ -23,6 +23,8 @@ const SEEDED: CompanyProfile[] = [
     country: "United States",
     industry: "Asset & Wealth Management",
     employeeCount: 4500,
+    engineeringHeadcount: 400,
+    revenueGrowthRate: 0.08,
     revenueModel: "Management fees on AUM (active equity, fixed income, multi-asset)",
     financialHighlights: [
       { label: "AUM", value: "$610B" },
@@ -40,6 +42,8 @@ const SEEDED: CompanyProfile[] = [
     country: "United States",
     industry: "Asset & Wealth Management",
     employeeCount: 600,
+    engineeringHeadcount: 60,
+    revenueGrowthRate: 0.12,
     revenueModel: "Advisory fees on client assets (RIA, HNW/UHNW households)",
     financialHighlights: [
       { label: "Client assets", value: "$48B" },
@@ -57,6 +61,8 @@ const SEEDED: CompanyProfile[] = [
     country: "United States",
     industry: "Asset & Wealth Management",
     employeeCount: 1800,
+    engineeringHeadcount: 180,
+    revenueGrowthRate: 0.05,
     revenueModel: "Insurer-affiliated manager: general-account + third-party fixed income",
     financialHighlights: [
       { label: "AUM", value: "$220B" },
@@ -73,6 +79,8 @@ const SEEDED: CompanyProfile[] = [
     country: "United States",
     industry: "Asset & Wealth Management",
     employeeCount: 350,
+    engineeringHeadcount: 35,
+    revenueGrowthRate: 0.15,
     revenueModel: "Private markets: management fees + carried interest (PE, private credit)",
     financialHighlights: [
       { label: "AUM", value: "$38B" },
@@ -92,6 +100,8 @@ const SEEDED: CompanyProfile[] = [
     country: "United States",
     industry: "Banking & Capital Markets",
     employeeCount: 310_000,
+    engineeringHeadcount: 55_000,
+    revenueGrowthRate: 0.06,
     revenueModel:
       "Diversified bank: consumer & community banking, corporate & investment bank, asset & wealth management",
     financialHighlights: [
@@ -110,6 +120,8 @@ const SEEDED: CompanyProfile[] = [
     country: "United States",
     industry: "Banking & Capital Markets",
     employeeCount: 213_000,
+    engineeringHeadcount: 40_000,
+    revenueGrowthRate: 0.04,
     revenueModel:
       "Diversified bank: consumer banking, global markets, wealth management (Merrill)",
     financialHighlights: [
@@ -128,6 +140,8 @@ const SEEDED: CompanyProfile[] = [
     country: "United States",
     industry: "Banking & Capital Markets",
     employeeCount: 226_000,
+    engineeringHeadcount: 35_000,
+    revenueGrowthRate: 0.03,
     revenueModel:
       "Diversified bank: consumer & commercial banking, wealth & investment management",
     financialHighlights: [
@@ -147,6 +161,8 @@ const SEEDED: CompanyProfile[] = [
     country: "United States",
     industry: "Investment Banking",
     employeeCount: 46_000,
+    engineeringHeadcount: 12_000,
+    revenueGrowthRate: 0.07,
     revenueModel:
       "Investment bank: global banking & markets, asset & wealth management, platform solutions",
     financialHighlights: [
@@ -165,6 +181,8 @@ const SEEDED: CompanyProfile[] = [
     country: "United States",
     industry: "Investment Banking",
     employeeCount: 80_000,
+    engineeringHeadcount: 15_000,
+    revenueGrowthRate: 0.08,
     revenueModel:
       "Investment bank + wealth: institutional securities, wealth management, investment management",
     financialHighlights: [
@@ -184,6 +202,8 @@ const SEEDED: CompanyProfile[] = [
     country: "United States",
     industry: "Brokerage & Trading",
     employeeCount: 32_000,
+    engineeringHeadcount: 6_000,
+    revenueGrowthRate: 0.09,
     revenueModel:
       "Brokerage & banking: net interest income, asset-management & advice fees, trading",
     financialHighlights: [
@@ -203,6 +223,8 @@ const SEEDED: CompanyProfile[] = [
     country: "United States",
     industry: "Banking — Credit Union",
     employeeCount: 24_000,
+    engineeringHeadcount: 3_000,
+    revenueGrowthRate: 0.07,
     revenueModel:
       "Member-owned, not-for-profit credit union: consumer banking & lending for the military community",
     financialHighlights: [
@@ -223,6 +245,8 @@ const SEEDED: CompanyProfile[] = [
     country: "United States",
     industry: "Asset & Wealth Management",
     employeeCount: 20_000,
+    engineeringHeadcount: 6_000,
+    revenueGrowthRate: 0.1,
     revenueModel:
       "Asset manager: management fees on index & active funds (iShares) plus Aladdin technology services",
     financialHighlights: [
@@ -242,6 +266,8 @@ const SEEDED: CompanyProfile[] = [
     country: "United States",
     industry: "Payments & Card Networks",
     employeeCount: 28_000,
+    engineeringHeadcount: 12_000,
+    revenueGrowthRate: 0.1,
     revenueModel:
       "Payments network: data-processing & service fees on transaction volume (no consumer lending)",
     financialHighlights: [
@@ -260,6 +286,8 @@ const SEEDED: CompanyProfile[] = [
     country: "United States",
     industry: "Payments & Card Networks",
     employeeCount: 74_000,
+    engineeringHeadcount: 10_000,
+    revenueGrowthRate: 0.09,
     revenueModel:
       "Card network + lender: discount revenue, card fees, net interest income on card balances",
     financialHighlights: [

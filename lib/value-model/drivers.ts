@@ -16,7 +16,9 @@ export type DriverId =
   | "revenue_growth"
   | "cross_sell"
   | "onboarding_speed"
-  | "risk_compliance";
+  | "risk_compliance"
+  | "coding_efficiency"
+  | "it_takeout";
 
 /** Where value lands. Capacity routes to revenue/production; offset routes to
  *  margin/cost-out; risk avoidance reads as loss avoidance under capacity. */
@@ -82,6 +84,31 @@ export const VALUE_DRIVERS: Record<DriverId, ValueDriver> = {
     offsetOutcome: "margin",
     offsetApplicable: true,
   },
+  // Coding efficiency does NOT route through routeToOutcomes (its two halves are
+  // split by the coding `allocation` slider, not the reinvestment toggle, and
+  // computed in lib/economics/coding.ts). These outcome fields are nominal, used
+  // only for labels: cost-out → margin, growth → revenue.
+  coding_efficiency: {
+    id: "coding_efficiency",
+    label: "Coding efficiency",
+    short: "Coding",
+    outcomeLabel: "Engineering cost-out + faster revenue",
+    capacityOutcome: "revenue",
+    offsetOutcome: "margin",
+    offsetApplicable: true,
+  },
+  // IT cost takeout is inherently a cost-out (decommissioned run-rate), so it
+  // always lands in operating margin — no reinvest/offset toggle. Computed in
+  // lib/economics/it-takeout.ts and added straight to the margin outcome.
+  it_takeout: {
+    id: "it_takeout",
+    label: "IT cost takeout",
+    short: "IT takeout",
+    outcomeLabel: "Operating margin (legacy cost-out)",
+    capacityOutcome: "margin",
+    offsetOutcome: "margin",
+    offsetApplicable: false,
+  },
 };
 
 export const DRIVER_ORDER: DriverId[] = [
@@ -90,6 +117,8 @@ export const DRIVER_ORDER: DriverId[] = [
   "cross_sell",
   "onboarding_speed",
   "risk_compliance",
+  "coding_efficiency",
+  "it_takeout",
 ];
 
 export interface Outcome {
@@ -147,7 +176,7 @@ export function driversForUseCase(useCaseId: string): DriverId[] {
 
 /** Empty per-driver accumulator. */
 export function emptyDriverMap(): Record<DriverId, number> {
-  return { productivity: 0, revenue_growth: 0, cross_sell: 0, onboarding_speed: 0, risk_compliance: 0 };
+  return { productivity: 0, revenue_growth: 0, cross_sell: 0, onboarding_speed: 0, risk_compliance: 0, coding_efficiency: 0, it_takeout: 0 };
 }
 
 /**

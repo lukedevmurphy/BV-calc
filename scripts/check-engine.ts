@@ -13,6 +13,8 @@ import {
   costValueByAdoption,
   yearlySeries,
 } from "@/lib/economics/engine";
+import { codingValue } from "@/lib/economics/coding";
+import { itTakeoutValueAtYear } from "@/lib/economics/it-takeout";
 import { netVsCost, ratioVsCost, ratioPlausible } from "@/lib/economics/ranged";
 import { fmtCurrency, fmtRange } from "@/lib/format";
 
@@ -98,5 +100,59 @@ assert(be.base !== null && be.base > 1, `break-even base must be a real period >
 // JSON round-trip (the wire-format guard)
 const roundTrip = JSON.parse(JSON.stringify(series));
 assert.deepStrictEqual(roundTrip, series, "yearlySeries JSON round-trip");
+
+// ── Coding-efficiency driver invariants ──────────────────────────────────────
+const cod = a.coding!; // DEFAULT_ASSUMPTIONS ships with coding on
+const codeY1 = codingValue(cod, a, 1);
+const codeY3 = codingValue(cod, a, 3);
+for (const [name, r] of Object.entries(codeY3)) {
+  assert(r.low <= r.base && r.base <= r.high, `coding ${name} band ordering`);
+}
+assert(codeY3.freedHours.low >= 0, "coding freed hours non-negative");
+assert(
+  Math.abs(codeY3.total.base - (codeY3.costSavings.base + codeY3.revenueGrowth.base)) < 1,
+  "coding total = costSavings + revenueGrowth (no leak)",
+);
+assert(codeY1.total.base <= codeY3.total.base, "coding value ramps Y1 ≤ Y3");
+// Allocation slider: 1 = all cost-out, 0 = all growth; monotonic in between.
+const allCostOut = codingValue({ ...cod, allocation: 1 }, a, 3);
+const allGrowth = codingValue({ ...cod, allocation: 0 }, a, 3);
+assert(Math.abs(allCostOut.revenueGrowth.base) < 1, "allocation=1 → zero revenue path");
+assert(Math.abs(allGrowth.costSavings.base) < 1, "allocation=0 → zero cost-out path");
+assert(allCostOut.costSavings.base > allGrowth.costSavings.base, "cost-out share ↑ → cost-savings ↑");
+assert(allGrowth.revenueGrowth.base > allCostOut.revenueGrowth.base, "cost-out share ↑ → revenue-growth ↓");
+let prevCost = -1;
+let prevRev = Infinity;
+for (let i = 0; i <= 10; i++) {
+  const r = codingValue({ ...cod, allocation: i / 10 }, a, 3);
+  assert(r.costSavings.base >= prevCost - 1, `coding cost-savings monotonic at alloc ${i / 10}`);
+  assert(r.revenueGrowth.base <= prevRev + 1, `coding revenue-growth monotonic at alloc ${i / 10}`);
+  prevCost = r.costSavings.base;
+  prevRev = r.revenueGrowth.base;
+}
+assert.deepStrictEqual(JSON.parse(JSON.stringify(codeY3)), codeY3, "coding result JSON round-trip");
+console.log(
+  `coding driver Y3: freed ${Math.round(codeY3.freedHours.base).toLocaleString("en-US")}h → ` +
+    `cost ${fmtCurrency(codeY3.costSavings.base)} + rev ${fmtCurrency(codeY3.revenueGrowth.base)} = ${fmtCurrency(codeY3.total.base)} ✓`,
+);
+
+// ── IT cost takeout invariants ───────────────────────────────────────────────
+const itT = {
+  enabled: true,
+  sunsetByYear: { "2": 3_000_000, "3": 6_000_000 },
+  realization: { low: 0.5, base: 0.7, high: 0.9 },
+};
+const itY1 = itTakeoutValueAtYear(itT, 1);
+const itY2 = itTakeoutValueAtYear(itT, 2);
+const itY3 = itTakeoutValueAtYear(itT, 3);
+assert(itY1.gross === 0, "IT takeout zero before sunset starts");
+assert(itY2.gross === 3_000_000 && itY3.gross === 6_000_000, "IT takeout cumulative schedule");
+assert(itY1.gross <= itY2.gross && itY2.gross <= itY3.gross, "IT takeout non-decreasing (sunset stays done)");
+for (const [name, r] of [["Y1", itY1], ["Y2", itY2], ["Y3", itY3]] as const)
+  assert(r.takeout.low <= r.takeout.base && r.takeout.base <= r.takeout.high, `IT takeout ${name} band ordering`);
+assert(Math.abs(itY3.takeout.base - itY3.gross * 0.7) < 1, "IT takeout realized = gross × realization base");
+const itOff = itTakeoutValueAtYear({ ...itT, enabled: false }, 3);
+assert(itOff.gross === 0 && itOff.takeout.base === 0, "disabled IT takeout is zero");
+console.log(`IT takeout Y3: gross ${fmtCurrency(itY3.gross)} → realized ${fmtCurrency(itY3.takeout.base)} ✓`);
 
 console.log("\nAll engine invariants hold. ✓");

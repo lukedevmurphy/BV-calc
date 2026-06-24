@@ -14,6 +14,8 @@ import {
 } from "@/lib/economics/engine";
 import { interpolateRamp } from "@/lib/economics/ramp";
 import { bandAroundBase } from "@/lib/economics/ranged";
+import { codingFigures } from "@/lib/economics/coding";
+import { itTakeoutFigures } from "@/lib/economics/it-takeout";
 import { annualTopDownValue, topDownMatureValue } from "@/lib/economics/top-down";
 import { savedHoursBasisFor } from "@/lib/data/hours-defaults";
 import { APPROACH_BAND_HALF_WIDTH_PCT } from "@/lib/value-model/constants";
@@ -54,10 +56,22 @@ function driverArtifacts(
   finalYear: number,
 ): { chart: ChartSeries; extraStats: KeyValue[]; note: string } {
   const c = capacityShare(ctx);
-  const points = DRIVER_ORDER.filter((d) => perDriver[d] > 1)
+  // Coding efficiency rides its OWN allocation slider (not the reinvestment
+  // toggle), so it bypasses routeToOutcomes: it shows as its own driver bar, and
+  // its two halves are added straight to the outcomes (cost-out → margin,
+  // growth → revenue). perDriver itself is left untouched, so the use-case
+  // rollup and its totals are unchanged.
+  const coding = codingFigures(ctx.assumptions).finalYear;
+  const itTakeout = itTakeoutFigures(ctx.assumptions).finalYear;
+  const chartDrivers: Record<DriverId, number> = {
+    ...perDriver,
+    coding_efficiency: coding.total.base,
+    it_takeout: itTakeout.takeout.base,
+  };
+  const points = DRIVER_ORDER.filter((d) => chartDrivers[d] > 1)
     .map((d) => ({
       x: sectorDriverLabel(subId, d, VALUE_DRIVERS[d].short),
-      y: Math.round(perDriver[d]),
+      y: Math.round(chartDrivers[d]),
     }))
     .sort((a, b) => b.y - a.y);
 
@@ -72,6 +86,9 @@ function driverArtifacts(
   // reinvestment toggle. The posture narration goes to speaker notes so the
   // slide's bullet budget (and the chart slot) is preserved.
   const out = routeToOutcomes(perDriver, c);
+  out.margin += coding.costSavings.base; // coding cost-out → margin
+  out.revenue += coding.revenueGrowth.base; // coding reinvested → faster revenue
+  out.margin += itTakeout.takeout.base; // IT takeout: legacy cost-out → margin
   const order: (keyof typeof out)[] = ["revenue", "margin", "loss_avoidance"];
   const extraStats: KeyValue[] = order
     .filter((o) => out[o] > 1)
@@ -134,8 +151,18 @@ export function businessValueSection(ctx: ProposalContext): SectionOutput {
       ? buildTopDown(ctx, finalYear)
       : buildBottomUp(ctx, finalYear, halfWidth);
 
-  const annualValueY1 = bandAroundBase(r.y1Base, halfWidth);
-  const annualValueFinalYear = bandAroundBase(r.finalBase, halfWidth);
+  // Fold the coding-efficiency driver into the headline (in BOTH approaches):
+  // its realized total is added to the use-case / top-down base before banding,
+  // so every downstream consumer (forecast ROI, exec summary, proposal,
+  // scenario) inherits it. value_calculation adds the same figure to keep its
+  // tie-out. Coding carries its OWN realization (offset/capacity) inside the
+  // engine, so the folded figure stays credible against the ratio ceiling.
+  const coding = codingFigures(a);
+  const itTakeout = itTakeoutFigures(a);
+  const extraY1 = coding.y1.total.base + itTakeout.y1.takeout.base;
+  const extraFinal = coding.finalYear.total.base + itTakeout.finalYear.takeout.base;
+  const annualValueY1 = bandAroundBase(r.y1Base + extraY1, halfWidth);
+  const annualValueFinalYear = bandAroundBase(r.finalBase + extraFinal, halfWidth);
 
   const rangedFigures: Record<string, Ranged> = {
     annualValueY1,
@@ -151,6 +178,22 @@ export function businessValueSection(ctx: ProposalContext): SectionOutput {
     stats: [
       { label: "Annual value, Year 1", value: fmtRange(annualValueY1) },
       { label: `Annual value, Year ${finalYear}`, value: fmtRange(annualValueFinalYear) },
+      ...(coding.finalYear.total.base > 1
+        ? [
+            {
+              label: `Of which coding efficiency (Y${finalYear})`,
+              value: fmtRange(coding.finalYear.total),
+            },
+          ]
+        : []),
+      ...(itTakeout.finalYear.takeout.base > 1
+        ? [
+            {
+              label: `Of which IT cost takeout (Y${finalYear})`,
+              value: fmtRange(itTakeout.finalYear.takeout),
+            },
+          ]
+        : []),
       ...r.extraStats,
     ],
     table: r.table,

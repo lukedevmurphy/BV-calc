@@ -273,6 +273,10 @@ const W = (
   cross_sell,
   onboarding_speed,
   risk_compliance,
+  // Coding efficiency and IT takeout are allocated separately (added after
+  // allocateByWeights), never from the top-down pool — sector weight always 0.
+  coding_efficiency: 0,
+  it_takeout: 0,
 });
 
 export const SUB_INDUSTRY_DRIVERS: Record<SubIndustryId, SubIndustryDriverProfile> = {

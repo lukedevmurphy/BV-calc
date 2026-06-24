@@ -52,9 +52,11 @@ export class DeterministicValuePrefillProvider implements ValuePrefillProvider {
       upliftPct: priors.upliftPct,
       upliftSource: priors.upliftSource,
       realizationFactor: priors.realizationFactor,
+      // "Engineering / coding" is intentionally omitted — coding value is the
+      // explicit coding-efficiency driver, so a functional pool here would
+      // double-count it.
       topDownFunctions: [
         "Sales & marketing",
-        "Engineering / coding",
         "Employee productivity",
         "Operations",
       ],

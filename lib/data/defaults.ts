@@ -1,5 +1,12 @@
-import type { ScenarioAssumptions, ValueModelInputs } from "@/lib/types";
-import { ranged } from "@/lib/economics/ranged";
+import type {
+  CodingAssumptions,
+  CompanyProfile,
+  ItTakeoutAssumptions,
+  Ranged,
+  ScenarioAssumptions,
+  ValueModelInputs,
+} from "@/lib/types";
+import { ranged, scale } from "@/lib/economics/ranged";
 import {
   DEFAULT_ADDRESSABLE_SHARE,
   DEFAULT_REALIZATION_FACTOR,
@@ -80,6 +87,104 @@ export const DEFAULT_VALUE_REALIZATION = {
 export const DEFAULT_USE_CASE_COVERAGE = 0.25;
 
 /**
+ * Coding-efficiency driver defaults — PLACEHOLDERS, confirm before presenting
+ * (same discipline as the model-mix prices). `coders` / `topline` /
+ * `growthBaseline` / `engineeringLoadedCost` are re-seeded per company on the
+ * confirm step; the rest are editable starting points. The efficiency band is
+ * deliberately aggressive (base ~45% of coding time freed) to reflect heavy
+ * AI-assisted coding — pressure-test against measured throughput before
+ * presenting. The realization haircut that keeps the folded value credible is
+ * applied in the engine (offset/capacity realization), not here.
+ */
+export const DEFAULT_CODING: CodingAssumptions = {
+  coders: 200,
+  timeOnCodePct: 0.4,
+  efficiencyGain: ranged(0.3, 0.45, 0.65),
+  engineeringLoadedCost: ranged(90, 120, 170),
+  topline: ranged(150_000_000, 180_000_000, 210_000_000),
+  growthBaseline: ranged(0.06, 0.1, 0.14),
+  growthStepUp: 1.2, // 10% → 12%
+  allocation: 0.5,
+};
+
+/**
+ * IT cost takeout / legacy application rationalization — OFF by default (opt-in
+ * via the checkbox on the inputs screen). When enabled, the user enters the
+ * cumulative annual legacy run-rate eliminated by each horizon year; the
+ * realization band haircuts the planned takeout for execution risk. Folds into
+ * the benefit + ROI as the `it_takeout` driver only when `enabled`.
+ */
+export const DEFAULT_IT_TAKEOUT: ItTakeoutAssumptions = {
+  enabled: false,
+  sunsetByYear: {},
+  realization: ranged(0.5, 0.7, 0.9),
+};
+
+/**
+ * Geo-adjusted engineering loaded cost ($/hr) from the company's HQ region — a
+ * coarse onshore-US multiplier on the placeholder base band. Used to SEED
+ * coding.engineeringLoadedCost on company confirm; fully editable afterward. A
+ * real cost-of-labor table swaps in with the enrichment API.
+ */
+const ENG_COST_BASE = ranged(90, 120, 170);
+const GEO_ENG_MULTIPLIER: Record<string, number> = {
+  West: 1.25,
+  Northeast: 1.15,
+  "Mid-Atlantic": 1.05,
+  Midwest: 0.95,
+  South: 0.9,
+  Southeast: 0.9,
+};
+export function geoLoadedCost(region?: string): Ranged {
+  const m = (region && GEO_ENG_MULTIPLIER[region]) || 1;
+  return scale(ENG_COST_BASE, m);
+}
+
+const codingBand = (base: number, pct: number): Ranged =>
+  ranged(Math.round(base * (1 - pct)), Math.round(base), Math.round(base * (1 + pct)));
+
+/** Parse "$3.1B" / "~$160B" / "$390M" into a number; 0 if unparseable. */
+function parseMoney(raw: string): number {
+  const m = raw.replace(/,/g, "").match(/([\d.]+)\s*([bmk])?/i);
+  if (!m) return 0;
+  const n = Number(m[1]);
+  if (!Number.isFinite(n)) return 0;
+  const mult = { b: 1e9, m: 1e6, k: 1e3 }[(m[2] ?? "").toLowerCase()] ?? 1;
+  return n * mult;
+}
+
+/**
+ * Seed the coding driver from a company profile: coders from engineering
+ * headcount (else ~12% of employees), engineering rate from HQ region, topline
+ * from the revenue highlight, baseline growth from revenueGrowthRate. The other
+ * fields (time-on-code, efficiency, step-up, allocation) keep the prior/default
+ * posture so a company change doesn't reset the user's editorial choices.
+ */
+export function codingForCompany(
+  profile: CompanyProfile,
+  current?: CodingAssumptions,
+): CodingAssumptions {
+  const base = current ?? DEFAULT_CODING;
+  const coders =
+    profile.engineeringHeadcount ??
+    (profile.employeeCount ? Math.max(1, Math.round(profile.employeeCount * 0.12)) : base.coders);
+  const revenue = (profile.financialHighlights ?? []).find((h) => /revenue/i.test(h.label));
+  const revBase = revenue ? parseMoney(revenue.value) : 0;
+  const topline = revBase > 0 ? codingBand(revBase, 0.15) : base.topline;
+  const growthBaseline =
+    typeof profile.revenueGrowthRate === "number" && profile.revenueGrowthRate > 0
+      ? codingBand(profile.revenueGrowthRate, 0.3)
+      : base.growthBaseline;
+  return {
+    ...base,
+    coders,
+    engineeringLoadedCost: geoLoadedCost(profile.region),
+    topline,
+    growthBaseline,
+  };
+}
+
+/**
  * Sensible starting scenario for an asset/wealth-management proposal.
  * Every field is surfaced in the assumptions UI; bands are authored to widen
  * over the horizon so the forecast funnels naturally.
@@ -129,6 +234,10 @@ export const DEFAULT_ASSUMPTIONS: ScenarioAssumptions = {
   offsetRealization: DEFAULT_VALUE_REALIZATION.offset,
   capacityRealization: DEFAULT_VALUE_REALIZATION.capacity,
   useCaseCoverage: DEFAULT_USE_CASE_COVERAGE,
+  // Coding-efficiency driver — on by default (coding is the #1 use case).
+  coding: DEFAULT_CODING,
+  // IT cost takeout — off by default; opt-in via the inputs-screen checkbox.
+  itTakeout: DEFAULT_IT_TAKEOUT,
 };
 
 /**
@@ -150,9 +259,11 @@ export const DEFAULT_VALUE_MODEL: ValueModelInputs = {
   upliftPct: DEFAULT_UPLIFT_PCT,
   upliftSource: UNCITED,
   realizationFactor: DEFAULT_REALIZATION_FACTOR,
+  // "Engineering / coding" is intentionally NOT a top-down function pool — coding
+  // value is modeled explicitly by the coding-efficiency driver (in both
+  // approaches), so listing it here too would double-count it.
   topDownFunctions: [
     "Sales & marketing",
-    "Engineering / coding",
     "Employee productivity",
     "Operations",
   ],

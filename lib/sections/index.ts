@@ -17,6 +17,10 @@ import { DEFAULT_VALUE_MODEL } from "@/lib/data/defaults";
 import { problemSection } from "./problem";
 import { businessValueSection } from "./business-value";
 import { valueCalculationSection } from "./value-calculation";
+import { codingEfficiencySection } from "./coding-efficiency";
+import { itTakeoutSection } from "./it-takeout";
+import { valueMapSection } from "./value-map";
+import { financialRollupSection } from "./financial-rollup";
 import { costSection } from "./cost";
 import { currentStateSection } from "./current-state";
 import { futureStateSection } from "./future-state";
@@ -42,6 +46,7 @@ export const DEFAULT_SECTION_ORDER: SectionKind[] = [
   "product",
   "use_case_persona",
   "peer_proof",
+  "value_map",
   "business_value",
   "proposal",
   "roadmap",
@@ -49,6 +54,9 @@ export const DEFAULT_SECTION_ORDER: SectionKind[] = [
   "forecast",
   "cost",
   "value_calculation",
+  "coding_efficiency",
+  "it_takeout",
+  "financial_rollup",
 ];
 
 /** Kinds that read as appendix detail when they trail the deck. */
@@ -56,6 +64,9 @@ export const APPENDIX_KINDS: ReadonlySet<SectionKind> = new Set([
   "forecast",
   "cost",
   "value_calculation",
+  "coding_efficiency",
+  "it_takeout",
+  "financial_rollup",
 ]);
 
 /** Preview (readout) sequence — a CFO readout leads with the answer: value,
@@ -65,6 +76,7 @@ export const APPENDIX_KINDS: ReadonlySet<SectionKind> = new Set([
 export const READOUT_ORDER: SectionKind[] = [
   "executive_summary", // the answer / headline value
   "peer_proof", // social proof up front (omitted when no relevant peer)
+  "value_map", // strategy → use cases → drivers, before the value detail
   "business_value", // where the value comes from (drivers)
   "proposal", // value tied to demand + the asks
   "cost", // what it costs
@@ -95,8 +107,12 @@ const SECTION_MODULES: Partial<Record<SectionKind, SyncSectionModule>> = {
   product: productSection,
   use_case_persona: useCasePersonaSection,
   peer_proof: peerProofSection,
+  value_map: valueMapSection,
   business_value: businessValueSection,
   value_calculation: valueCalculationSection,
+  coding_efficiency: codingEfficiencySection,
+  it_takeout: itTakeoutSection,
+  financial_rollup: financialRollupSection,
   proposal: proposalSection,
   cost: costSection,
   forecast: forecastSection,
@@ -113,8 +129,12 @@ const COMPUTE_ORDER: SectionKind[] = [
   "product",
   "use_case_persona",
   "peer_proof",
+  "value_map",
   "business_value",
   "value_calculation",
+  "coding_efficiency",
+  "it_takeout",
+  "financial_rollup",
   "cost",
   "forecast",
   "proposal",

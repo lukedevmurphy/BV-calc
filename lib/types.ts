@@ -55,6 +55,56 @@ export interface ModelMixEntry {
  */
 export type ValueApproach = "top_down" | "bottom_up";
 
+/**
+ * Coding-efficiency driver inputs. Freed engineering capacity = coders ×
+ * timeOnCodePct × efficiencyGain × hours/year, ramped by adoption. The
+ * `allocation` slider splits that freed capacity two ways:
+ *   1 = 100% engineering cost-out (freed hours × loaded $/hr, OFFSET-realized)
+ *   0 = 100% revenue growth (topline × baseline growth × step-up, CAPACITY-realized)
+ * Both halves reuse the same realization haircuts as the bottom-up value, so
+ * coding folds into the headline credibly. See lib/economics/coding.ts.
+ */
+export interface CodingAssumptions {
+  /** Engineers/developers in scope. Seeded from company.engineeringHeadcount. */
+  coders: number;
+  /** Share of an engineer's time spent writing/reviewing code. 0..1. */
+  timeOnCodePct: number;
+  /** Share of coding time freed by AI assistance. 0..1 band; editable estimate. */
+  efficiencyGain: Ranged;
+  /** Fully loaded engineering cost ($/hr), geo-adjusted from HQ region. Same
+   *  units as loadedHourlyCost. */
+  engineeringLoadedCost: Ranged;
+  /** Baseline annual revenue (topline) for the growth path. Seeded from the
+   *  company's revenue highlight. */
+  topline: Ranged;
+  /** Baseline annual revenue growth rate (0..1). Seeded from
+   *  company.revenueGrowthRate. */
+  growthBaseline: Ranged;
+  /** Relative step-up to the growth rate from reinvested capacity. ×1.2 ≈
+   *  10%→12% or 50%→60%. Scalar (a posture, not an uncertainty). */
+  growthStepUp: number;
+  /** 0..1. 1 = 100% engineering cost-out; 0 = 100% revenue growth. */
+  allocation: number;
+}
+
+/**
+ * IT cost takeout / legacy application rationalization. Decommission legacy
+ * apps and infrastructure on a sunset schedule: `sunsetByYear` holds the
+ * CUMULATIVE annual run-rate cost eliminated by each horizon year ($), and the
+ * realized takeout in year N is that figure × `realization`. Opt-in (a checkbox
+ * on the inputs screen); when enabled it folds into the benefit + ROI as the
+ * `it_takeout` driver (cost-out → operating margin). See lib/economics/it-takeout.ts.
+ */
+export interface ItTakeoutAssumptions {
+  enabled: boolean;
+  /** Cumulative annual legacy IT run-rate cost eliminated by each year, keyed by
+   *  year string ("1","2","3","4"…). Non-decreasing; a sunset, once done, stays done. */
+  sunsetByYear: Record<string, number>;
+  /** Share of the planned takeout actually realized (0..1 band) — decommissioning
+   *  carries execution risk (migration, contract exits, stranded dependencies). */
+  realization: Ranged;
+}
+
 export interface ScenarioAssumptions {
   /** Value-case altitude. Absent on pre-feature saved payloads → treat as
    *  "bottom_up" (the original behavior). */
@@ -112,6 +162,12 @@ export interface ScenarioAssumptions {
    * of calculated token cost for the specified year. Missing/blank = modeled
    * bottom-up cost, or zero cost for top-down. */
   annualCostOverrides?: Record<string, number>;
+  /** Coding-efficiency driver inputs. Absent on pre-feature saved payloads →
+   *  coding value is 0 (the original behavior). Seeded by DEFAULT_CODING. */
+  coding?: CodingAssumptions;
+  /** IT cost takeout / legacy-app rationalization driver. Opt-in; absent or
+   *  disabled → zero value. Seeded (disabled) by DEFAULT_IT_TAKEOUT. */
+  itTakeout?: ItTakeoutAssumptions;
 }
 
 // ── Value model (top_down inputs; bottom_up reuses use cases) ────────────────
@@ -155,6 +211,12 @@ export interface CompanyProfile {
   region?: string;
   country?: string;
   employeeCount?: number;
+  /** Engineers/developers who touch code — sizes the coding-efficiency driver.
+   *  Mocked/placeholder in demo data; user-editable on the confirm step. */
+  engineeringHeadcount?: number;
+  /** Baseline annual revenue growth rate (0..1) — feeds the coding driver's
+   *  revenue-growth path. Mocked/placeholder; user-editable on confirm. */
+  revenueGrowthRate?: number;
   revenueModel?: string;
   /** e.g. from a 10-K — mocked for now. */
   financialHighlights?: KeyValue[];
@@ -202,10 +264,22 @@ export type SectionKind =
   | "future_state"
   | "product"
   | "use_case_persona"
+  // Value Map (main body): aligns company goals → strategic objectives → AI use
+  // cases → quantified value drivers, just before Business Value.
+  | "value_map"
   | "business_value"
   // Appendix "show your work" slide: the arithmetic behind the Business Value
   // headline (input × assumption = value). Auto-included, defaults to appendix.
   | "value_calculation"
+  // Coding-efficiency value driver: freed engineering capacity split between
+  // cost-out and revenue growth. Folds into the Business Value headline;
+  // defaults to the appendix lane with its own "show your work" slide.
+  | "coding_efficiency"
+  // IT cost takeout / legacy application rationalization driver (opt-in). Folds
+  // into the benefit + ROI; its own appendix "sunset schedule" slide.
+  | "it_takeout"
+  // Appendix: how each value driver rolls up to the income statement (CFO view).
+  | "financial_rollup"
   | "proposal"
   | "cost"
   | "forecast"

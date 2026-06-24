@@ -5,6 +5,8 @@ import type { SubIndustry } from "@/lib/value-model/sub-industry";
 import { isIllustrativeProfile } from "@/lib/provenance";
 import UseCasePicker from "../use-case-picker";
 import ValueModelPanel from "../value-model-panel";
+import ItTakeoutEditor from "../it-takeout-editor";
+import { DEFAULT_IT_TAKEOUT } from "@/lib/data/defaults";
 import { NumberField, RangedField } from "../inputs";
 
 interface Props {
@@ -71,6 +73,15 @@ export default function InputsScreen(props: Props) {
           </div>
         </div>
       )}
+
+      {/* IT cost takeout — universal value driver, available in both approaches. */}
+      <div className="mt-6">
+        <ItTakeoutEditor
+          itTakeout={assumptions.itTakeout ?? DEFAULT_IT_TAKEOUT}
+          horizonYears={assumptions.horizonYears}
+          onChange={(itTakeout) => patch({ itTakeout })}
+        />
+      </div>
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line-strong bg-surface px-5 py-4 shadow-card">
         <p className="text-sm text-ink-secondary">

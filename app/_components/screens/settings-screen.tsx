@@ -1,6 +1,7 @@
 "use client";
 
 import type {
+  CodingAssumptions,
   ScenarioAssumptions,
   SectionOutput,
   UseCase,
@@ -9,7 +10,12 @@ import { FieldLabel, NumberField, RangedField, Slider } from "../inputs";
 import RampEditor from "../ramp-editor";
 import ModelMixEditor from "../model-mix-editor";
 import TokenModelEditor from "../token-model-editor";
-import { DEFAULT_VALUE_REALIZATION, DEFAULT_USE_CASE_COVERAGE } from "@/lib/data/defaults";
+import CodingEditor from "../coding-editor";
+import {
+  DEFAULT_CODING,
+  DEFAULT_USE_CASE_COVERAGE,
+  DEFAULT_VALUE_REALIZATION,
+} from "@/lib/data/defaults";
 import { valueRealization } from "@/lib/economics/engine";
 import { fmtCurrency } from "@/lib/format";
 
@@ -26,6 +32,12 @@ const PRESETS = [
   { label: "Offset (cost-out)", value: 0 },
   { label: "Blend", value: 0.6 },
   { label: "Capacity (reinvest)", value: 1 },
+];
+
+const CODING_PRESETS = [
+  { label: "100% revenue", value: 0 },
+  { label: "Blend", value: 0.5 },
+  { label: "100% engineering", value: 1 },
 ];
 
 /**
@@ -56,6 +68,16 @@ export default function SettingsScreen({
   const bv = sections.find((s) => s.kind === "business_value");
   const composition = (bv?.stats ?? []).filter((s) => s.label.startsWith("→"));
   const valueTotal = bv?.rangedFigures?.annualValueFinalYear?.base;
+
+  // Coding-efficiency driver: its own allocation slider + live composition,
+  // read from the coding section (which routes its split by this allocation).
+  const coding: CodingAssumptions = assumptions.coding ?? DEFAULT_CODING;
+  const codingAllocPct = Math.round(Math.min(1, Math.max(0, coding.allocation)) * 100);
+  const patchCoding = (p: Partial<CodingAssumptions>) =>
+    patch({ coding: { ...DEFAULT_CODING, ...assumptions.coding, ...p } });
+  const codingSec = sections.find((s) => s.kind === "coding_efficiency");
+  const codingComposition = (codingSec?.stats ?? []).filter((s) => s.label.startsWith("→"));
+  const codingTotal = codingSec?.rangedFigures?.codingTotalFinalYear?.base;
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-6">
@@ -191,6 +213,82 @@ export default function SettingsScreen({
           </div>
         </div>
       </section>}
+
+      {/* Coding capacity allocation — the coding-efficiency driver (both approaches) */}
+      <section className="mt-6 rounded-xl border border-line-strong bg-surface p-5 shadow-card">
+        <h2 className="text-sm font-semibold">Coding capacity allocation</h2>
+        <p className="mt-1 text-[13px] leading-snug text-ink-secondary">
+          Coding is the #1 AI use case. Freed engineering capacity lands in one of two places:{" "}
+          <span className="font-medium">Engineering</span> cost-out books freed hours as avoided
+          cost; <span className="font-medium">Revenue</span> reinvests the same capacity to lift the
+          baseline growth rate. The split is a posture — slide it and the composition (and the
+          blended total) move.
+        </p>
+
+        <div className="mt-3 flex gap-1 rounded-lg bg-muted p-1">
+          {CODING_PRESETS.map((p) => {
+            const active = Math.abs(coding.allocation - p.value) < 0.001;
+            return (
+              <button
+                key={p.label}
+                onClick={() => patchCoding({ allocation: p.value })}
+                className={`flex-1 rounded-md px-2 py-1 text-xs font-medium transition ${
+                  active ? "bg-surface text-ink shadow-card" : "text-ink-secondary hover:text-ink"
+                }`}
+              >
+                {p.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-3">
+          <div className="flex items-center justify-between text-[11px] text-ink-tertiary">
+            <span>100% revenue growth</span>
+            <span className="font-medium text-ink-secondary">
+              {codingAllocPct}% cost-out / {100 - codingAllocPct}% growth
+            </span>
+            <span>100% engineering cost-out</span>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={coding.allocation}
+            onChange={(e) => patchCoding({ allocation: e.target.valueAsNumber })}
+            className="mt-1 w-full accent-[var(--accent)]"
+          />
+        </div>
+
+        {codingComposition.length > 0 && (
+          <div className="mt-4">
+            <FieldLabel>Coding value composition (Year {assumptions.horizonYears})</FieldLabel>
+            <div className="mt-1 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {codingComposition.map((c) => (
+                <div key={c.label} className="rounded-lg border border-line bg-canvas px-3 py-2">
+                  <div className="text-[11px] text-ink-tertiary">{c.label}</div>
+                  <div className="mt-0.5 font-serif text-sm font-semibold">{c.value}</div>
+                </div>
+              ))}
+            </div>
+            {codingTotal !== undefined && (
+              <p className="mt-1.5 text-[11px] text-ink-tertiary">
+                Blended coding value (Y{assumptions.horizonYears}) ≈ {fmtCurrency(codingTotal)} —
+                folded into the headline. Move the slider and value shifts between cost-out and
+                growth.
+              </p>
+            )}
+          </div>
+        )}
+
+        <div className="mt-4 border-t border-line pt-4">
+          <FieldLabel>Coding driver inputs</FieldLabel>
+          <div className="mt-2">
+            <CodingEditor coding={coding} onChange={(c) => patch({ coding: c })} />
+          </div>
+        </div>
+      </section>
 
       {/* Ramp assumptions */}
       <section className="mt-6 rounded-xl border border-line-strong bg-surface p-5 shadow-card">

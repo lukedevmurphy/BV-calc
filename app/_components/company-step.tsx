@@ -172,6 +172,37 @@ export default function CompanyStep({ onConfirm, initial, initialApproach }: Pro
             />
           </label>
 
+          {/* Coding-driver inputs — seed the coding-efficiency value driver. */}
+          <div className="grid grid-cols-2 gap-3">
+            <NumberField
+              label="Engineering headcount"
+              value={draft.engineeringHeadcount ?? 0}
+              step={10}
+              onChange={(n) => patch({ engineeringHeadcount: Math.max(0, Math.round(n)) })}
+            />
+            <label className="block">
+              <FieldLabel help="Baseline annual revenue growth — feeds the coding driver's revenue path (stepped up by reinvested capacity). Placeholder; confirm before presenting.">
+                Revenue growth (%)
+              </FieldLabel>
+              <input
+                type="number"
+                value={
+                  draft.revenueGrowthRate !== undefined
+                    ? Number((draft.revenueGrowthRate * 100).toFixed(2))
+                    : ""
+                }
+                step={1}
+                min={0}
+                placeholder="10"
+                onChange={(e) => {
+                  const n = e.target.valueAsNumber;
+                  patch({ revenueGrowthRate: Number.isFinite(n) ? n / 100 : undefined });
+                }}
+                className="mt-1 w-full rounded-md border border-line bg-surface px-2 py-1.5 text-sm"
+              />
+            </label>
+          </div>
+
           {draft.financialHighlights && draft.financialHighlights.length > 0 && (
             <div>
               <FieldLabel>Financial highlights (from enrichment)</FieldLabel>

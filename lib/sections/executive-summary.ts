@@ -14,6 +14,8 @@ export function executiveSummarySection(ctx: ProposalContext): SectionOutput {
   const { company, assumptions: a, selectedUseCases, priorSections } = ctx;
 
   const value = priorSections.business_value?.rangedFigures?.annualValueFinalYear;
+  const coding = priorSections.coding_efficiency?.rangedFigures?.codingTotalFinalYear;
+  const itTakeout = priorSections.it_takeout?.rangedFigures?.itTakeoutFinalYear;
   const cost = priorSections.cost?.rangedFigures?.annualCostFinalYear;
   const net = priorSections.forecast?.rangedFigures?.netFinalYear;
   const roi = priorSections.forecast?.rangedFigures?.roiFinalYear;
@@ -27,6 +29,16 @@ export function executiveSummarySection(ctx: ProposalContext): SectionOutput {
   if (value) {
     bullets.push(
       `Annual value at maturity (Year ${a.horizonYears}): ${fmtRange(value)} — every figure a conservative/base/optimistic range, every range traceable to editable assumptions`,
+    );
+  }
+  if (coding && coding.base > 1) {
+    bullets.push(
+      `Of that, engineering coding efficiency contributes ${fmtRange(coding)} — freed developer capacity, split cost-out / revenue-growth on the Settings page`,
+    );
+  }
+  if (itTakeout && itTakeout.base > 1) {
+    bullets.push(
+      `IT cost takeout from legacy application rationalization adds ${fmtRange(itTakeout)} — hard-dollar run-rate eliminated on a sunset schedule`,
     );
   }
   if (cost) {
@@ -63,6 +75,12 @@ export function executiveSummarySection(ctx: ProposalContext): SectionOutput {
     bullets,
     stats: [
       ...(value ? [{ label: `Annual value, Y${a.horizonYears}`, value: fmtRange(value) }] : []),
+      ...(coding && coding.base > 1
+        ? [{ label: `Coding value, Y${a.horizonYears}`, value: fmtRange(coding) }]
+        : []),
+      ...(itTakeout && itTakeout.base > 1
+        ? [{ label: `IT takeout, Y${a.horizonYears}`, value: fmtRange(itTakeout) }]
+        : []),
       ...(cost ? [{ label: `Annual cost, Y${a.horizonYears}`, value: fmtRange(cost) }] : []),
       ...(net ? [{ label: `Net value, Y${a.horizonYears}`, value: fmtRange(net) }] : []),
       ...(roi

@@ -8,6 +8,8 @@ import {
   valueRealization,
 } from "@/lib/economics/engine";
 import { topDownMatureValue } from "@/lib/economics/top-down";
+import { codingFigures } from "@/lib/economics/coding";
+import { itTakeoutFigures } from "@/lib/economics/it-takeout";
 import { resolveSubIndustry } from "@/lib/value-model/sub-industry";
 import { fmtCurrency, fmtNumber, fmtPercent } from "@/lib/format";
 
@@ -34,18 +36,26 @@ function topDownCalc(ctx: ProposalContext): SectionOutput {
   const rz = vm.realizationFactor.base;
   const t1 = topline * addr;
   const t2 = t1 * uplift;
-  const mature = topDownMatureValue(vm); // == t2 * rz, and == business_value base
+  const mature = topDownMatureValue(vm); // == t2 * rz (use-case/top-down base, pre-coding)
+  // Coding efficiency folds into the Business Value top-down headline too, so the
+  // displayed total adds it to keep this slide tied to the one it explains.
+  const coding = codingFigures(ctx.assumptions).finalYear;
+  const codingTotal = coding.total.base;
+  const itTakeout = itTakeoutFigures(ctx.assumptions).finalYear;
+  const itTakeoutTotal = itTakeout.takeout.base;
+  const total = mature + codingTotal + itTakeoutTotal; // == business_value top-down base
 
-  const table: TableData = {
-    columns: ["Step", "Factor", "Running value"],
-    rows: [
-      [v.toplineRowLabel, fmtCurrency(topline), fmtCurrency(topline)],
-      [`× ${v.addressableRowLabel}`, fmtPercent(addr), fmtCurrency(t1)],
-      [`× ${v.upliftRowLabel}`, fmtPercent(uplift), fmtCurrency(t2)],
-      [`× ${v.realizationRowLabel}`, fmtPercent(rz), fmtCurrency(mature)],
-      ["= Mature annual value", "", fmtCurrency(mature)],
-    ],
-  };
+  const tableRows: (string | number)[][] = [
+    [v.toplineRowLabel, fmtCurrency(topline), fmtCurrency(topline)],
+    [`× ${v.addressableRowLabel}`, fmtPercent(addr), fmtCurrency(t1)],
+    [`× ${v.upliftRowLabel}`, fmtPercent(uplift), fmtCurrency(t2)],
+    [`× ${v.realizationRowLabel}`, fmtPercent(rz), fmtCurrency(mature)],
+    ["= Mature annual value", "", fmtCurrency(mature)],
+  ];
+  if (codingTotal > 1) tableRows.push(["+ Coding efficiency (engineers)", "", fmtCurrency(codingTotal)]);
+  if (itTakeoutTotal > 1) tableRows.push(["+ IT cost takeout (legacy rationalization)", "", fmtCurrency(itTakeoutTotal)]);
+  if (codingTotal > 1 || itTakeoutTotal > 1) tableRows.push(["= Total annual value", "", fmtCurrency(total)]);
+  const table: TableData = { columns: ["Step", "Factor", "Running value"], rows: tableRows };
 
   return {
     id: "value_calculation",
@@ -59,7 +69,7 @@ function topDownCalc(ctx: ProposalContext): SectionOutput {
       "Base-case figures only — the conservative and upside edges are on the scenario appendix slides",
       "The displayed range on the main deck is this base value widened by the top-down confidence band",
     ],
-    stats: [{ label: "Mature annual value", value: fmtCurrency(mature) }],
+    stats: [{ label: "Total annual value", value: fmtCurrency(total) }],
     table,
     speakerNotes:
       "This is the audit trail for the top-down value: one top-line figure scaled by addressable share, " +
@@ -97,18 +107,41 @@ function bottomUpCalc(ctx: ProposalContext): SectionOutput {
     .sort((x, y) => y.gross - x.gross);
 
   const grossTotal = rows.reduce((s, r) => s + r.gross, 0);
-  const realizedTotal = annualValue(a, selectedUseCases, finalYear).base; // == business_value base
+  const useCaseRealized = annualValue(a, selectedUseCases, finalYear).base;
+  // Coding efficiency folds into the Business Value headline (engine, separate
+  // basis), so it must be added here too or the realized total drifts from the
+  // slide it explains. Shown as its own row + carried into the realized total.
+  const coding = codingFigures(a).finalYear;
+  const codingTotal = coding.total.base;
+  const itTakeout = itTakeoutFigures(a).finalYear;
+  const itTakeoutTotal = itTakeout.takeout.base;
+  const realizedTotal = useCaseRealized + codingTotal + itTakeoutTotal; // == business_value base
 
+  const tableRows: (string | number)[][] = [
+    ...rows.map((r) => [
+      r.label,
+      `${Math.round(r.hoursPerUser).toLocaleString("en-US")}h`,
+      fmtCurrency(r.gross),
+    ]),
+    ["All use cases (gross)", "", fmtCurrency(grossTotal)],
+  ];
+  if (codingTotal > 1) {
+    tableRows.push([
+      "+ Coding efficiency (engineers, realized)",
+      `${fmtNumber(coding.freedHours.base)}h freed`,
+      fmtCurrency(codingTotal),
+    ]);
+  }
+  if (itTakeoutTotal > 1) {
+    tableRows.push([
+      "+ IT cost takeout (legacy rationalization)",
+      "",
+      fmtCurrency(itTakeoutTotal),
+    ]);
+  }
   const table: TableData = {
     columns: ["Use case", `Annual hrs saved / user (Y${finalYear})`, "Gross annual value"],
-    rows: [
-      ...rows.map((r) => [
-        r.label,
-        `${Math.round(r.hoursPerUser).toLocaleString("en-US")}h`,
-        fmtCurrency(r.gross),
-      ]),
-      ["All use cases (gross)", "", fmtCurrency(grossTotal)],
-    ],
+    rows: tableRows,
   };
 
   const stats: KeyValue[] = [

@@ -193,8 +193,24 @@ async function main() {
   assert(chartNames.length >= 2, `native charts embedded (${chartNames.length})`);
   assert(slides.includes(ILLUSTRATIVE_FLAG), "illustrative-seed provenance flag present");
   assert(slides.includes("BASE CASE"), "Base-case nugget present on main slides");
-  assert(slides.includes("Conservative Case"), "Conservative case appendix slide present");
-  assert(slides.includes("Upside Case"), "Upside case appendix slide present");
+  // The scenario slides render their tag/kicker uppercased; match either case
+  // (the divider's title-case TOC truncates to "+N more" once the appendix grows,
+  // so assert the slide itself, like the seam loop does for section titles).
+  assert(
+    slides.includes("Conservative Case") || slides.includes("CONSERVATIVE CASE"),
+    "Conservative case appendix slide present",
+  );
+  assert(
+    slides.includes("Upside Case") || slides.includes("UPSIDE CASE"),
+    "Upside case appendix slide present",
+  );
+
+  // Coding-efficiency driver survives the seam: its slide + stats reach the deck.
+  const codingSeam = sections.find((s) => s.kind === "coding_efficiency");
+  assert(codingSeam, "coding_efficiency section present in the seam deck");
+  assert(slides.includes("Coding Efficiency"), "Coding Efficiency slide rendered");
+  for (const st of codingSeam!.stats ?? [])
+    assert(slides.includes(st.value), `coding stat verbatim in deck: ${st.value}`);
 
   // Overlap invariant (pairwise non-intersection; containment allowed) + bounds.
   for (const name of slideNames) {

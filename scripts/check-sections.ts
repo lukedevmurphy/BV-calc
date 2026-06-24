@@ -5,6 +5,7 @@ import assert from "node:assert";
 import { DEFAULT_ASSUMPTIONS, DEFAULT_VALUE_MODEL } from "@/lib/data/defaults";
 import { SEED_USE_CASES } from "@/lib/data/use-cases";
 import { annualValue, breakEvenMonth } from "@/lib/economics/engine";
+import { codingFigures } from "@/lib/economics/coding";
 import {
   computeAllSections,
   defaultSectionConfig,
@@ -33,7 +34,7 @@ const sections = computeAllSections({
   sectionConfig: defaultSectionConfig(),
 });
 
-assert.strictEqual(sections.length, 13, "all thirteen sections registered");
+assert.strictEqual(sections.length, 16, "all sixteen sections registered (peer + it_takeout omitted for the seed)");
 
 for (const s of sections) {
   // Wire-format guard: must survive JSON round-trip losslessly
@@ -98,6 +99,109 @@ assert(
 );
 console.log(`value calculation: realized total ${realizedStat?.value} ties to business value base ✓`);
 
+// ── Coding-efficiency driver: section present, appendix, ties out, folded ────
+const codingSec = byKind.coding_efficiency;
+assert(codingSec, "coding_efficiency section registered");
+assert(codingSec.appendix === true, "coding_efficiency defaults into the appendix lane");
+const cf = codingSec.rangedFigures!;
+assert(cf.codingTotalFinalYear, "coding total figure exposed");
+assert(
+  Math.abs(
+    cf.codingCostSavingsFinalYear.base + cf.codingRevenueGrowthFinalYear.base - cf.codingTotalFinalYear.base,
+  ) < 1,
+  "coding total = cost savings + revenue growth (no leak)",
+);
+assert(
+  (codingSec.stats ?? []).some((s) => s.label.startsWith("→")),
+  "coding exposes → composition stats for the Settings readout",
+);
+// Folded into the headline: business_value base == use-case value + coding total.
+const ucOnlyBase = annualValue(DEFAULT_ASSUMPTIONS, SEED_USE_CASES.slice(0, 4), DEFAULT_ASSUMPTIONS.horizonYears).base;
+assert(
+  Math.abs(byKind.business_value.rangedFigures!.annualValueFinalYear.base - (ucOnlyBase + cf.codingTotalFinalYear.base)) < 1,
+  "business_value headline = use-case value + coding total (folded)",
+);
+// Exec summary surfaces coding as its own line (inherits the folded headline).
+assert(
+  (byKind.executive_summary.stats ?? []).some((s) => s.label.startsWith("Coding value")),
+  "exec summary surfaces coding value",
+);
+console.log(
+  `coding driver: total ${fmtCurrency(cf.codingTotalFinalYear.base)} folded into headline + own appendix slide ✓`,
+);
+
+// ── Value Map + Financial rollup: present, ordered, and totals tie to the
+//    Business Value headline (shared driver/outcome rollup). ──────────────────
+const bvBaseForMaps = byKind.business_value.rangedFigures!.annualValueFinalYear.base;
+const vmSec = byKind.value_map;
+assert(vmSec, "value_map section registered");
+assert(vmSec.appendix !== true, "value_map is a main-body slide (not appendix)");
+assert((vmSec.table?.columns.length ?? 0) === 4, "value_map aligns goal/objective/use-cases/driver");
+assert(
+  (vmSec.bullets ?? []).some((b) => b.includes(fmtCurrency(bvBaseForMaps))),
+  "value_map surfaces a total tying to the business value headline",
+);
+const vmIdx = sections.findIndex((s) => s.kind === "value_map");
+const bvIdx = sections.findIndex((s) => s.kind === "business_value");
+assert(vmIdx >= 0 && bvIdx >= 0 && vmIdx < bvIdx, "value_map displays before business_value");
+
+const frSec = byKind.financial_rollup;
+assert(frSec, "financial_rollup section registered");
+assert(frSec.appendix === true, "financial_rollup defaults into the appendix lane");
+const frTotal = (frSec.stats ?? []).find((s) => s.label.startsWith("= Total P&L impact"));
+assert(
+  frTotal?.value === fmtCurrency(bvBaseForMaps),
+  "financial_rollup P&L total ties to the business value headline",
+);
+assert(
+  (frSec.stats ?? []).some((s) => s.label.includes("Operating expense")),
+  "financial_rollup maps drivers to income-statement lines",
+);
+console.log(
+  `value map + financial rollup: both tie to business value base ${fmtCurrency(bvBaseForMaps)} ✓`,
+);
+
+// ── IT cost takeout (opt-in): enabling it adds the section + folds into headline ──
+const itEnabledSections = computeAllSections({
+  company: demoCompany,
+  assumptions: {
+    ...DEFAULT_ASSUMPTIONS,
+    itTakeout: {
+      enabled: true,
+      sunsetByYear: { "2": 4_000_000, "3": 8_000_000 },
+      realization: { low: 0.5, base: 0.7, high: 0.9 },
+    },
+  },
+  selectedUseCases: SEED_USE_CASES.slice(0, 4),
+  sectionConfig: defaultSectionConfig(),
+});
+const itByKind = Object.fromEntries(itEnabledSections.map((s) => [s.kind, s]));
+assert.strictEqual(itEnabledSections.length, 17, "enabling IT takeout adds its section (17 total)");
+const itSec = itByKind.it_takeout;
+assert(itSec && itSec.appendix === true, "it_takeout section present + appendix");
+assert(itSec.rangedFigures?.itTakeoutFinalYear, "it_takeout figure exposed");
+const baseNoIt = byKind.business_value.rangedFigures!.annualValueFinalYear.base; // seed (IT disabled)
+const baseWithIt = itByKind.business_value.rangedFigures!.annualValueFinalYear.base;
+assert(baseWithIt > baseNoIt, "IT takeout increases the business value headline");
+assert(
+  Math.abs(baseWithIt - (baseNoIt + itSec.rangedFigures!.itTakeoutFinalYear.base)) < 1,
+  "business value headline = base + IT takeout (folded)",
+);
+const itVcRealized = (itByKind.value_calculation.stats ?? []).find((s) =>
+  s.label.startsWith("Realized annual value"),
+);
+assert(
+  itVcRealized?.value === fmtCurrency(baseWithIt),
+  "value_calculation ties to business value base with IT takeout folded",
+);
+assert(
+  (itByKind.executive_summary.stats ?? []).some((s) => s.label.startsWith("IT takeout")),
+  "exec summary surfaces IT takeout",
+);
+console.log(
+  `IT takeout fold: headline ${fmtCurrency(baseNoIt)} → ${fmtCurrency(baseWithIt)} (+${fmtCurrency(itSec.rangedFigures!.itTakeoutFinalYear.base)}) ✓`,
+);
+
 // Default ordering: exec summary first on the page, computed last
 assert.strictEqual(sections[0].kind, "executive_summary", "exec summary ordered first");
 
@@ -139,10 +243,14 @@ assert(
   `top_down band (${(halfWidth(td) * 100).toFixed(0)}%) must be WIDER than bottom_up (${(halfWidth(bu) * 100).toFixed(0)}%)`,
 );
 
-// bottom_up base is the engine value, unchanged by the band normalization
+// bottom_up base is the engine value + the folded coding total, unchanged by
+// the band normalization.
+const expectedBuBase =
+  annualValue(DEFAULT_ASSUMPTIONS, ucs4, DEFAULT_ASSUMPTIONS.horizonYears).base +
+  codingFigures(DEFAULT_ASSUMPTIONS).finalYear.total.base;
 assert(
-  Math.abs(bu.base - annualValue(DEFAULT_ASSUMPTIONS, ucs4, DEFAULT_ASSUMPTIONS.horizonYears).base) < 1,
-  "bottom_up base equals the engine annualValue base (regression guard)",
+  Math.abs(bu.base - expectedBuBase) < 1,
+  "bottom_up base equals engine annualValue + coding total (regression guard)",
 );
 console.log(
   `value-approach bands: top_down ±${(halfWidth(td) * 100).toFixed(0)}% (wider) > bottom_up ±${(halfWidth(bu) * 100).toFixed(0)}% (tighter) ✓`,
@@ -267,7 +375,10 @@ assert.strictEqual(
 const bvFor = (capacity: number) => {
   const out = computeAllSections({
     company: demoCompany,
-    assumptions: { ...DEFAULT_ASSUMPTIONS, reinvestmentCapacity: capacity },
+    // Isolate the use-case reinvestment effect from the coding driver — coding
+    // rides its own allocation slider, not the reinvestment toggle, so it would
+    // only add a constant to both totals.
+    assumptions: { ...DEFAULT_ASSUMPTIONS, reinvestmentCapacity: capacity, coding: undefined },
     selectedUseCases: ucs4,
     valueModel: DEFAULT_VALUE_MODEL,
     sectionConfig: defaultSectionConfig(),
@@ -404,4 +515,4 @@ assert.strictEqual(migrated.revision, 0, "legacy proposal starts at revision zer
 assert(migrated.sectionConfig.some((c) => c.kind === "cost"));
 console.log("proposal migration: unversioned payload upgraded + missing section restored ✓");
 
-console.log("Section contract holds across all 13. ✓");
+console.log("Section contract holds across all 16. ✓");

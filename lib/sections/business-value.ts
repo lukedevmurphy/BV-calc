@@ -38,7 +38,7 @@ import {
   type DriverId,
 } from "@/lib/value-model/drivers";
 import { illustrativeFlag, showDraftWarnings } from "@/lib/provenance";
-import { fmtCurrency, fmtPercent, fmtRange, fmtRangeTriple } from "@/lib/format";
+import { fmtCurrency, fmtPercent, fmtRange } from "@/lib/format";
 
 /** Capacity share (0..1) for the reinvestment routing; default blend. */
 function capacityShare(ctx: ProposalContext): number {
@@ -132,7 +132,11 @@ function driverArtifacts(
 
 interface ApproachResult {
   subtitle: string;
-  bullets: string[];
+  /** Framing lede (full-width under the headline) — NOT a left bullet, so the
+   *  use-case table/chart gets the whole slide width. */
+  narrative: string;
+  /** Optional caveat pinned at the slide bottom (e.g. the illustrative flag). */
+  footnote?: string;
   extraStats: KeyValue[];
   table?: TableData;
   charts?: ChartSeries[];
@@ -202,10 +206,13 @@ export function businessValueSection(ctx: ProposalContext): SectionOutput {
     kind: "business_value",
     title: "Business Value",
     subtitle: r.subtitle,
-    bullets: r.bullets,
+    narrative: r.narrative,
     heroStat,
     stats,
     table: r.table,
+    // Only emit footnote when present — an explicit `undefined` would break the
+    // SectionOutput JSON round-trip (keystone: plain JSON, no undefined).
+    ...(r.footnote ? { footnote: r.footnote } : {}),
     speakerNotes: r.speakerNotes + trajectoryNote + codingNote + itNote,
     rangedFigures,
     assumptionsUsed: r.assumptionsUsed,
@@ -242,24 +249,22 @@ function buildBottomUp(
   );
   const tree = driverArtifacts(subId, perDriver, ctx, finalYear);
 
-  // The use-case detail table stays the bottom-up credibility view (the use
-  // case → driver MAPPING is surfaced in the picker, Part 2.2); the chart shows
-  // the driver-level rollup (Part 2.4).
+  // The use-case detail table is the bottom-up credibility view: each use case
+  // shows its % share of the modeled value and the SOURCE/basis of its saved-
+  // hours estimate (stated on-slide so a number is never presented as a sourced
+  // fact). The use case → driver mapping is surfaced in the picker (Part 2.2).
+  const ucTotalBase = byUseCase.reduce((sum, { value }) => sum + value.base, 0) || 1;
   const table: TableData = {
     columns: [
       "Use case",
-      "Hours saved / instance",
-      "Instances / user / mo",
-      `Annual value, use-case only (Y${finalYear})`,
+      "% of value",
+      "Basis — estimate, verify",
+      `Annual value (Y${finalYear})`,
     ],
     rows: byUseCase.map(({ useCase, value }) => [
       useCase.label,
-      useCase.hoursSavedPerInstance
-        ? fmtRangeTriple(useCase.hoursSavedPerInstance, (n) => `${n}h`)
-        : "default",
-      useCase.instancesPerMonthPerUser
-        ? fmtRangeTriple(useCase.instancesPerMonthPerUser, (n) => `${n}`)
-        : "default",
+      fmtPercent(value.base / ucTotalBase),
+      savedHoursBasisFor(useCase.id),
       // Band each row at the approach half-width so rows agree with the total.
       fmtRange(bandAroundBase(value.base, halfWidth)),
     ]),
@@ -281,9 +286,7 @@ function buildBottomUp(
 
   return {
     subtitle: `Built bottom-up from ${selectedUseCases.length} selected use cases — realization-adjusted to a defensible dollar value, not raw saved time`,
-    bullets: [
-      `Realized value, not raw saved time: only ~${rzPct}% of freed hours are credited as dollars, and a typical adopter runs ~${covPct}% of the selected workflows`,
-    ],
+    narrative: `Realized value, not raw saved time: only ~${rzPct}% of freed hours are credited as dollars, and a typical adopter runs ~${covPct}% of the selected workflows.`,
     extraStats: tree.extraStats,
     table,
     charts,
@@ -357,10 +360,8 @@ function buildTopDown(ctx: ProposalContext, finalYear: number): ApproachResult {
 
   return {
     subtitle: `Top-down SWAG: AI lifts ${v.toplineRowLabel.toLowerCase()} growth ${baselinePct}% → ${liftedPct}%, broken across the selected use cases`,
-    bullets: [
-      `Directional value ≈ ${v.toplineRowLabel.toLowerCase()} × (AI-lifted growth ${liftedPct}% − baseline ${baselinePct}%) × realization`,
-      ...(flag ? [flag] : []),
-    ],
+    narrative: `Directional value ≈ ${v.toplineRowLabel.toLowerCase()} × (AI-lifted growth ${liftedPct}% − baseline ${baselinePct}%) × realization.`,
+    footnote: flag ?? undefined,
     extraStats: [
       { label: "Revenue-growth lift", value: `${baselinePct}% → ${liftedPct}%` },
       { label: "Realization", value: fmtPercent(vm.realizationFactor.base) },

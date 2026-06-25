@@ -158,6 +158,7 @@ export function costSection(ctx: ProposalContext): SectionOutput {
         ? "Forecast uses the overridden annual totals rather than implying token-level precision"
         : `Break-even: cumulative value covers consumption plus the one-time implementation cost (${fmtCurrency(a.implementationCost.base)}, amortized) at ${fmtMonth(be.base)} in the base case`,
     ],
+    // Four stats, one row (no break-even period — it lives in the Forecast).
     stats: [
       { label: "Annual cost, Year 1", value: fmtCurrency(costY1.base) },
       { label: `Annual cost, Year ${finalYear}`, value: fmtCurrency(costFinal.base) },
@@ -165,10 +166,6 @@ export function costSection(ctx: ProposalContext): SectionOutput {
         ? { label: "Cost basis", value: "Direct override + modeled years" }
         : { label: "Blended $/task (avg)", value: fmtCurrencySmall(avgCostPerTask(a, selectedUseCases)) },
       ...(!hasOverrides ? [{
-        label: "Break-even period",
-        value: `${fmtMonth(be.base)} (optimistic ${fmtMonth(be.high)}, conservative ${fmtMonth(be.low)})`,
-      },
-      {
         label: "Break-even adoption",
         value:
           beAdoption === null

@@ -120,21 +120,23 @@ export default function SectionList({ sections, config, onConfigChange }: Props)
 
   return (
     <div className="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
-      {/* LEFT — section nav / control with appendix lane */}
-      <aside className="lg:sticky lg:top-20 lg:h-fit lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto rounded-xl border border-line bg-surface p-3 shadow-card">
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-sm font-semibold">Sections</h2>
+      {/* LEFT — section nav / control with appendix lane (dark panel) */}
+      <aside className="lg:sticky lg:top-24 lg:h-fit lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto rounded-2xl border border-ink bg-ink p-4 text-surface shadow-card">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-white">Sections</h2>
           <div className="flex gap-1 text-[11px]">
             <button
               onClick={expandAll}
-              className="rounded border border-line px-1.5 py-0.5 text-ink-secondary hover:bg-muted"
+              className="inline-flex items-center gap-1 rounded-md border border-surface/20 px-2 py-1 text-surface/80 hover:bg-white/10"
             >
+              <ChevronsIcon dir="down" />
               Expand
             </button>
             <button
               onClick={collapseAll}
-              className="rounded border border-line px-1.5 py-0.5 text-ink-secondary hover:bg-muted"
+              className="inline-flex items-center gap-1 rounded-md border border-surface/20 px-2 py-1 text-surface/80 hover:bg-white/10"
             >
+              <ChevronsIcon dir="up" />
               Collapse
             </button>
           </div>
@@ -162,7 +164,7 @@ export default function SectionList({ sections, config, onConfigChange }: Props)
             </ul>
           </SortableContext>
         </DndContext>
-        <p className="mt-2 px-1 text-[10px] leading-snug text-ink-tertiary">
+        <p className="mt-3 px-1 text-[10px] leading-snug text-surface/50">
           Drag a section below the divider to move it into the appendix. Conservative
           &amp; upside scenario slides are appended automatically.
         </p>
@@ -205,9 +207,9 @@ function AppendixDivider({ count }: { count: number }) {
       style={style}
       {...attributes}
       {...listeners}
-      className="my-1 flex cursor-grab items-center gap-2 rounded-md border border-dashed border-accent/60 bg-accent-soft px-1.5 py-1 active:cursor-grabbing"
+      className="my-1.5 flex cursor-grab items-center gap-2 rounded-md border border-dashed border-accent-bright/50 bg-accent-bright/15 px-2 py-1 active:cursor-grabbing"
     >
-      <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" className="text-accent">
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" className="text-accent-bright">
         <circle cx="5" cy="3" r="1.5" />
         <circle cx="11" cy="3" r="1.5" />
         <circle cx="5" cy="8" r="1.5" />
@@ -215,11 +217,24 @@ function AppendixDivider({ count }: { count: number }) {
         <circle cx="5" cy="13" r="1.5" />
         <circle cx="11" cy="13" r="1.5" />
       </svg>
-      <span className="flex-1 text-[11px] font-semibold uppercase tracking-wide text-accent">
+      <span className="flex-1 text-[11px] font-semibold uppercase tracking-wide text-accent-bright">
         Appendix divider
       </span>
-      <span className="text-[10px] text-ink-tertiary">{count}</span>
+      <span className="text-[10px] text-surface/50">{count}</span>
     </li>
+  );
+}
+
+/** Double-chevron icon for the Expand (down) / Collapse (up) buttons. */
+function ChevronsIcon({ dir }: { dir: "up" | "down" }) {
+  return (
+    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      {dir === "down" ? (
+        <path d="M4 4l4 4 4-4M4 9l4 4 4-4" />
+      ) : (
+        <path d="M4 12l4-4 4 4M4 7l4-4 4 4" />
+      )}
+    </svg>
   );
 }
 
@@ -244,17 +259,17 @@ function SortableNavItem({
     <li
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-1.5 rounded-md border px-1.5 py-1 ${
+      className={`flex items-center gap-1.5 rounded-md border px-2 py-1.5 ${
         section.enabled
-          ? "border-line bg-surface"
-          : "border-dashed border-line bg-muted/50"
+          ? "border-surface/15 bg-white/5"
+          : "border-dashed border-surface/15 bg-transparent"
       }`}
     >
       <button
         {...attributes}
         {...listeners}
         title="Drag to reorder / move to appendix"
-        className="cursor-grab rounded p-0.5 text-ink-tertiary hover:bg-muted active:cursor-grabbing"
+        className="cursor-grab rounded p-0.5 text-surface/40 hover:bg-white/10 active:cursor-grabbing"
       >
         <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
           <circle cx="5" cy="3" r="1.5" />
@@ -270,12 +285,12 @@ function SortableNavItem({
         checked={section.enabled}
         onChange={onToggle}
         title={section.enabled ? "Exclude from proposal" : "Include in proposal"}
-        className="accent-[var(--accent)]"
+        className="accent-[var(--accent-bright)]"
       />
       <button
         onClick={onJump}
         className={`flex-1 truncate text-left text-xs ${
-          section.enabled ? "hover:text-accent" : "text-ink-tertiary"
+          section.enabled ? "text-surface hover:text-accent-bright" : "text-surface/40"
         }`}
         title={section.title}
       >

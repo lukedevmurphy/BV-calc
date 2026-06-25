@@ -134,8 +134,8 @@ export default function PreviewScreen({
         : current.section.title.split("—")[0].trim();
 
   return (
-    <div className="mx-auto max-w-[1120px] px-6 py-8">
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+    <div className="mx-auto max-w-[1160px] px-6 py-12">
+      <div className="mb-7 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
         <div>
           <Kicker>Step 03 · Preview</Kicker>
           <h1 className="mt-2.5 font-serif text-[2rem] font-semibold leading-tight tracking-tight text-ink">
@@ -192,7 +192,7 @@ export default function PreviewScreen({
         </button>
       </div>
 
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+      <div className="mt-7 flex flex-wrap items-center justify-between gap-3">
         <button onClick={onBack} className={btnSecondary}>
           ← Back: Build
         </button>

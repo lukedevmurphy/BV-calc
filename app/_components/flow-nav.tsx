@@ -40,8 +40,8 @@ export default function FlowNav({
 }) {
   const activeN = STEPS.find((s) => s.id === screen)?.n ?? 0;
   return (
-    <header className="sticky top-0 z-30 border-b border-line bg-canvas/90 backdrop-blur supports-[backdrop-filter]:bg-canvas/75">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-2 px-6 py-3">
+    <header className="sticky top-0 z-30 border-b border-line bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/75">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-2 px-6 py-4">
         <div className="min-w-0">
           <div className="truncate font-serif text-lg font-semibold tracking-tight">
             {companyName}

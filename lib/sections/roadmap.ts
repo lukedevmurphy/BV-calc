@@ -21,9 +21,10 @@ export function roadmapSection(ctx: ProposalContext): SectionOutput {
     kind: "roadmap",
     title: "Roadmap",
     subtitle: "Phases map one-to-one onto the adoption ramp the economics are built on",
-    bullets: [
-      `These adoption targets are the SAME numbers driving the cost and value forecasts — move a slider, this table moves`,
-    ],
+    // Framing lives in the full-width lede (not a left bullet) so the phase table
+    // gets the whole slide width instead of being squished into a half column.
+    narrative:
+      "These adoption targets are the SAME numbers driving the cost and value forecasts — move a slider, this table moves.",
     table: {
       columns: ["Phase", "Timeframe", "Adoption target", "Focus"],
       rows,

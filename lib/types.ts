@@ -366,10 +366,14 @@ export interface RankedValueRow {
    *  ["Increase engineering throughput", "Claude Code"]). 0–2 entries; the
    *  renderers show only the first. */
   chain?: string[];
-  /** Tiny uppercase caption shown beside the right-anchored value (e.g. the
-   *  value-driver name "Productivity"), so the big number is labelled. */
+  /** The value-driver name shown in its own column (e.g. "Cost-to-serve /
+   *  efficiency ratio"). */
   valueNote?: string;
-  /** Base value in dollars — drives BOTH the displayed figure and the bar length. */
+  /** The financial impact this driver lands in (e.g. "Operating margin
+   *  (cost-out)"), shown under the value driver. */
+  impact?: string;
+  /** Base value in dollars — drives the displayed figure (and, in the old bar
+   *  exhibit, the bar length; the table layout ignores it). */
   value: number;
   /** 0..1 share of the exhibit total. PRECOMPUTED in the module so web and pptx
    *  draw identical bars (renderers never re-derive share). */

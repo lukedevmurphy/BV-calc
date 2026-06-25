@@ -24,9 +24,9 @@ export function productSection(ctx: ProposalContext): SectionOutput {
     kind: "product",
     title: "Product Fit",
     subtitle: "Start from Anthropic's pre-built financial-services templates — customize only the last mile",
-    bullets: [
-      `Pre-built templates carry built-in best practices and compress time-to-first-value from quarters to weeks; custom work concentrates only where your data and process differ`,
-    ],
+    // Full-width lede (not a left bullet) so the template table spans the slide.
+    narrative:
+      "Pre-built templates carry built-in best practices and compress time-to-first-value from quarters to weeks; custom work concentrates only where your data and process differ.",
     table: {
       columns: ["Use case", "Suggested starting point"],
       rows: selectedUseCases.map((uc) => [

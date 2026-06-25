@@ -44,10 +44,11 @@ export const STRIP_PAD = 0.18; // gap above the value strip
 export const CHART_MIN = 1.4; // a chart needs at least this much height or it's dropped
 export const CELL_PAD_H = 0.14;
 
-// ── Ranked-value exhibit (fixed height: known row count) ─────────────────────
-export const RANKED_ROW_H = 0.56; // one bar row (label/chain + bar + value)
-export const RANKED_ROW_GAP = 0.1; // gap between bar rows
-export const RANKED_TOTAL_H = 0.34; // pinned total + rule beneath the bars
+// ── Ranked-value exhibit, now a headered table (fixed height: known row count) ─
+export const RANKED_HEADER_H = 0.34; // column-header row + rule
+export const RANKED_ROW_H = 0.5; // one table row (goal · uses · driver+impact · value)
+export const RANKED_ROW_GAP = 0.08; // gap between rows
+export const RANKED_TOTAL_H = 0.46; // bold pinned total row + rule
 
 // ── Footnote (a quiet caveat/source line pinned at the slide bottom) ──────────
 export const FOOTNOTE_H = 0.32; // reserved height when a section carries a footnote
@@ -132,7 +133,9 @@ export function statsRowH(s: SectionOutput): number {
 export function rankedValueH(s: SectionOutput): number {
   const rv = s.rankedValue;
   if (!rv) return 0;
-  return rv.rows.length * (RANKED_ROW_H + RANKED_ROW_GAP) + RANKED_TOTAL_H;
+  return (
+    RANKED_HEADER_H + rv.rows.length * (RANKED_ROW_H + RANKED_ROW_GAP) + RANKED_TOTAL_H
+  );
 }
 
 export const hasVisual = (s: SectionOutput): boolean =>

@@ -38,6 +38,7 @@ import {
   CARD_H,
   STAT_ROW_EXTRA,
   HERO_BLOCK_H,
+  RANKED_HEADER_H,
   RANKED_ROW_H,
   RANKED_ROW_GAP,
   RANKED_TOTAL_H,
@@ -641,10 +642,11 @@ function addValueStrip(
   });
 }
 
-/** Number-first ranked-value exhibit — manual roundRect bars (native charts
- *  can't right-anchor a big value with a left chain + pinned total). Mirrors
- *  app/_components/charts/ranked-value.tsx; geometry matches rankedValueH() so
- *  the estimate, the render and check-pptx never disagree. */
+/** Value-map exhibit, as a headered table — no bars: the strategy reads across
+ *  (GOAL → USE CASES → VALUE DRIVER + the P&L line it impacts → ANNUAL VALUE)
+ *  with the number big, bold and auburn, right-anchored, and a bold auburn total
+ *  pinned beneath it. Mirrors app/_components/charts/ranked-value.tsx; geometry
+ *  matches rankedValueH() so the estimate, the render and check-pptx agree. */
 function addRankedValue(
   slide: PptxGenJS.Slide,
   rv: RankedValue,
@@ -656,90 +658,90 @@ function addRankedValue(
 ): void {
   void h; // height is reserved by the caller via rankedValueH(); kept for parity
   const fmt = rv.format === "number" ? fmtNumber : fmtCurrency;
-  const total = rv.total.value || 1;
-  const LEFT_W = w * 0.34;
-  const VAL_W = Math.min(1.7, w * 0.22);
-  const GAP = 0.18;
-  const trackX = x + LEFT_W + GAP;
-  const trackW = Math.max(w - LEFT_W - VAL_W - GAP * 2, 0.5);
-  const valX = x + w - VAL_W;
-  const barH = 0.2;
 
-  rv.rows.forEach((row, i) => {
-    const ry = y + i * (RANKED_ROW_H + RANKED_ROW_GAP);
-    const barY = ry + RANKED_ROW_H / 2 - barH / 2;
-    // faint track
-    slide.addShape("rect", { x: trackX, y: barY, w: trackW, h: barH, fill: { color: CREAM }, line: NO_BORDER });
-    // sage fill (contained within the track)
-    const fillW = Math.max(trackW * Math.min(row.share, 1), 0.06);
-    slide.addShape("roundRect", {
-      x: trackX,
-      y: barY,
-      w: fillW,
-      h: barH,
-      rectRadius: 0.03,
-      fill: { color: SERIES_HUES[0].base },
-      line: NO_BORDER,
+  const PAD = 0.12;
+  const GOAL_W = w * 0.23;
+  const USES_W = w * 0.34;
+  const DRIVER_W = w * 0.25;
+  const VAL_W = w - GOAL_W - USES_W - DRIVER_W;
+  const goalX = x;
+  const usesX = x + GOAL_W;
+  const driverX = usesX + USES_W;
+  const valX = x + w - VAL_W;
+
+  // ── Header row + rule ──
+  const headers: [string, number, number, "left" | "right"][] = [
+    ["STRATEGIC GOAL", goalX, GOAL_W, "left"],
+    ["USE CASES", usesX, USES_W, "left"],
+    ["VALUE DRIVER", driverX, DRIVER_W, "left"],
+    ["ANNUAL VALUE", valX, VAL_W, "right"],
+  ];
+  for (const [t, cx, cw, align] of headers) {
+    slide.addText(t, {
+      x: cx,
+      y,
+      w: cw - PAD,
+      h: RANKED_HEADER_H - 0.1,
+      fontSize: 7.5 * scale,
+      bold: true,
+      fontFace: SANS,
+      color: SLATE2,
+      charSpacing: 1.5,
+      align,
+      valign: "bottom",
+      fit: "shrink",
     });
-    // optional band whisker (clamped within the track)
-    if (row.range) {
-      const lowFrac = Math.min(Math.max(row.range.low / total, 0), 1);
-      const highFrac = Math.min(Math.max(row.range.high / total, 0), 1);
-      slide.addShape("rect", {
-        x: trackX + trackW * lowFrac,
-        y: ry + RANKED_ROW_H / 2 - 0.01,
-        w: Math.max(trackW * (highFrac - lowFrac), 0.02),
-        h: 0.02,
-        fill: { color: SLATE2 },
-        line: NO_BORDER,
-      });
-    }
-    // left chain (label + first chain link), right-aligned toward the bar
-    const chainRuns: { text: string; options: Record<string, unknown> }[] = [
-      { text: row.label, options: { fontSize: 12.5 * scale, fontFace: SANS, color: INK, bold: true } },
+  }
+  slide.addShape("rect", { x, y: y + RANKED_HEADER_H - 0.06, w, h: 0.009, fill: { color: LINE2 }, line: NO_BORDER });
+
+  // ── Rows ──
+  const rowsTop = y + RANKED_HEADER_H;
+  rv.rows.forEach((row, i) => {
+    const ry = rowsTop + i * (RANKED_ROW_H + RANKED_ROW_GAP);
+    slide.addText(row.label, {
+      x: goalX, y: ry, w: GOAL_W - PAD, h: RANKED_ROW_H,
+      fontSize: 11 * scale, bold: true, fontFace: SANS, color: INK,
+      valign: "middle", wrap: true, fit: "shrink",
+    });
+    slide.addText(row.chain?.[0] ?? "", {
+      x: usesX, y: ry, w: USES_W - PAD, h: RANKED_ROW_H,
+      fontSize: 9 * scale, fontFace: SANS, color: SLATE,
+      valign: "middle", wrap: true, fit: "shrink",
+    });
+    const driverRuns: { text: string; options: Record<string, unknown> }[] = [
+      { text: row.valueNote ?? "", options: { fontSize: 9.5 * scale, fontFace: SANS, color: INK_SOFT, bold: true } },
     ];
-    if (row.chain?.[0]) {
-      chainRuns.push({ text: "\n" + row.chain[0], options: { fontSize: 9 * scale, fontFace: SANS, color: SLATE2, bold: false } });
+    if (row.impact) {
+      driverRuns.push({ text: "\n" + row.impact, options: { fontSize: 8 * scale, fontFace: SANS, color: SLATE2 } });
     }
-    slide.addText(chainRuns, { x, y: ry, w: LEFT_W, h: RANKED_ROW_H, align: "right", valign: "middle", wrap: true, fit: "shrink" });
-    // the big number, right-anchored, with the value-driver name beneath it
-    slide.addText(
-      row.valueNote
-        ? [
-            { text: fmt(row.value), options: { fontSize: 20 * scale, fontFace: SERIF, color: CLAY_DEEP, bold: true, breakLine: true } },
-            { text: row.valueNote.toUpperCase(), options: { fontSize: 7 * scale, fontFace: SANS, color: SLATE2, charSpacing: 1 } },
-          ]
-        : fmt(row.value),
-      {
-        x: valX,
-        y: ry,
-        w: VAL_W,
-        h: RANKED_ROW_H,
-        align: "right",
-        valign: "middle",
-        fontFace: SERIF,
-        color: CLAY_DEEP,
-        fontSize: 20 * scale,
-        bold: true,
-        fit: "shrink",
-      },
-    );
+    slide.addText(driverRuns, {
+      x: driverX, y: ry, w: DRIVER_W - PAD, h: RANKED_ROW_H,
+      valign: "middle", wrap: true, fit: "shrink",
+    });
+    slide.addText(fmt(row.value), {
+      x: valX, y: ry, w: VAL_W, h: RANKED_ROW_H,
+      align: "right", valign: "middle", fontFace: SERIF, color: CLAY_DEEP,
+      fontSize: 17 * scale, bold: true, fit: "shrink",
+    });
+    // hairline row divider, mid-gap so it never overlaps a cell
+    slide.addShape("rect", {
+      x, y: ry + RANKED_ROW_H + RANKED_ROW_GAP / 2, w, h: 0.006,
+      fill: { color: LINE }, line: NO_BORDER,
+    });
   });
 
-  // pinned total beneath a hairline rule
-  const totalY = y + rv.rows.length * (RANKED_ROW_H + RANKED_ROW_GAP);
-  slide.addShape("rect", { x, y: totalY + 0.02, w, h: 0.009, fill: { color: LINE2 }, line: NO_BORDER });
-  slide.addText(rv.total.label, {
-    x,
-    y: totalY + 0.06,
-    w,
-    h: RANKED_TOTAL_H - 0.06,
-    align: "right",
-    valign: "middle",
-    fontFace: SERIF,
-    color: SLATE,
-    fontSize: 12 * scale,
-    fit: "shrink",
+  // ── Bold auburn total, aligned under the value column ──
+  const totalY = rowsTop + rv.rows.length * (RANKED_ROW_H + RANKED_ROW_GAP);
+  slide.addShape("rect", { x, y: totalY + 0.02, w, h: 0.012, fill: { color: LINE2 }, line: NO_BORDER });
+  slide.addText(rv.total.label.toUpperCase(), {
+    x, y: totalY + 0.08, w: valX - x - PAD, h: RANKED_TOTAL_H - 0.12,
+    align: "right", valign: "middle", fontFace: SANS, color: SLATE,
+    fontSize: 9 * scale, bold: true, charSpacing: 1, fit: "shrink",
+  });
+  slide.addText(fmt(rv.total.value), {
+    x: valX, y: totalY + 0.06, w: VAL_W, h: RANKED_TOTAL_H - 0.08,
+    align: "right", valign: "middle", fontFace: SERIF, color: CLAY_DEEP,
+    fontSize: 21 * scale, bold: true, fit: "shrink",
   });
 }
 

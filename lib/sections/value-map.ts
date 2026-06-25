@@ -54,19 +54,19 @@ export function valueMapSection(ctx: ProposalContext): SectionOutput {
   );
   const total = active.reduce((sum, d) => sum + perDriver[d], 0);
 
-  // Each row reads left→right: the company goal (capability) + the use cases
-  // that deliver it, a share-scaled bar, then the value driver quantified on the
-  // right. The driver name moves to the value caption so the LEFT carries the
-  // strategy and the RIGHT carries the number.
+  // The exhibit reads as a table, left→right: company GOAL → the USE CASES that
+  // deliver it → the VALUE DRIVER and the P&L line it impacts → the quantified
+  // ANNUAL VALUE. No bars — the number is the point.
   const rankedValue: RankedValue = {
     rows: active.map((d) => ({
       label: DRIVER_STRATEGY[d].goal,
       chain: [capabilityLine(ctx, d)],
       valueNote: sectorDriverLabel(subId, d, VALUE_DRIVERS[d].short),
+      impact: VALUE_DRIVERS[d].outcomeLabel,
       value: perDriver[d],
       share: total > 0 ? perDriver[d] / total : 0,
     })),
-    total: { value: total, label: `${fmtCurrency(total)}  total annual value (Y${finalYear})` },
+    total: { value: total, label: `Total annual value (Year ${finalYear})` },
     format: "currency",
   };
 

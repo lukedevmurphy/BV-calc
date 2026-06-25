@@ -205,7 +205,7 @@ export default function Builder({
   }
 
   return (
-    <div className="min-h-screen pb-16">
+    <div className="min-h-screen bg-white pb-16">
       <FlowNav
         screen={screen}
         onNavigate={navigate}

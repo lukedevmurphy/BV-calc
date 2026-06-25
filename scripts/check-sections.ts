@@ -17,6 +17,7 @@ import {
 } from "@/lib/proposals/migrate";
 import { resolveSubIndustry } from "@/lib/value-model/sub-industry";
 import { scenarioAppendixSlides } from "@/lib/sections/scenario";
+import { ILLUSTRATIVE_FLAG } from "@/lib/provenance";
 import { fmtCurrency } from "@/lib/format";
 import type { CompanyProfile, Ranged, UseCase, ValueApproach } from "@/lib/types";
 
@@ -63,13 +64,17 @@ assert(byKind.forecast.bandedCharts?.length === 2, "forecast has value+cost band
 // main slide shows the BASE case only + a "Base case" nugget. The underlying
 // ranged data is unchanged, so the bases must still agree.
 const execStats = byKind.executive_summary.stats ?? [];
-const valueStat = execStats.find((s) => s.label.startsWith("Annual value"));
-const bvStat = (byKind.business_value.stats ?? []).find((s) =>
-  s.label.startsWith("Annual value, Year 3"),
-);
 const isRange = (v: string) => /\(.*–.*\)/.test(v);
-assert(valueStat && isRange(valueStat.value), "exec summary shows the full range");
-assert(bvStat && !isRange(bvStat.value), "business_value shows base case only (no inline range)");
+// Exec summary carries the full range: the value strip (annualValueFinalYear)
+// plus ranged cost/net stat cards. Business value shows base-case only.
+const valueStat = execStats.find((s) => isRange(s.value));
+const bvHero = byKind.business_value.heroStat;
+assert(byKind.executive_summary.rangedFigures?.annualValueFinalYear, "exec summary exposes the value-strip range");
+assert(valueStat, "exec summary shows the full range (a ranged stat)");
+assert(
+  bvHero !== undefined && bvHero.label.startsWith("Annual value") && !isRange(bvHero.value),
+  "business_value hero shows base case only (no inline range)",
+);
 assert(
   byKind.executive_summary.scenarioTag === undefined,
   "exec summary carries no scenario nugget",
@@ -121,10 +126,10 @@ assert(
   Math.abs(byKind.business_value.rangedFigures!.annualValueFinalYear.base - (ucOnlyBase + cf.codingTotalFinalYear.base)) < 1,
   "business_value headline = use-case value + coding total (folded)",
 );
-// Exec summary surfaces coding as its own line (inherits the folded headline).
+// Exec summary inherits the folded headline; coding detail now lives in notes.
 assert(
-  (byKind.executive_summary.stats ?? []).some((s) => s.label.startsWith("Coding value")),
-  "exec summary surfaces coding value",
+  (byKind.executive_summary.speakerNotes ?? "").toLowerCase().includes("coding efficiency"),
+  "exec summary notes surface coding value",
 );
 console.log(
   `coding driver: total ${fmtCurrency(cf.codingTotalFinalYear.base)} folded into headline + own appendix slide ✓`,
@@ -136,10 +141,11 @@ const bvBaseForMaps = byKind.business_value.rangedFigures!.annualValueFinalYear.
 const vmSec = byKind.value_map;
 assert(vmSec, "value_map section registered");
 assert(vmSec.appendix !== true, "value_map is a main-body slide (not appendix)");
-assert((vmSec.table?.columns.length ?? 0) === 4, "value_map aligns goal/objective/use-cases/driver");
+assert((vmSec.rankedValue?.rows.length ?? 0) > 0, "value_map carries a ranked-value exhibit");
 assert(
-  (vmSec.bullets ?? []).some((b) => b.includes(fmtCurrency(bvBaseForMaps))),
-  "value_map surfaces a total tying to the business value headline",
+  vmSec.rankedValue !== undefined &&
+    fmtCurrency(vmSec.rankedValue.total.value) === fmtCurrency(bvBaseForMaps),
+  "value_map total ties to the business value headline",
 );
 const vmIdx = sections.findIndex((s) => s.kind === "value_map");
 const bvIdx = sections.findIndex((s) => s.kind === "business_value");
@@ -159,6 +165,31 @@ assert(
 );
 console.log(
   `value map + financial rollup: both tie to business value base ${fmtCurrency(bvBaseForMaps)} ✓`,
+);
+
+// ── Proposal reconciles to the Value Map: SAME drivers, SAME labels, SAME
+//    figures (the single biggest cross-slide credibility risk). ───────────────
+const propSec = byKind.proposal;
+assert(propSec, "proposal section registered");
+const propRows = propSec.table?.rows ?? [];
+const vmByLabel = new Map(
+  (vmSec.rankedValue?.rows ?? []).map((r) => [r.label, fmtCurrency(r.value)]),
+);
+assert(
+  propRows.length > 0 && propRows.length === (vmSec.rankedValue?.rows.length ?? -1),
+  "proposal covers the same set of value drivers as the value map",
+);
+for (const r of propRows) {
+  const label = String(r[0]);
+  const vmVal = vmByLabel.get(label);
+  assert(vmVal !== undefined, `proposal driver "${label}" also appears in the value map`);
+  assert(
+    String(r[1]) === vmVal,
+    `proposal value for "${label}" (${r[1]}) matches the value map (${vmVal})`,
+  );
+}
+console.log(
+  `proposal reconciles to value map: ${propRows.length} drivers, identical labels + figures ✓`,
 );
 
 // ── IT cost takeout (opt-in): enabling it adds the section + folds into headline ──
@@ -195,8 +226,8 @@ assert(
   "value_calculation ties to business value base with IT takeout folded",
 );
 assert(
-  (itByKind.executive_summary.stats ?? []).some((s) => s.label.startsWith("IT takeout")),
-  "exec summary surfaces IT takeout",
+  (itByKind.executive_summary.speakerNotes ?? "").toLowerCase().includes("it cost takeout"),
+  "exec summary notes surface IT takeout",
 );
 console.log(
   `IT takeout fold: headline ${fmtCurrency(baseNoIt)} → ${fmtCurrency(baseWithIt)} (+${fmtCurrency(itSec.rangedFigures!.itTakeoutFinalYear.base)}) ✓`,
@@ -450,24 +481,52 @@ console.log(
   `scenario appendix: conservative value=${consValue?.value} (low), upside value=${upValue?.value} (high) ✓`,
 );
 
-// ── Ratio sanity (Part 4): an implausible ratio must WARN, never print bare ──
+// ── Ratio sanity (Part 4): an implausible ratio must WARN (draft mode), never
+//    print a bare hero number. The ratio is no longer a client-facing stat card;
+//    in draft mode it surfaces as a credibility-warning bullet only. ───────────
 const roi = byKind.forecast.rangedFigures?.roiFinalYear;
-const roiStat = (byKind.executive_summary.stats ?? []).find(
-  (s) => s.label === "Value-to-cost ratio",
-);
 if (roi && roi.base > 30) {
   assert(
-    roiStat !== undefined && roiStat.value.includes("⚠"),
-    `implausible ratio (${roi.base.toFixed(0)}×) must show a warning, not a hero number`,
+    (byKind.executive_summary.bullets ?? []).some((b) => b.includes("exceeds the plausible ceiling")),
+    `implausible ratio (${roi.base.toFixed(0)}×) must add a draft-mode warning bullet`,
   );
   assert(
-    (byKind.executive_summary.bullets ?? []).some((b) => b.includes("exceeds the plausible ceiling")),
-    "implausible ratio must add a warning bullet",
+    !(byKind.executive_summary.stats ?? []).some((s) => s.label === "Value-to-cost ratio"),
+    "the value-to-cost ratio is never a client-facing stat card",
   );
-  console.log(`ratio sanity: ${roi.base.toFixed(0)}× > 30 → exec summary warns (no hero number) ✓`);
+  console.log(`ratio sanity: ${roi.base.toFixed(0)}× > 30 → exec summary warns via bullet (no hero number) ✓`);
 } else {
   console.log(`ratio sanity: ${roi ? roi.base.toFixed(1) + "×" : "n/a"} within ceiling ✓`);
 }
+
+// ── Presentation mode: client mode suppresses internal credibility flags; the
+//    default (draft) shows them (fail-safe). demoCompany is illustrative. ──────
+const draftBullets = sections.flatMap((s) => s.bullets ?? []);
+assert(
+  draftBullets.includes(ILLUSTRATIVE_FLAG),
+  "draft mode (default) shows the illustrative-seed flag",
+);
+const clientDeck = computeAllSections({
+  company: demoCompany,
+  assumptions: { ...DEFAULT_ASSUMPTIONS, presentationMode: "client" },
+  selectedUseCases: SEED_USE_CASES.slice(0, 4),
+  sectionConfig: defaultSectionConfig(),
+});
+const clientByKind = Object.fromEntries(clientDeck.map((s) => [s.kind, s]));
+const clientBullets = clientDeck.flatMap((s) => s.bullets ?? []);
+assert(
+  !clientBullets.includes(ILLUSTRATIVE_FLAG),
+  "client mode suppresses the illustrative-seed flag",
+);
+assert(
+  !clientBullets.some((b) => b.includes("⚠")),
+  "client mode shows no ⚠ warning bullets",
+);
+assert(
+  !(clientByKind.value_map.bullets ?? []).some((b) => b.toLowerCase().includes("illustrative")),
+  "client mode drops the value_map illustrative-goals caveat",
+);
+console.log("presentation mode: client suppresses illustrative flag + ⚠ caveats; draft shows them ✓");
 
 // ── Peer Proof: real attributed story for a matched sub-industry; omitted else,
 //    and the customer's results are NEVER presented as the target's ───────────
@@ -548,10 +607,12 @@ const withCustom = computeAllSections({
   selectedUseCases: [...SEED_USE_CASES.slice(0, 2), customUc],
   sectionConfig: defaultSectionConfig(),
 });
-const vmRows = withCustom.find((s) => s.kind === "value_map")?.table?.rows ?? [];
+// The custom use case maps to the risk/compliance driver, so that driver must
+// now appear as a bar in the value map's ranked exhibit.
+const vmCustomRows = withCustom.find((s) => s.kind === "value_map")?.rankedValue?.rows ?? [];
 assert(
-  vmRows.some((r) => String(r[2]).includes("Contract review")),
-  "custom use case appears in the value map under its chosen driver (risk/compliance)",
+  vmCustomRows.some((r) => /risk|compliance/i.test(r.label)),
+  "custom use case (risk/compliance) appears in the value map as its driver",
 );
 console.log("custom use case: own driver mapping flows into the value map ✓");
 

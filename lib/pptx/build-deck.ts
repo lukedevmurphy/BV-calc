@@ -19,12 +19,16 @@ import {
   defineBrandMaster,
 } from "./slide-builders";
 
-export function buildDeck(companyName: string, sections: SectionOutput[]): PptxGenJS {
+export function buildDeck(
+  companyName: string,
+  sections: SectionOutput[],
+  presentationMode: "draft" | "client" = "draft",
+): PptxGenJS {
   const pptx = new PptxGenJS();
   pptx.defineLayout({ name: "WIDE", width: 13.33, height: 7.5 });
   pptx.layout = "WIDE";
   pptx.title = `Business Value Proposal — ${companyName}`;
-  defineBrandMaster(pptx);
+  defineBrandMaster(pptx, presentationMode);
 
   const enabled = sections.filter((s) => s.enabled).sort((a, b) => a.order - b.order);
   const main = enabled.filter((s) => !s.appendix);
@@ -44,7 +48,7 @@ export function buildDeck(companyName: string, sections: SectionOutput[]): PptxG
     ...plannedScenarios,
   ];
 
-  addTitleSlide(pptx, companyName, enabled.length);
+  addTitleSlide(pptx, companyName);
 
   let pageNo = 1;
   for (const p of mainFlow) {
@@ -55,6 +59,7 @@ export function buildDeck(companyName: string, sections: SectionOutput[]): PptxG
     addAppendixDivider(
       pptx,
       appendixFlow.map((p) => p.section.title),
+      presentationMode,
     );
     appendixFlow.forEach((p, i) => {
       addSectionSlide(pptx, p.section, {

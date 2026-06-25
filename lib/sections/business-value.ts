@@ -37,7 +37,7 @@ import {
   routeToOutcomes,
   type DriverId,
 } from "@/lib/value-model/drivers";
-import { illustrativeFlag } from "@/lib/provenance";
+import { illustrativeFlag, showDraftWarnings } from "@/lib/provenance";
 import { fmtCurrency, fmtPercent, fmtRange, fmtRangeTriple } from "@/lib/format";
 
 /** Capacity share (0..1) for the reinvestment routing; default blend. */
@@ -172,36 +172,41 @@ export function businessValueSection(ctx: ProposalContext): SectionOutput {
     annualValueFinalYear,
   };
 
+  // Hero = the Year-final annual value (the deck's anchor number; base-stripped
+  // on this base-case slide). The supporting stats show where it LANDS (→ Revenue
+  // / → Operating margin). The per-driver composition is the Value Map's job (its
+  // ranked exhibit), so this slide doesn't repeat it — eliminating the old
+  // value_map ↔ business_value overlap. The ramp (Year 1 → final) lives in the
+  // Forecast appendix; coding / IT-takeout "of which" in their own slides + notes.
+  const heroStat = {
+    label: `Annual value, Y${finalYear}`,
+    value: fmtRange(annualValueFinalYear),
+    range: annualValueFinalYear,
+  };
+  // Supporting stats sit inline beside the hero — keep the two largest "where it
+  // lands" outcomes; the full income-statement split is the Financial Rollup.
+  const stats: KeyValue[] = r.extraStats.slice(0, 2);
+
+  const trajectoryNote = ` Year 1 annual value ${fmtCurrency(annualValueY1.base)} → Year ${finalYear} ${fmtCurrency(annualValueFinalYear.base)} (the ramp is in the Forecast appendix).`;
+  const codingNote =
+    coding.finalYear.total.base > 1
+      ? ` Of the Y${finalYear} total, coding efficiency contributes ${fmtRange(coding.finalYear.total)} (see appendix).`
+      : "";
+  const itNote =
+    itTakeout.finalYear.takeout.base > 1
+      ? ` IT cost takeout adds ${fmtRange(itTakeout.finalYear.takeout)} (see appendix).`
+      : "";
+
   return {
     id: "business_value",
     kind: "business_value",
     title: "Business Value",
     subtitle: r.subtitle,
     bullets: r.bullets,
-    stats: [
-      { label: "Annual value, Year 1", value: fmtRange(annualValueY1) },
-      { label: `Annual value, Year ${finalYear}`, value: fmtRange(annualValueFinalYear) },
-      ...(coding.finalYear.total.base > 1
-        ? [
-            {
-              label: `Of which coding efficiency (Y${finalYear})`,
-              value: fmtRange(coding.finalYear.total),
-            },
-          ]
-        : []),
-      ...(itTakeout.finalYear.takeout.base > 1
-        ? [
-            {
-              label: `Of which IT cost takeout (Y${finalYear})`,
-              value: fmtRange(itTakeout.finalYear.takeout),
-            },
-          ]
-        : []),
-      ...r.extraStats,
-    ],
+    heroStat,
+    stats,
     table: r.table,
-    charts: r.charts,
-    speakerNotes: r.speakerNotes,
+    speakerNotes: r.speakerNotes + trajectoryNote + codingNote + itNote,
     rangedFigures,
     assumptionsUsed: r.assumptionsUsed,
     order: 0,
@@ -245,7 +250,7 @@ function buildBottomUp(
       "Use case",
       "Hours saved / instance",
       "Instances / user / mo",
-      `Annual value (Y${finalYear})`,
+      `Annual value, use-case only (Y${finalYear})`,
     ],
     rows: byUseCase.map(({ useCase, value }) => [
       useCase.label,
@@ -277,17 +282,9 @@ function buildBottomUp(
   return {
     subtitle: `Built bottom-up from ${selectedUseCases.length} selected use cases — realization-adjusted to a defensible dollar value, not raw saved time`,
     bullets: [
-      `Each use case = hours saved/instance × instances/user/mo × loaded cost, scaled by adoption breadth × usage depth — then realization-adjusted`,
-      `Realized value, not raw saved time: only ~${rzPct}% of freed hours are credited as dollars (capacity realizes less than offset), and a typical adopter runs ~${covPct}% of the selected workflows`,
-      `Use cases roll up to value drivers → a financial outcome; the reinvestment posture sets the outcome mix AND the realized total (edit on Settings)`,
+      `Realized value, not raw saved time: only ~${rzPct}% of freed hours are credited as dollars, and a typical adopter runs ~${covPct}% of the selected workflows`,
     ],
-    extraStats: [
-      {
-        label: "Loaded hourly cost",
-        value: fmtRangeTriple(a.loadedHourlyCost, (n) => `$${n}`),
-      },
-      ...tree.extraStats,
-    ],
+    extraStats: tree.extraStats,
     table,
     charts,
     speakerNotes:
@@ -354,16 +351,14 @@ function buildTopDown(ctx: ProposalContext, finalYear: number): ApproachResult {
     ],
   };
 
-  // Placeholder financials must never reach the deck unflagged.
-  const flag = illustrativeFlag(company);
+  // Placeholder financials must never reach a CLIENT deck unflagged; in draft
+  // mode the flag is shown, in client mode it's suppressed.
+  const flag = showDraftWarnings(ctx.assumptions) ? illustrativeFlag(company) : null;
 
   return {
     subtitle: `Top-down SWAG: AI lifts ${v.toplineRowLabel.toLowerCase()} growth ${baselinePct}% → ${liftedPct}%, broken across the selected use cases`,
     bullets: [
       `Directional value ≈ ${v.toplineRowLabel.toLowerCase()} × (AI-lifted growth ${liftedPct}% − baseline ${baselinePct}%) × realization`,
-      `Broken down across the selected use cases by value tier — higher-value workflows take a larger slice`,
-      `${v.toplineRowLabel} ${fmtCurrency(vm.topline)} — source: ${toplineSource}`,
-      `Low-data first-pass estimate (widest band); refine with a bottom-up build in the next conversation`,
       ...(flag ? [flag] : []),
     ],
     extraStats: [
@@ -376,7 +371,9 @@ function buildTopDown(ctx: ProposalContext, finalYear: number): ApproachResult {
     speakerNotes:
       `Top-down is the low-data SWAG for the first meeting: from public financials, estimate how much AI lifts the company's ` +
       `revenue-growth rate (${baselinePct}% → ${liftedPct}%), value it against the topline, and break it across the use cases by ` +
-      `value tier. Each use case is intentionally "almost blank" here — the detail comes in the bottom-up follow-up. ` +
+      `value tier (higher-value workflows take a larger slice). ${v.toplineRowLabel} ${fmtCurrency(vm.topline)} — source: ${toplineSource}. ` +
+      `This is a low-data first-pass estimate (widest band); refine with a bottom-up build next. Each use case is intentionally ` +
+      `"almost blank" here — the detail comes in the bottom-up follow-up. ` +
       tree.note,
     assumptionsUsed: [
       "valueApproach (top_down)",

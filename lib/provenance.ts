@@ -25,3 +25,13 @@ export function isIllustrativeProfile(company: CompanyProfile): boolean {
 export function illustrativeFlag(company: CompanyProfile): string | null {
   return isIllustrativeProfile(company) ? ILLUSTRATIVE_FLAG : null;
 }
+
+/**
+ * Whether internal credibility warnings (⚠ implausible ratio, the illustrative
+ * flag, the "goals are illustrative" caveat) should render. Draft mode shows
+ * them; client mode suppresses them. Absent presentationMode → "draft", so a
+ * warning is never silently hidden — suppression is always an explicit choice.
+ */
+export function showDraftWarnings(a: { presentationMode?: "draft" | "client" }): boolean {
+  return (a.presentationMode ?? "draft") === "draft";
+}

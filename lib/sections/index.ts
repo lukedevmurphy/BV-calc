@@ -44,7 +44,6 @@ export const DEFAULT_SECTION_ORDER: SectionKind[] = [
   "current_state",
   "future_state",
   "product",
-  "use_case_persona",
   "peer_proof",
   "value_map",
   "business_value",
@@ -57,6 +56,8 @@ export const DEFAULT_SECTION_ORDER: SectionKind[] = [
   "coding_efficiency",
   "it_takeout",
   "financial_rollup",
+  // Qualitative persona narrative — appendix material in a quantitative deck.
+  "use_case_persona",
 ];
 
 /** Kinds that read as appendix detail when they trail the deck. */
@@ -67,6 +68,7 @@ export const APPENDIX_KINDS: ReadonlySet<SectionKind> = new Set([
   "coding_efficiency",
   "it_takeout",
   "financial_rollup",
+  "use_case_persona",
 ]);
 
 /** Preview (readout) sequence — a CFO readout leads with the answer: value,

@@ -36,10 +36,16 @@ export function codingEfficiencySection(ctx: ProposalContext): SectionOutput | n
   const baselinePct = Math.round(c.growthBaseline.base * 100);
   const steppedPct = Math.round(c.growthBaseline.base * c.growthStepUp * 100);
 
+  // At a 100% cost-out posture the growth path is $0 — don't show an empty
+  // revenue line that invites "so why mention it"; label the slide cost-out-only.
+  const hasGrowth = growthPct > 0;
+
   const stats: KeyValue[] = [
     { label: `Freed eng hours (Y${finalYear})`, value: fmtRange(final.freedHours, fmtNumber) },
     { label: "→ Engineering cost savings", value: fmtRange(final.costSavings) },
-    { label: "→ Incremental revenue", value: fmtRange(final.revenueGrowth) },
+    ...(hasGrowth
+      ? [{ label: "→ Incremental revenue", value: fmtRange(final.revenueGrowth) }]
+      : []),
     { label: `Blended coding value (Y${finalYear})`, value: fmtRange(final.total) },
   ];
 
@@ -56,11 +62,15 @@ export function codingEfficiencySection(ctx: ProposalContext): SectionOutput | n
         `${costOutPct}% of capacity × ${fmtCurrency(c.engineeringLoadedCost.base)}/hr (realized)`,
         fmtCurrency(final.costSavings.base),
       ],
-      [
-        "→ Revenue growth",
-        `${growthPct}% reinvested: ${baselinePct}%→${steppedPct}% growth on topline (realized)`,
-        fmtCurrency(final.revenueGrowth.base),
-      ],
+      ...(hasGrowth
+        ? [
+            [
+              "→ Revenue growth",
+              `${growthPct}% reinvested: ${baselinePct}%→${steppedPct}% growth on topline (realized)`,
+              fmtCurrency(final.revenueGrowth.base),
+            ],
+          ]
+        : []),
       ["Blended coding value", "", fmtCurrency(final.total.base)],
     ],
   };
@@ -81,13 +91,18 @@ export function codingEfficiencySection(ctx: ProposalContext): SectionOutput | n
     id: "coding_efficiency",
     kind: "coding_efficiency",
     title: "Coding Efficiency",
-    subtitle: `Freed engineering capacity, split ${costOutPct}% cost-out / ${growthPct}% growth`,
-    narrative:
-      "AI coding assistance frees a measurable share of engineering hours. Those hours land as either avoided cost or reinvested growth — the split is a posture set on the Settings page.",
+    subtitle: hasGrowth
+      ? `Freed engineering capacity, split ${costOutPct}% cost-out / ${growthPct}% growth`
+      : `Freed engineering capacity — 100% engineering cost-out (no growth reinvestment)`,
+    narrative: hasGrowth
+      ? "AI coding assistance frees a measurable share of engineering hours. Those hours land as either avoided cost or reinvested growth — the split is a posture set on the Settings page."
+      : "AI coding assistance frees a measurable share of engineering hours. At the current posture they land entirely as avoided engineering cost; reallocate toward growth on the Settings page.",
     bullets: [
       `Freed hours = ${fmtNumber(c.coders)} engineers × ~${timePct}% time on code × ${effPct}% efficiency gain × ${HOURS_PER_YEAR.toLocaleString("en-US")} hrs/yr, ramped by adoption`,
       `Engineering cost-out = freed hours × ${fmtCurrency(c.engineeringLoadedCost.base)}/hr (geo-adjusted), realized like any offset`,
-      `Revenue growth = topline × baseline growth stepped ${baselinePct}%→${steppedPct}% — the incremental topline reinvested capacity buys`,
+      ...(hasGrowth
+        ? [`Revenue growth = topline × baseline growth stepped ${baselinePct}%→${steppedPct}% — the incremental topline reinvested capacity buys`]
+        : []),
       `At the current ${costOutPct}% cost-out posture the blended coding value is ${fmtCurrency(final.total.base)} (Y${finalYear})`,
     ],
     stats,

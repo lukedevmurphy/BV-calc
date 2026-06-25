@@ -33,9 +33,13 @@ export function baseCaseValue(v: string): string {
   return out.replace(SCENARIO_PAREN_RE, "").trim();
 }
 
-/** Strip inline low/high from a section's stat cards and table cells, in place.
- *  Bullets/narrative (prose) are left to the section authors. */
+/** Strip inline low/high from a section's stat cards, hero stat and table cells,
+ *  in place. Bullets/narrative (prose) are left to the section authors. */
 export function applyBaseScenario(s: SectionOutput): void {
+  if (s.heroStat) {
+    // Drop the range entirely (not range: undefined — that breaks JSON round-trip).
+    s.heroStat = { label: s.heroStat.label, value: baseCaseValue(s.heroStat.value) };
+  }
   if (s.stats) {
     s.stats = s.stats.map((st) => ({ ...st, value: baseCaseValue(st.value) }));
   }

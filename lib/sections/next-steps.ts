@@ -10,16 +10,16 @@ export function nextStepsSection(ctx: ProposalContext): SectionOutput {
     title: "Next Steps",
     subtitle: "Two weeks of concrete actions — none of them require a signed contract",
     bullets: [
-      `Validate the sizing: 30 minutes with one practitioner per workflow to pressure-test hours-saved and volume assumptions`,
-      `Name the pilot: 2 use cases, a cohort of named users, and the success metrics that gate expansion`,
-      `Confirm current Claude model pricing and the latest pre-built template list — both are placeholders in this draft by design`,
-      `Security & data review: route the data-access asks from the Proposal section to the right owners at ${company.name}`,
-      `Reconvene with the updated numbers: this deck recomputes from the revised assumptions in minutes, not weeks`,
+      `Validate the sizing — 30 min per workflow with one practitioner each (BV team + workflow owners)`,
+      `Name the pilot — 2 use cases, a named user cohort, success metrics that gate expansion (sponsor + champion)`,
+      `Route the data-access asks to the right owners (security + data owners at ${company.name})`,
     ],
     speakerNotes:
-      `End on the smallest possible yes: the sizing-validation sessions. They cost the client almost nothing, they improve ` +
-      `the model either direction, and they create the practitioner champions the pilot needs. The deck's auditability is ` +
-      `the close — every number traces to an assumption they can change in front of you.`,
+      `Two more internal-prep actions sit behind these: confirm current Claude model pricing and the latest pre-built template ` +
+      `list (both placeholders in this draft by design), and reconvene with the updated numbers — the deck recomputes from revised ` +
+      `assumptions in minutes, not weeks. End on the smallest possible yes: the sizing-validation sessions. They cost the client ` +
+      `almost nothing, improve the model either direction, and create the practitioner champions the pilot needs. The deck's ` +
+      `auditability is the close — every number traces to an assumption they can change in front of you.`,
     assumptionsUsed: [],
     order: 0,
     enabled: true,

@@ -14,6 +14,8 @@ interface Props {
   sections: SectionOutput[];
   companyName: string;
   sectionsPending: boolean;
+  /** Footer chrome for the export; section warnings are gated in `sections`. */
+  presentationMode?: "draft" | "client";
   onBack: () => void;
 }
 
@@ -42,6 +44,7 @@ export default function PreviewScreen({
   sections,
   companyName,
   sectionsPending,
+  presentationMode = "draft",
   onBack,
 }: Props) {
   const slides: Slide[] = useMemo(() => {
@@ -199,6 +202,7 @@ export default function PreviewScreen({
           companyName={companyName}
           sections={sections}
           sectionsPending={sectionsPending}
+          presentationMode={presentationMode}
         />
       </div>
     </div>

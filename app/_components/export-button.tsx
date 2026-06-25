@@ -7,6 +7,8 @@ interface Props {
   companyName: string;
   sections: SectionOutput[];
   sectionsPending?: boolean;
+  /** Footer chrome only; section warnings are already gated in `sections`. */
+  presentationMode?: "draft" | "client";
 }
 
 /**
@@ -18,6 +20,7 @@ export default function ExportButton({
   companyName,
   sections,
   sectionsPending = false,
+  presentationMode = "draft",
 }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +32,7 @@ export default function ExportButton({
       const res = await fetch("/api/pptx", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyName, sections }),
+        body: JSON.stringify({ companyName, sections, presentationMode }),
       });
       if (!res.ok) throw new Error(`export failed (${res.status})`);
       const blob = await res.blob();

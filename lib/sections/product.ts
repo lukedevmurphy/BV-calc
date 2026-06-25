@@ -23,12 +23,9 @@ export function productSection(ctx: ProposalContext): SectionOutput {
     id: "product",
     kind: "product",
     title: "Product Fit",
-    subtitle: "Compose pre-built templates and plugins with targeted custom work — not a blank canvas",
+    subtitle: "Start from Anthropic's pre-built financial-services templates — customize only the last mile",
     bullets: [
-      `Claude for Enterprise for every knowledge worker in scope; the Claude API + Agent SDK for workflow-embedded automation`,
-      `Anthropic ships verticalized financial-services agent templates (pitch books, DDQs, KYC, research workflows) — start from those, customize the last mile`,
-      `Pre-built templates compress time-to-first-value from quarters to weeks and carry built-in best practices`,
-      `Custom work concentrates where your data and process are differentiated — not on rebuilding commodity scaffolding`,
+      `Pre-built templates carry built-in best practices and compress time-to-first-value from quarters to weeks; custom work concentrates only where your data and process differ`,
     ],
     table: {
       columns: ["Use case", "Suggested starting point"],
@@ -38,9 +35,11 @@ export function productSection(ctx: ProposalContext): SectionOutput {
       ]),
     },
     speakerNotes:
-      `IMPORTANT: confirm the current template/plugin list on anthropic.com before presenting — it changes monthly and ` +
-      `the rows above are placeholders. The strategic point survives any list change: the build is template-first, ` +
-      `custom-last, which is why the roadmap's pilot phase is weeks, not quarters.`,
+      `Claude for Enterprise covers every knowledge worker in scope; the Claude API + Agent SDK handle workflow-embedded ` +
+      `automation. Anthropic ships verticalized financial-services agent templates (pitch books, DDQs, KYC, research workflows) — ` +
+      `start from those, customize the last mile. IMPORTANT: confirm the current template/plugin list on anthropic.com before ` +
+      `presenting — it changes monthly and the rows above are placeholders. The strategic point survives any list change: the ` +
+      `build is template-first, custom-last, which is why the roadmap's pilot phase is weeks, not quarters.`,
     assumptionsUsed: ["selected use cases"],
     order: 0,
     enabled: true,

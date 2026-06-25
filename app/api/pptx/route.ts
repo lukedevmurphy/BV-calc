@@ -7,6 +7,9 @@ export const runtime = "nodejs";
 interface ExportRequest {
   companyName: string;
   sections: SectionOutput[];
+  /** Deck chrome: footer text only. Section content (warnings) is already gated
+   *  in the SectionOutput before export. Absent → "draft". */
+  presentationMode?: "draft" | "client";
 }
 
 export async function POST(req: Request): Promise<Response> {
@@ -25,7 +28,8 @@ export async function POST(req: Request): Promise<Response> {
 
   // Shared orchestration (slide-fit + ordering) — same code path the
   // verification (scripts/check-pptx.ts) exercises in-process.
-  const pptx = buildDeck(body.companyName, body.sections);
+  const mode = body.presentationMode === "client" ? "client" : "draft";
+  const pptx = buildDeck(body.companyName, body.sections, mode);
 
   // nodebuffer (never writeFile — Vercel's filesystem is read-only).
   const buffer = (await pptx.write({ outputType: "nodebuffer" })) as Buffer;

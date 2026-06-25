@@ -22,10 +22,11 @@ import type {
   BandedSeries,
   ChartSeries,
   Ranged,
+  RankedValue,
   SectionOutput,
   TableData,
 } from "@/lib/types";
-import { fmtCurrency } from "@/lib/format";
+import { fmtCurrency, fmtNumber } from "@/lib/format";
 import {
   PAGE_W,
   PAGE_H,
@@ -36,6 +37,10 @@ import {
   LEFT_COL_W,
   CARD_H,
   STAT_ROW_EXTRA,
+  HERO_BLOCK_H,
+  RANKED_ROW_H,
+  RANKED_ROW_GAP,
+  RANKED_TOTAL_H,
   STRIP_H,
   STRIP_PAD,
   CHART_MIN,
@@ -44,6 +49,7 @@ import {
   STAT_VALUE_PT,
   bulletsH,
   tableH,
+  rankedValueH,
   tableColWidths,
   textBlockH,
 } from "@/lib/slide-fit/metrics";
@@ -75,8 +81,13 @@ const SERIES_HUES = [
 // ── Master slide (footer brand) ─────────────────────────────────────────────
 export const MASTER = "BVC";
 
-export function defineBrandMaster(pptx: PptxGenJS): void {
+export function defineBrandMaster(
+  pptx: PptxGenJS,
+  presentationMode: "draft" | "client" = "draft",
+): void {
   const footY = PAGE_H - 0.46;
+  const footerLabel =
+    presentationMode === "client" ? "CONFIDENTIAL" : "CONFIDENTIAL — DRAFT FOR DISCUSSION";
   pptx.defineSlideMaster({
     title: MASTER,
     background: { color: IVORY },
@@ -117,7 +128,7 @@ export function defineBrandMaster(pptx: PptxGenJS): void {
       },
       {
         text: {
-          text: "CONFIDENTIAL — DRAFT FOR DISCUSSION",
+          text: footerLabel,
           options: {
             x: PAGE_W - MARGIN - 4,
             y: footY,
@@ -281,11 +292,49 @@ export function addSectionSlide(
     s.kind === "executive_summary" ? s.rangedFigures?.annualValueFinalYear : undefined;
   const bodyBottom = valueFig ? CONTENT_BOTTOM - STRIP_H - STRIP_PAD : CONTENT_BOTTOM;
 
-  // Stats row — cream cards, big-ish serif clay-deep value, label beneath
-  if (s.stats && s.stats.length > 0) {
+  // Hero stat — one big number alone, with up to two supporting stats inline.
+  if (s.heroStat) {
+    const hero = s.heroStat;
+    const rangeStart = hero.value.indexOf(" (");
+    const heroRuns =
+      rangeStart >= 0
+        ? [
+            { text: hero.value.slice(0, rangeStart), options: { fontSize: 30 * scale, fontFace: SERIF, color: CLAY_DEEP, bold: true } },
+            { text: hero.value.slice(rangeStart), options: { fontSize: 15 * scale, fontFace: SERIF, color: SLATE, bold: false } },
+          ]
+        : [{ text: hero.value, options: { fontSize: 30 * scale, fontFace: SERIF, color: CLAY_DEEP, bold: true } }];
+    const heroW = 4.6;
+    slide.addText(
+      [
+        ...heroRuns,
+        { text: "\n" + hero.label.toUpperCase(), options: { fontSize: 8, fontFace: SANS, color: SLATE, charSpacing: 1.5 } },
+      ],
+      { x: MARGIN, y, w: heroW, h: HERO_BLOCK_H, valign: "top", wrap: true, fit: "shrink" },
+    );
+    // Sections that set a hero stat emit ≤2 supporting stats (they sit inline
+    // beside the hero). Render all of them — the seam asserts every stat survives.
+    const support = s.stats ?? [];
+    const supW = 2.4;
+    support.forEach((stat, i) => {
+      const sx = MARGIN + heroW + 0.3 + i * (supW + 0.3);
+      slide.addText(
+        [
+          { text: stat.value, options: { fontSize: 14 * scale, fontFace: SERIF, color: INK, bold: true } },
+          { text: "\n" + stat.label.toUpperCase(), options: { fontSize: 7, fontFace: SANS, color: SLATE, charSpacing: 1.5 } },
+        ],
+        { x: sx, y: y + 0.16, w: supW, h: HERO_BLOCK_H - 0.16, valign: "top", wrap: true, fit: "shrink" },
+      );
+    });
+    y += HERO_BLOCK_H + STAT_ROW_EXTRA;
+  } else if (s.stats && s.stats.length > 0) {
+    // Stats row — cream cards, big-ish serif clay-deep value, label beneath. Main
+    // slides emit ≤3 (the "fewer, bigger" principle is enforced in the section
+    // modules); appendix slides legitimately carry more. Render all so the seam
+    // (every stat verbatim) holds.
+    const stats = s.stats;
     const gap = 0.18;
-    const w = (CONTENT_W - gap * (s.stats.length - 1)) / s.stats.length;
-    s.stats.forEach((stat, i) => {
+    const w = (CONTENT_W - gap * (stats.length - 1)) / stats.length;
+    stats.forEach((stat, i) => {
       const x = MARGIN + i * (w + gap);
       const rangeStart = s.kind === "executive_summary" ? stat.value.indexOf(" (") : -1;
       const valueRuns = rangeStart >= 0
@@ -342,7 +391,10 @@ export function addSectionSlide(
   }
 
   const hasVisual =
-    Boolean(s.table) || (s.charts?.length ?? 0) > 0 || (s.bandedCharts?.length ?? 0) > 0;
+    Boolean(s.table) ||
+    Boolean(s.rankedValue) ||
+    (s.charts?.length ?? 0) > 0 ||
+    (s.bandedCharts?.length ?? 0) > 0;
   const twoCol = Boolean(s.bullets?.length) && hasVisual;
   const bodyTop = y;
 
@@ -391,6 +443,14 @@ export function addSectionSlide(
     const th = tableH(s.table, visW, TABLE_PT * scale);
     addOpenTable(slide, s.table, visX, vy, visW, TABLE_PT * scale);
     vy += th + 0.2;
+  }
+
+  // Ranked-value exhibit — fixed height (known row count), placed before the
+  // elastic chart logic so it never fights charts for the remainder.
+  if (s.rankedValue) {
+    const rh = rankedValueH(s);
+    addRankedValue(slide, s.rankedValue, visX, vy, visW, rh, scale);
+    vy += rh + 0.2;
   }
 
   // Charts take the REMAINDER of whichever column has the most room.
@@ -560,6 +620,100 @@ function addValueStrip(
   });
 }
 
+/** Number-first ranked-value exhibit — manual roundRect bars (native charts
+ *  can't right-anchor a big value with a left chain + pinned total). Mirrors
+ *  app/_components/charts/ranked-value.tsx; geometry matches rankedValueH() so
+ *  the estimate, the render and check-pptx never disagree. */
+function addRankedValue(
+  slide: PptxGenJS.Slide,
+  rv: RankedValue,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  scale = 1,
+): void {
+  void h; // height is reserved by the caller via rankedValueH(); kept for parity
+  const fmt = rv.format === "number" ? fmtNumber : fmtCurrency;
+  const total = rv.total.value || 1;
+  const LEFT_W = w * 0.34;
+  const VAL_W = Math.min(1.7, w * 0.22);
+  const GAP = 0.18;
+  const trackX = x + LEFT_W + GAP;
+  const trackW = Math.max(w - LEFT_W - VAL_W - GAP * 2, 0.5);
+  const valX = x + w - VAL_W;
+  const barH = 0.2;
+
+  rv.rows.forEach((row, i) => {
+    const ry = y + i * (RANKED_ROW_H + RANKED_ROW_GAP);
+    const barY = ry + RANKED_ROW_H / 2 - barH / 2;
+    // faint track
+    slide.addShape("rect", { x: trackX, y: barY, w: trackW, h: barH, fill: { color: CREAM }, line: NO_BORDER });
+    // sage fill (contained within the track)
+    const fillW = Math.max(trackW * Math.min(row.share, 1), 0.06);
+    slide.addShape("roundRect", {
+      x: trackX,
+      y: barY,
+      w: fillW,
+      h: barH,
+      rectRadius: 0.03,
+      fill: { color: SERIES_HUES[0].base },
+      line: NO_BORDER,
+    });
+    // optional band whisker (clamped within the track)
+    if (row.range) {
+      const lowFrac = Math.min(Math.max(row.range.low / total, 0), 1);
+      const highFrac = Math.min(Math.max(row.range.high / total, 0), 1);
+      slide.addShape("rect", {
+        x: trackX + trackW * lowFrac,
+        y: ry + RANKED_ROW_H / 2 - 0.01,
+        w: Math.max(trackW * (highFrac - lowFrac), 0.02),
+        h: 0.02,
+        fill: { color: SLATE2 },
+        line: NO_BORDER,
+      });
+    }
+    // left chain (label + first chain link), right-aligned toward the bar
+    const chainRuns: { text: string; options: Record<string, unknown> }[] = [
+      { text: row.label, options: { fontSize: 11.5 * scale, fontFace: SANS, color: INK, bold: true } },
+    ];
+    if (row.chain?.[0]) {
+      chainRuns.push({ text: "\n" + row.chain[0], options: { fontSize: 8.5 * scale, fontFace: SANS, color: SLATE2, bold: false } });
+    }
+    slide.addText(chainRuns, { x, y: ry, w: LEFT_W, h: RANKED_ROW_H, align: "right", valign: "middle", wrap: true, fit: "shrink" });
+    // the big number, right-anchored
+    slide.addText(fmt(row.value), {
+      x: valX,
+      y: ry,
+      w: VAL_W,
+      h: RANKED_ROW_H,
+      align: "right",
+      valign: "middle",
+      fontFace: SERIF,
+      color: CLAY_DEEP,
+      fontSize: 16 * scale,
+      bold: true,
+      fit: "shrink",
+    });
+  });
+
+  // pinned total beneath a hairline rule
+  const totalY = y + rv.rows.length * (RANKED_ROW_H + RANKED_ROW_GAP);
+  slide.addShape("rect", { x, y: totalY + 0.02, w, h: 0.009, fill: { color: LINE2 }, line: NO_BORDER });
+  slide.addText(rv.total.label, {
+    x,
+    y: totalY + 0.06,
+    w,
+    h: RANKED_TOTAL_H - 0.06,
+    align: "right",
+    valign: "middle",
+    fontFace: SERIF,
+    color: SLATE,
+    fontSize: 12 * scale,
+    fit: "shrink",
+  });
+}
+
 const AXIS_OPTS = {
   catAxisLabelFontSize: 8,
   catAxisLabelColor: SLATE,
@@ -667,7 +821,6 @@ function addBandedChart(
 export function addTitleSlide(
   pptx: PptxGenJS,
   companyName: string,
-  sectionCount: number,
 ): void {
   const slide = pptx.addSlide({ masterName: MASTER });
 
@@ -730,7 +883,6 @@ export function addTitleSlide(
   const meta: [string, string][] = [
     ["Prepared for", companyName],
     ["Engagement", "Enterprise AI business case"],
-    ["Scope", `${sectionCount} sections · ranged economics`],
   ];
   meta.forEach(([label, value], i) => {
     slide.addText(
@@ -750,6 +902,7 @@ export function addTitleSlide(
 export function addAppendixDivider(
   pptx: PptxGenJS,
   appendixTitles: string[],
+  presentationMode: "draft" | "client" = "draft",
 ): void {
   const slide = pptx.addSlide();
   slide.background = { color: INK };
@@ -818,7 +971,10 @@ export function addAppendixDivider(
   const cellW = (CONTENT_W - gridGap * (COLS - 1)) / COLS;
   const rowH = 0.46;
   const gridTop = 5.15;
-  const maxRows = 2;
+  // 3 rows × 3 cols = 9 titles before an overflow label, so the typical appendix
+  // (forecast, cost, value-calc, coding, IT-takeout, financial-rollup, persona,
+  // + scenario slides) is listed out rather than hidden behind "+N more".
+  const maxRows = 3;
   const shown = appendixTitles.slice(0, COLS * maxRows);
   shown.forEach((title, i) => {
     const col = i % COLS;
@@ -865,15 +1021,18 @@ export function addAppendixDivider(
     fontFace: SANS,
     color: "A9A496",
   });
-  slide.addText("CONFIDENTIAL — DRAFT FOR DISCUSSION", {
-    x: PAGE_W - MARGIN - 4,
-    y: footY,
-    w: 4,
-    h: 0.26,
-    fontSize: 7.5,
-    fontFace: SANS,
-    color: "7C786D",
-    align: "right",
-    charSpacing: 2,
-  });
+  slide.addText(
+    presentationMode === "client" ? "CONFIDENTIAL" : "CONFIDENTIAL — DRAFT FOR DISCUSSION",
+    {
+      x: PAGE_W - MARGIN - 4,
+      y: footY,
+      w: 4,
+      h: 0.26,
+      fontSize: 7.5,
+      fontFace: SANS,
+      color: "7C786D",
+      align: "right",
+      charSpacing: 2,
+    },
+  );
 }

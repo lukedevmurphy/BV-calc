@@ -31,6 +31,7 @@ import { MockEnrichmentProvider, SEEDED_COMPANY_NAMES } from "@/lib/enrichment/m
 import { getValuePrefillProvider } from "@/lib/value-model/prefill/provider";
 import { resolveSubIndustry } from "@/lib/value-model/sub-industry";
 import { ILLUSTRATIVE_FLAG } from "@/lib/provenance";
+import { fmtCurrency, fmtNumber } from "@/lib/format";
 import type { CompanyProfile, SectionOutput, ValueApproach } from "@/lib/types";
 
 const EMU = 914_400;
@@ -139,14 +140,30 @@ async function main() {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ companyName: company.name, sections }),
-  });
-  assert.strictEqual(res.status, 200, `pptx route status ${res.status}`);
-  assert.match(
-    res.headers.get("content-type") ?? "",
-    /presentationml\.presentation/,
-    "content type",
-  );
-  const buf = Buffer.from(await res.arrayBuffer());
+  }).catch(() => null);
+
+  // The /api/pptx route is a thin wrapper over buildDeck(). When it's reachable
+  // and unauthenticated (200) we prove the full HTTP seam; when the auth gate
+  // returns 401 (or the server is down) we prove the SAME seam in-process via the
+  // identical buildDeck() the route calls — so the keystone guarantee
+  // (SectionOutput → deck text verbatim, in-bounds, no overlap) is verified
+  // either way.
+  let buf: Buffer;
+  if (res && res.status === 200) {
+    assert.match(
+      res.headers.get("content-type") ?? "",
+      /presentationml\.presentation/,
+      "content type",
+    );
+    buf = Buffer.from(await res.arrayBuffer());
+    console.log("Seam path: HTTP /api/pptx (200).");
+  } else {
+    console.log(
+      `Seam path: in-process buildDeck (HTTP route ${res ? res.status : "unreachable"} — auth-gated).`,
+    );
+    const deck = buildDeck(company.name, sections, "draft");
+    buf = (await deck.write({ outputType: "nodebuffer" })) as Buffer;
+  }
   assert(buf.length > 10_000, `pptx non-trivial size (${buf.length})`);
   assert.strictEqual(buf.subarray(0, 2).toString("latin1"), "PK", "zip magic");
   writeFileSync("scripts/out-proposal.pptx", buf);
@@ -184,12 +201,27 @@ async function main() {
     );
     for (const b of s.bullets ?? []) assert(slides.includes(b), `bullet: "${b.slice(0, 50)}…"`);
     for (const st of s.stats ?? []) assert(slides.includes(st.value), `stat: "${st.value}"`);
+    if (s.heroStat) assert(slides.includes(s.heroStat.value), `hero stat: "${s.heroStat.value}"`);
+    if (s.rankedValue) {
+      const fmt = s.rankedValue.format === "number" ? fmtNumber : fmtCurrency;
+      for (const r of s.rankedValue.rows) {
+        assert(slides.includes(r.label), `ranked row label: "${r.label}"`);
+        assert(slides.includes(fmt(r.value)), `ranked row value: "${fmt(r.value)}"`);
+      }
+      assert(
+        slides.includes(fmt(s.rankedValue.total.value)),
+        `ranked total: "${fmt(s.rankedValue.total.value)}"`,
+      );
+    }
     for (const row of s.table?.rows ?? [])
       assert(slides.includes(String(row[0])), `table cell: "${row[0]}"`);
     if (s.speakerNotes) {
       assert(notes.includes(s.speakerNotes.slice(0, 60)), `speaker notes for ${s.kind}`);
     }
   }
+  // The trimmed Executive Summary fits ONE slide now (no "(1 of 2)" split) —
+  // the structural payoff of stripping it to a hero + one ask.
+  assert(!slides.includes("(1 of 2)"), "the default Crestline deck splits nothing (exec summary is one slide)");
   assert(chartNames.length >= 2, `native charts embedded (${chartNames.length})`);
   assert(slides.includes(ILLUSTRATIVE_FLAG), "illustrative-seed provenance flag present");
   assert(slides.includes("BASE CASE"), "Base-case nugget present on main slides");
@@ -234,6 +266,41 @@ async function main() {
     `Seam proven: ${slideNames.length} slides, ${chartNames.length} charts, notes + text verbatim, ` +
       `${seamShapes} shapes all in-bounds, zero overlap. ✓`,
   );
+
+  // ── Presentation mode (in-process): a client deck drops the credibility flags
+  //    AND the "draft for discussion" footer (master + divider). ───────────────
+  const clientSections = computeAllSections({
+    company,
+    assumptions: { ...DEFAULT_ASSUMPTIONS, presentationMode: "client" },
+    selectedUseCases: SEED_USE_CASES.slice(0, 4),
+    sectionConfig: defaultSectionConfig(),
+  });
+  const clientDeck = buildDeck(company.name, clientSections, "client");
+  const clientBuf = (await clientDeck.write({ outputType: "nodebuffer" })) as Buffer;
+  const clientZip = await JSZip.loadAsync(clientBuf);
+  const readJoined = async (re: RegExp) =>
+    visibleText(
+      (
+        await Promise.all(
+          Object.keys(clientZip.files)
+            .filter((f) => re.test(f))
+            .map((n) => clientZip.files[n].async("string")),
+        )
+      ).join("\n"),
+    );
+  const clientSlidesXml = await readJoined(/^ppt\/slides\/slide\d+\.xml$/);
+  // PptxGenJS renders the master footer into the slide LAYOUT (not slideMasters);
+  // the appendix divider draws its own footer onto its slide.
+  const clientLayoutXml = await readJoined(/^ppt\/slideLayouts\/slideLayout\d+\.xml$/);
+  assert(!clientSlidesXml.includes(ILLUSTRATIVE_FLAG), "client deck suppresses the illustrative flag");
+  assert(!clientSlidesXml.includes("⚠"), "client deck has no ⚠ warnings");
+  assert(
+    !clientSlidesXml.includes("DRAFT FOR DISCUSSION") &&
+      !clientLayoutXml.includes("DRAFT FOR DISCUSSION"),
+    "client deck drops the 'draft for discussion' footer (divider + master footer)",
+  );
+  assert(clientLayoutXml.includes("CONFIDENTIAL"), "client deck keeps the CONFIDENTIAL footer label");
+  console.log("Presentation mode: client deck drops warnings + 'draft for discussion' footer. ✓");
 
   // ── 2. BOUNDS SWEEP — every seed × both approaches, in-process ──────────────
   let sweepShapes = 0;

@@ -22,18 +22,17 @@ export function roadmapSection(ctx: ProposalContext): SectionOutput {
     title: "Roadmap",
     subtitle: "Phases map one-to-one onto the adoption ramp the economics are built on",
     bullets: [
-      `The adoption targets below are the SAME numbers driving the cost and value forecasts — moving a slider moves this table`,
-      `Pilot proves the workflow with the people who own it; expansion follows demonstrated value, not a mandate`,
-      `Consumption pricing makes the ramp self-regulating: spend follows real usage at every phase`,
+      `These adoption targets are the SAME numbers driving the cost and value forecasts — move a slider, this table moves`,
     ],
     table: {
       columns: ["Phase", "Timeframe", "Adoption target", "Focus"],
       rows,
     },
     speakerNotes:
-      `Anchor each phase gate on observed usage, not calendar: expansion triggers when pilot cohort weekly-active and ` +
-      `hours-returned metrics hold for a month. The ramp numbers are the audit trail — the same assumptions object feeds ` +
-      `this table and every chart in the deck.`,
+      `Pilot proves the workflow with the people who own it; expansion follows demonstrated value, not a mandate; consumption ` +
+      `pricing makes the ramp self-regulating, so spend follows real usage at every phase. Anchor each phase gate on observed ` +
+      `usage, not calendar: expansion triggers when pilot-cohort weekly-active and hours-returned metrics hold for a month. The ` +
+      `ramp numbers are the audit trail — the same assumptions object feeds this table and every chart in the deck.`,
     assumptionsUsed: ["adoptionBreadth", "targetUserCount"],
     order: 0,
     enabled: true,
@@ -45,5 +44,9 @@ function focusFor(phaseIndex: number, useCaseCount: number): string {
     return `2 highest-confidence use cases, named pilot cohort, success metrics agreed up front`;
   if (phaseIndex === 1)
     return `Roll out remaining ${Math.max(useCaseCount - 2, 0)} use cases; champions program; integrate into systems of record`;
-  return `Org-wide availability, model-mix tuning for cost/quality, new use-case intake process`;
+  if (phaseIndex === 2)
+    return `Org-wide availability; embed into daily workflows; SSO + governance at scale`;
+  if (phaseIndex === 3)
+    return `Model-mix tuning for cost/quality; SLAs and guardrails on agency use cases`;
+  return `New use-case intake process; expand to adjacent teams and functions`;
 }

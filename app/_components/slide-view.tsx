@@ -2,6 +2,7 @@
 
 import type { SectionOutput } from "@/lib/types";
 import BandedChart from "./charts/banded-chart";
+import RankedValueExhibit from "./charts/ranked-value";
 import SimpleChart from "./charts/simple-chart";
 
 /**
@@ -21,26 +22,36 @@ export default function SlideView({
 }) {
   const hasCharts =
     (section.charts?.length ?? 0) > 0 || (section.bandedCharts?.length ?? 0) > 0;
-  const twoCol = (section.bullets?.length ?? 0) > 0 && (hasCharts || !!section.table);
+  const hasRanked = !!section.rankedValue;
+  const hasVisual = hasCharts || hasRanked || !!section.table;
+  const twoCol = (section.bullets?.length ?? 0) > 0 && hasVisual;
 
   const visual = (
-    <div className="space-y-4">
-      {/* Charts lead (Part 2): the visual carries the slide, text is secondary. */}
-      {section.charts?.map((c) => (
-        <div key={c.name}>
-          <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-ink-tertiary">
-            {c.name}
-          </div>
-          <SimpleChart series={c} />
-        </div>
-      ))}
-      {section.bandedCharts && section.bandedCharts.length > 0 && (
-        <div>
-          <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-ink-tertiary">
-            {section.bandedCharts.map((c) => c.name).join(" · ")}
-          </div>
-          <BandedChart series={section.bandedCharts} />
-        </div>
+    <div className="space-y-5">
+      {/* Ranked-value exhibit is preferred over charts when present (Value Map /
+          Business Value driver bars). */}
+      {section.rankedValue ? (
+        <RankedValueExhibit data={section.rankedValue} />
+      ) : (
+        <>
+          {/* Charts lead (Part 2): the visual carries the slide, text is secondary. */}
+          {section.charts?.map((c) => (
+            <div key={c.name}>
+              <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-ink-tertiary">
+                {c.name}
+              </div>
+              <SimpleChart series={c} />
+            </div>
+          ))}
+          {section.bandedCharts && section.bandedCharts.length > 0 && (
+            <div>
+              <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-ink-tertiary">
+                {section.bandedCharts.map((c) => c.name).join(" · ")}
+              </div>
+              <BandedChart series={section.bandedCharts} />
+            </div>
+          )}
+        </>
       )}
       {section.table && (
         <div className="overflow-x-auto">
@@ -101,42 +112,68 @@ export default function SlideView({
         </p>
       )}
 
-      {/* Stat cards — cream, serif clay-deep value over uppercase slate label */}
-      {section.stats && section.stats.length > 0 && (
-        <div
-          className={`mt-4 grid gap-3 ${fixedLayout ? "" : "grid-cols-1 sm:grid-cols-2"}`}
-          style={
-            fixedLayout
-              ? {
-                  gridTemplateColumns: `repeat(${Math.min(section.stats.length, 4)}, minmax(0, 1fr))`,
-                }
-              : undefined
-          }
-        >
-          {section.stats.map((s) => (
-            <div key={s.label} className="rounded-lg border border-line bg-canvas px-3 py-2">
-              <div className="font-serif text-base leading-snug text-accent">
-                {section.kind === "executive_summary" ? (
-                  <ExecutiveStatValue value={s.value} />
-                ) : (
-                  <span className="font-semibold">{s.value}</span>
-                )}
-              </div>
+      {/* Hero stat — one big number alone, with at most two supporting stats
+          inline beside it. Demotes the old "up to 6 equal cards" overload. */}
+      {section.heroStat ? (
+        <div className="mt-5 flex flex-wrap items-end gap-x-10 gap-y-3">
+          <div>
+            <div className="font-serif text-3xl font-semibold leading-none text-accent">
+              <ExecutiveStatValue value={section.heroStat.value} />
+            </div>
+            <div className="mt-1.5 text-[11px] font-medium uppercase tracking-wide text-ink-tertiary">
+              {section.heroStat.label}
+            </div>
+          </div>
+          {section.stats?.map((s) => (
+            <div key={s.label}>
+              <div className="font-serif text-base font-semibold text-ink">{s.value}</div>
               <div className="mt-0.5 text-[10px] font-medium uppercase tracking-wide text-ink-tertiary">
                 {s.label}
               </div>
             </div>
           ))}
         </div>
+      ) : (
+        /* Stat cards — cream, serif clay-deep value over uppercase slate label.
+           Main slides emit ≤3 (enforced in the section modules); appendix slides
+           carry more. */
+        section.stats &&
+        section.stats.length > 0 && (
+          <div
+            className={`mt-4 grid gap-3 ${fixedLayout ? "" : "grid-cols-1 sm:grid-cols-2"}`}
+            style={
+              fixedLayout
+                ? {
+                    gridTemplateColumns: `repeat(${Math.min(section.stats.length, 4)}, minmax(0, 1fr))`,
+                  }
+                : undefined
+            }
+          >
+            {section.stats.map((s) => (
+              <div key={s.label} className="rounded-lg border border-line bg-canvas px-3 py-2">
+                <div className="font-serif text-base leading-snug text-accent">
+                  {section.kind === "executive_summary" ? (
+                    <ExecutiveStatValue value={s.value} />
+                  ) : (
+                    <span className="font-semibold">{s.value}</span>
+                  )}
+                </div>
+                <div className="mt-0.5 text-[10px] font-medium uppercase tracking-wide text-ink-tertiary">
+                  {s.label}
+                </div>
+              </div>
+            ))}
+          </div>
+        )
       )}
 
       {/* Body: bullets left, visual right (mirrors the pptx two-column body) */}
       <div
-        className={`mt-4 grid flex-1 gap-6 ${
+        className={`mt-6 grid flex-1 gap-6 ${
           twoCol
             ? fixedLayout
-              ? "grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]"
-              : "lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]"
+              ? "grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]"
+              : "lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]"
             : "grid-cols-1"
         }`}
       >
@@ -150,7 +187,7 @@ export default function SlideView({
             ))}
           </ul>
         )}
-        {(hasCharts || section.table) && visual}
+        {hasVisual && visual}
       </div>
 
       {/* Clickable sources (e.g. an Anthropic customer-story URL). */}

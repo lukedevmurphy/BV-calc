@@ -110,6 +110,12 @@ export interface ItTakeoutAssumptions {
 }
 
 export interface ScenarioAssumptions {
+  /** Presentation audience. "draft" (default) shows internal credibility
+   *  warnings (⚠ implausible ratio, the illustrative-seed flag, the
+   *  "goals are illustrative" caveat); "client" suppresses them for a
+   *  client-facing deck. Absent on pre-feature saved payloads → "draft"
+   *  (fail-safe: a warning is never silently hidden). */
+  presentationMode?: "draft" | "client";
   /** Value-case altitude. Absent on pre-feature saved payloads → treat as
    *  "bottom_up" (the original behavior). */
   valueApproach: ValueApproach;
@@ -351,6 +357,34 @@ export interface BandedSeries {
   format?: "currency" | "number" | "percent";
 }
 
+/** One bar in a RankedValue exhibit: a quiet supporting chain on the left, a
+ *  number-first value on the right, and a share of the whole for the bar width. */
+export interface RankedValueRow {
+  /** Right-anchored primary label (e.g. "Coding"). */
+  label: string;
+  /** Quiet supporting chain rendered small & dimmed left of the bar (e.g.
+   *  ["Increase engineering throughput", "Claude Code"]). 0–2 entries; the
+   *  renderers show only the first. */
+  chain?: string[];
+  /** Base value in dollars — drives BOTH the displayed figure and the bar length. */
+  value: number;
+  /** 0..1 share of the exhibit total. PRECOMPUTED in the module so web and pptx
+   *  draw identical bars (renderers never re-derive share). */
+  share: number;
+  /** Optional confidence band, shown as a quiet whisker on the bar. */
+  range?: Ranged;
+}
+
+/** Number-first ranked-value exhibit (the Value Map redesign; reused by the
+ *  Business Value driver breakdown). Sorted high→low by the module; the
+ *  renderers never re-sort or re-derive shares. */
+export interface RankedValue {
+  rows: RankedValueRow[];
+  /** Pinned bottom-right total — e.g. value 4_200_000, label "$4.2M  total annual value (Y3)". */
+  total: { value: number; label: string };
+  format?: "currency" | "number";
+}
+
 export interface SectionOutput {
   id: string;
   kind: SectionKind;
@@ -365,6 +399,12 @@ export interface SectionOutput {
   table?: TableData;
   charts?: ChartSeries[];
   bandedCharts?: BandedSeries[];
+  /** Number-first ranked-value exhibit. When set, both renderers prefer it over
+   *  `charts` in the visual slot (the Value Map / Business Value driver bars). */
+  rankedValue?: RankedValue;
+  /** The single most important number on the slide. When set, rendered large &
+   *  alone (replacing the lead stat card); its `range` is shown quietly inline. */
+  heroStat?: { label: string; value: string; range?: Ranged };
   /** Goes into pptx notes; hidden in web preview by default. */
   speakerNotes?: string;
   /** Named economic outputs other sections can reference. */

@@ -1,7 +1,7 @@
 import type { ProposalContext, SectionOutput } from "@/lib/types";
-import { illustrativeFlag } from "@/lib/provenance";
+import { illustrativeFlag, showDraftWarnings } from "@/lib/provenance";
 import { RATIO_CEILING, ratioPlausible } from "@/lib/economics/ranged";
-import { fmtNumber, fmtRange } from "@/lib/format";
+import { fmtCurrency, fmtNumber, fmtRange } from "@/lib/format";
 
 /**
  * Generated LAST, by deterministic assembly only. Reads exclusively from
@@ -23,79 +23,57 @@ export function executiveSummarySection(ctx: ProposalContext): SectionOutput {
     (s) => s.label === "Break-even period",
   );
 
-  const bullets: string[] = [
-    `${selectedUseCases.length} workflows at ${company.name} burn expert hours on assembly work that Claude now does — sized bottom-up with ${company.name}'s own volumes, not a top-down percentage`,
-  ];
-  if (value) {
-    bullets.push(
-      `Annual value at maturity (Year ${a.horizonYears}): ${fmtRange(value)} — every figure a conservative/base/optimistic range, every range traceable to editable assumptions`,
-    );
-  }
-  if (coding && coding.base > 1) {
-    bullets.push(
-      `Of that, engineering coding efficiency contributes ${fmtRange(coding)} — freed developer capacity, split cost-out / revenue-growth on the Settings page`,
-    );
-  }
-  if (itTakeout && itTakeout.base > 1) {
-    bullets.push(
-      `IT cost takeout from legacy application rationalization adds ${fmtRange(itTakeout)} — hard-dollar run-rate eliminated on a sunset schedule`,
-    );
-  }
-  if (cost) {
-    bullets.push(
-      `Annual consumption cost at the same point: ${fmtRange(cost)} — cost rises with adoption by design; the value-to-cost gap is the business case, and cost is a wide range driven by implementation (see Cost)`,
-    );
-  }
-  if (breakEvenStat) {
-    bullets.push(
-      `Break-even (including one-time implementation): ${breakEvenStat.value}`,
-    );
-  }
-  // Ratio sanity (Part 4): an implausible value-to-cost ratio is a credibility
-  // risk, not a hero number — warn instead of printing it as a headline.
+  // One exhibit (the value strip) + one ask. Everything that used to be a
+  // narration bullet is mechanically restated by the detail sections, so it
+  // moves to speaker notes; the slide carries only the decision.
   const roiOk = roi ? ratioPlausible(roi.base) : true;
-  if (roi && !roiOk) {
+  const draft = showDraftWarnings(a);
+  const bullets: string[] = [
+    `The ask this quarter: validate the sizing with practitioners and name a 2-use-case pilot — no signed contract, no budget line`,
+  ];
+  // Credibility flags — draft mode only; never on a client-facing slide.
+  if (draft && roi && !roiOk) {
     bullets.push(
       `⚠ Value-to-cost ratio (~${fmtNumber(roi.base)}×) exceeds the plausible ceiling (~${RATIO_CEILING}×) — likely cost is understated or value overstated; revisit token volumes, adoption and model mix before presenting`,
     );
   }
-  bullets.push(
-    `The ask this quarter: validate the sizing with practitioners and name a 2-use-case pilot cohort`,
-  );
-  // Carry the placeholder-financials caveat onto the headline slide so a seed
-  // deck never reads as sourced — travels into the PPTX with the other bullets.
-  const flag = illustrativeFlag(company);
+  const flag = draft ? illustrativeFlag(company) : null;
   if (flag) bullets.push(flag);
+
+  const codingNote =
+    coding && coding.base > 1
+      ? ` Of that, engineering coding efficiency contributes ${fmtRange(coding)}.`
+      : "";
+  const itNote =
+    itTakeout && itTakeout.base > 1
+      ? ` IT cost takeout adds ${fmtRange(itTakeout)} (hard-dollar run-rate on a sunset schedule).`
+      : "";
 
   return {
     id: "executive_summary",
     kind: "executive_summary",
     title: "Executive Summary",
-    subtitle: `AI leverage for ${company.name}'s knowledge workflows — ranged, auditable, consumption-priced`,
+    subtitle: value
+      ? `${company.name}: ${fmtCurrency(value.base)} of annual AI value by Year ${a.horizonYears} — for a fraction of the cost`
+      : `AI leverage for ${company.name}'s knowledge workflows — ranged, auditable, consumption-priced`,
     bullets,
+    // Hero is the value strip (annual value — the deck's anchor number). The
+    // trio below is the rest of the decision: what it costs, the net, and when
+    // it pays back. Ratio / coding / IT detail lives in the appendix.
     stats: [
-      ...(value ? [{ label: `Annual value, Y${a.horizonYears}`, value: fmtRange(value) }] : []),
-      ...(coding && coding.base > 1
-        ? [{ label: `Coding value, Y${a.horizonYears}`, value: fmtRange(coding) }]
-        : []),
-      ...(itTakeout && itTakeout.base > 1
-        ? [{ label: `IT takeout, Y${a.horizonYears}`, value: fmtRange(itTakeout) }]
-        : []),
       ...(cost ? [{ label: `Annual cost, Y${a.horizonYears}`, value: fmtRange(cost) }] : []),
       ...(net ? [{ label: `Net value, Y${a.horizonYears}`, value: fmtRange(net) }] : []),
-      ...(roi
-        ? [
-            {
-              label: "Value-to-cost ratio",
-              value: roiOk
-                ? fmtRange(roi, (n) => `${fmtNumber(n)}×`)
-                : `⚠ ~${fmtNumber(roi.base)}× — review assumptions`,
-            },
-          ]
-        : []),
+      ...(breakEvenStat ? [{ label: "Break-even", value: breakEvenStat.value }] : []),
     ],
     speakerNotes:
-      `Every number on this slide is assembled mechanically from the sections that follow — nothing is restated by hand, ` +
+      `${selectedUseCases.length} workflows at ${company.name} burn expert hours on assembly work that Claude now does — sized ` +
+      `bottom-up with ${company.name}'s own volumes, not a top-down percentage.` +
+      (value ? ` Annual value at maturity (Year ${a.horizonYears}): ${fmtRange(value)} — every figure a conservative/base/optimistic range.` : "") +
+      codingNote +
+      itNote +
+      (cost ? ` Annual consumption cost at the same point: ${fmtRange(cost)} — cost rises with adoption by design; the value-to-cost gap is the business case.` : "") +
+      (roi && !roiOk ? ` Note: the value-to-cost ratio (~${fmtNumber(roi.base)}×) is above the credible ceiling (~${RATIO_CEILING}×) — pressure-test cost before a client readout.` : "") +
+      ` Every number on this slide is assembled mechanically from the sections that follow — nothing is restated by hand, ` +
       `so the summary cannot drift from the detail. If a figure looks wrong here, it is wrong in exactly one underlying ` +
       `assumption, and you can change it live.`,
     // Pass-through of the headline figures (read, not computed) so renderers

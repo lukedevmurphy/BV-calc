@@ -11,14 +11,14 @@ export function problemSection(ctx: ProposalContext): SectionOutput {
   const industry = company.industry ?? "the industry";
   const workstreams = selectedUseCases.map((u) => u.label.toLowerCase());
 
-  const bullets: string[] = [
-    `Knowledge work at ${company.name} is concentrated in high-skill, document-heavy workflows that scale only by adding headcount`,
+  const bullets: string[] =
     workstreams.length > 0
-      ? `Hours are absorbed by ${listPhrase(workstreams.slice(0, 3))} — repetitive synthesis that pulls experts away from judgment work`
-      : `Repetitive synthesis and drafting pull experts away from judgment work`,
-    `Institutional knowledge lives in documents and inboxes; finding and reusing it is slow and inconsistent`,
-    `Competitors in ${industry.toLowerCase()} are already compressing these cycle times with AI — the cost of waiting compounds`,
-  ];
+      ? [
+          `Expert hours go to ${listPhrase(workstreams.slice(0, 3))} — repetitive synthesis that pulls people hired for judgment onto assembly work`,
+        ]
+      : [
+          `Expert hours go to repetitive synthesis and drafting — pulling people hired for judgment onto assembly work`,
+        ];
 
   const stats = [
     ...(company.employeeCount
@@ -38,13 +38,15 @@ export function problemSection(ctx: ProposalContext): SectionOutput {
     id: "problem",
     kind: "problem",
     title: "The Problem",
-    subtitle: `Why the status quo at ${company.name} is expensive`,
+    subtitle: "Expert hours go to assembly, not judgment — and it scales only by hiring",
     bullets,
-    narrative: `The constraint is not effort — it is that expert time is spent producing routine artifacts instead of exercising judgment.`,
     stats,
     speakerNotes:
-      `Frame the problem in the client's own language before any numbers. ` +
-      `Anchor on the selected workflows — each one was chosen because it burns expert hours today. ` +
+      `The constraint is not effort — it is that expert time is spent producing routine artifacts instead of exercising judgment. ` +
+      `Knowledge work at ${company.name} is concentrated in high-skill, document-heavy workflows that scale only by adding headcount. ` +
+      `Institutional knowledge lives in documents and inboxes; finding and reusing it is slow and inconsistent. ` +
+      `Competitors in ${industry.toLowerCase()} are already compressing these cycle times with AI — the cost of waiting compounds. ` +
+      `Frame the problem in the client's own language before any numbers, anchored on the selected workflows. ` +
       `If the profile was enriched, confirm employee count and industry with the client (the confirm/edit step exists for exactly this).`,
     assumptionsUsed: ["targetUserCount", "company profile (industry, employee count)"],
     order: 0,

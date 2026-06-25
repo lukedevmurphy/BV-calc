@@ -99,6 +99,36 @@ export default function SettingsScreen({
         </button>
       </div>
 
+      {/* Presentation mode — gates internal credibility warnings */}
+      <section className="mb-6 rounded-xl border border-line-strong bg-surface p-5 shadow-card">
+        <h2 className="text-sm font-semibold">Presentation mode</h2>
+        <p className="mt-1 text-[13px] leading-snug text-ink-secondary">
+          <span className="font-medium">Draft</span> shows internal credibility warnings
+          (implausible-ratio ⚠, the illustrative-seed flag, the illustrative-goals caveat) for
+          your review. <span className="font-medium">Client-facing</span> suppresses them for the
+          client deck and drops the “draft for discussion” footer. Default: Draft.
+        </p>
+        <div className="mt-3 flex gap-1 rounded-lg bg-muted p-1">
+          {([
+            { value: "draft", label: "Draft (internal)" },
+            { value: "client", label: "Client-facing" },
+          ] as const).map((m) => {
+            const active = (assumptions.presentationMode ?? "draft") === m.value;
+            return (
+              <button
+                key={m.value}
+                onClick={() => patch({ presentationMode: m.value })}
+                className={`flex-1 rounded-md px-2 py-1 text-xs font-medium transition ${
+                  active ? "bg-surface text-ink shadow-card" : "text-ink-secondary hover:text-ink"
+                }`}
+              >
+                {m.label}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
       {/* Reinvestment toggle — the headline assumption */}
       {approach === "bottom_up" && <section className="rounded-xl border border-line-strong bg-surface p-5 shadow-card">
         <h2 className="text-sm font-semibold">How is freed time realized?</h2>

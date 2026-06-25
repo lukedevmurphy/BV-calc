@@ -35,10 +35,16 @@ export const TABLE_PT = 10;
 // ── Fixed block sizes ───────────────────────────────────────────────────────
 export const CARD_H = 0.98; // stat card height
 export const STAT_ROW_EXTRA = 0.22; // gap below the stats row
+export const HERO_BLOCK_H = 0.95; // hero stat block (big number + label + inline supporting stats)
 export const STRIP_H = 1.12; // exec-summary value strip
 export const STRIP_PAD = 0.18; // gap above the value strip
 export const CHART_MIN = 1.4; // a chart needs at least this much height or it's dropped
 export const CELL_PAD_H = 0.14;
+
+// ── Ranked-value exhibit (fixed height: known row count) ─────────────────────
+export const RANKED_ROW_H = 0.52; // one bar row (label/chain + bar + value)
+export const RANKED_ROW_GAP = 0.1; // gap between bar rows
+export const RANKED_TOTAL_H = 0.34; // pinned total + rule beneath the bars
 
 /** Readable floor for compaction — body fonts never scale below this. At 0.8,
  *  the 11.5pt bullet → 9.2pt and the 10pt table → 8pt: tight but legible. */
@@ -108,14 +114,26 @@ export function headerBottom(s: SectionOutput): number {
   return y + 0.12;
 }
 
-/** Height the stats row consumes (cards are fixed height; the value text inside
- *  shrink-fits). 0 when there are no stats. */
+/** Height the stats row consumes. A hero stat replaces the card row with a
+ *  single (shorter) hero block; otherwise cards are fixed height. 0 when there
+ *  is neither. */
 export function statsRowH(s: SectionOutput): number {
+  if (s.heroStat) return HERO_BLOCK_H + STAT_ROW_EXTRA;
   return s.stats && s.stats.length > 0 ? CARD_H + STAT_ROW_EXTRA : 0;
 }
 
+/** Fixed height of a ranked-value exhibit (known row count, not elastic). */
+export function rankedValueH(s: SectionOutput): number {
+  const rv = s.rankedValue;
+  if (!rv) return 0;
+  return rv.rows.length * (RANKED_ROW_H + RANKED_ROW_GAP) + RANKED_TOTAL_H;
+}
+
 export const hasVisual = (s: SectionOutput): boolean =>
-  Boolean(s.table) || (s.charts?.length ?? 0) > 0 || (s.bandedCharts?.length ?? 0) > 0;
+  Boolean(s.table) ||
+  Boolean(s.rankedValue) ||
+  (s.charts?.length ?? 0) > 0 ||
+  (s.bandedCharts?.length ?? 0) > 0;
 
 export const isTwoCol = (s: SectionOutput): boolean =>
   Boolean(s.bullets?.length) && hasVisual(s);
@@ -140,16 +158,20 @@ export function bodyAvailable(s: SectionOutput): number {
 export function requiredBodyH(s: SectionOutput, scale = 1): number {
   const bullets = s.bullets ?? [];
   const chartReserve = hasChart(s) ? CHART_MIN : 0;
+  const rankedH = rankedValueH(s);
   if (isTwoCol(s)) {
     const left = bullets.length ? bulletsH(bullets, LEFT_COL_W, BULLET_PT * scale) : 0;
-    const right = (s.table ? tableH(s.table, VIS_W, TABLE_PT * scale) : 0) + chartReserve;
+    const right =
+      (s.table ? tableH(s.table, VIS_W, TABLE_PT * scale) : 0) + rankedH + chartReserve;
     return Math.max(left, right);
   }
   if (bullets.length) {
     return bulletsH(bullets, CONTENT_W, BULLET_PT * scale);
   }
   // visual-only
-  return (s.table ? tableH(s.table, CONTENT_W, TABLE_PT * scale) : 0) + chartReserve;
+  return (
+    (s.table ? tableH(s.table, CONTENT_W, TABLE_PT * scale) : 0) + rankedH + chartReserve
+  );
 }
 
 /** Does the section fit on one slide at this font scale? */

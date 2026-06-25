@@ -124,6 +124,8 @@ function bottomUpCalc(ctx: ProposalContext): SectionOutput {
       fmtCurrency(r.gross),
     ]),
     ["All use cases (gross)", "", fmtCurrency(grossTotal)],
+    // The haircut, made an explicit line so the gross→realized cut is unmissable.
+    ["× Realization × coverage", `${rzPct}% × ${covPct}%`, fmtCurrency(useCaseRealized)],
   ];
   if (codingTotal > 1) {
     tableRows.push([
@@ -139,6 +141,7 @@ function bottomUpCalc(ctx: ProposalContext): SectionOutput {
       fmtCurrency(itTakeoutTotal),
     ]);
   }
+  tableRows.push(["= Realized annual value", "", fmtCurrency(realizedTotal)]);
   const table: TableData = {
     columns: ["Use case", `Annual hrs saved / user (Y${finalYear})`, "Gross annual value"],
     rows: tableRows,
@@ -155,7 +158,7 @@ function bottomUpCalc(ctx: ProposalContext): SectionOutput {
     id: "value_calculation",
     kind: "value_calculation",
     title: "Value Calculation",
-    subtitle: "How the Year-" + finalYear + " business value is built, use case by use case",
+    subtitle: `Gross saved-hours value ${fmtCurrency(grossTotal)} → realized ${fmtCurrency(realizedTotal)} after the ${rzPct}% × ${covPct}% haircut`,
     narrative:
       "Each Business Value figure is gross saved-hours value, haircut to a realized dollar amount — the arithmetic is here.",
     bullets: [

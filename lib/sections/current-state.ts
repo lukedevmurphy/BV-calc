@@ -1,6 +1,6 @@
 import type { ProposalContext, SectionOutput } from "@/lib/types";
 import { mul, scale, sum } from "@/lib/economics/ranged";
-import { fmtNumber, fmtRange, fmtRangeTriple } from "@/lib/format";
+import { fmtNumber, fmtRangeTriple } from "@/lib/format";
 
 /** How the work is done today — pain points and the cost of the status quo. */
 export function currentStateSection(ctx: ProposalContext): SectionOutput {
@@ -22,21 +22,11 @@ export function currentStateSection(ctx: ProposalContext): SectionOutput {
     id: "current_state",
     kind: "current_state",
     title: "Current State",
-    subtitle: `How this work gets done at ${company.name} today`,
-    bullets: [
-      `Each workflow below is performed manually: gather sources, synthesize, draft, format, re-check — by people hired for judgment, not assembly`,
-      `Cycle times are bounded by calendar availability of experts, not by the difficulty of the work`,
-      `Quality varies by author and time pressure; institutional knowledge is re-derived instead of reused`,
-      `Scaling output today means scaling headcount linearly — there is no operating leverage in the current model`,
-    ],
+    subtitle: `${fmtNumber(hoursPerYearAllUsers.base)} expert hours a year go into work Claude can do`,
     stats: [
       {
         label: "Hours absorbed / user / month",
         value: fmtRangeTriple(hoursPerUserPerMonth, (n) => `${n.toFixed(1)}h`),
-      },
-      {
-        label: "Hours / year across target users",
-        value: fmtRange(hoursPerYearAllUsers, fmtNumber),
       },
     ],
     table: {
@@ -51,9 +41,12 @@ export function currentStateSection(ctx: ProposalContext): SectionOutput {
       ]),
     },
     speakerNotes:
-      `The status-quo hours here are the same sizing knobs the Business Value section monetizes — establishing them ` +
-      `as today's reality first makes the value build feel like arithmetic, not a claim. Validate the hours with the ` +
-      `people who do the work, not their managers.`,
+      `Each workflow is performed manually today: gather sources, synthesize, draft, format, re-check — by people hired for ` +
+      `judgment, not assembly. Cycle times are bounded by the calendar availability of experts, not the difficulty of the work; ` +
+      `quality varies by author and time pressure; institutional knowledge is re-derived instead of reused. Scaling output means ` +
+      `scaling headcount linearly — there is no operating leverage in the current model. The status-quo hours here are the same ` +
+      `sizing knobs the Business Value section monetizes, so the value build feels like arithmetic, not a claim. Validate the hours ` +
+      `with the people who do the work, not their managers.`,
     assumptionsUsed: [
       "targetUserCount",
       "per-use-case sizing (hoursSavedPerInstance, instancesPerMonthPerUser)",

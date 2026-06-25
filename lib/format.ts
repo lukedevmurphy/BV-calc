@@ -47,4 +47,7 @@ export function fmtMonth(m: number | null): string {
 }
 
 const sign = (n: number) => (n < 0 ? "-" : "");
-const fmt1 = (n: number) => (n >= 100 ? Math.round(n).toString() : n.toFixed(1).replace(/\.0$/, ""));
+// Two significant figures within a B/M/K bucket: [1,10) keeps one decimal,
+// [10,1000) rounds to an integer. Kills false precision ($86.3K → $86K,
+// $39.6K → $40K, $4.23M → $4.2M) so a column of values reads cleanly.
+const fmt1 = (n: number) => (n >= 10 ? Math.round(n).toString() : n.toFixed(1).replace(/\.0$/, ""));

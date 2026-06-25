@@ -250,6 +250,7 @@ export default function Builder({
           sections={sections}
           companyName={company.name}
           sectionsPending={sectionsPending}
+          presentationMode={assumptions.presentationMode ?? "draft"}
           onBack={() => setScreen("build")}
         />
       )}

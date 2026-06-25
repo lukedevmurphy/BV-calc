@@ -7,6 +7,7 @@ import { scenarioAppendixSlides } from "@/lib/sections/scenario";
 import { planSection } from "@/lib/slide-fit/plan";
 import SlideView from "../slide-view";
 import ExportButton from "../export-button";
+import SlidesButton from "../slides-button";
 import ScaledSlide from "../scaled-slide";
 
 interface Props {
@@ -197,13 +198,21 @@ export default function PreviewScreen({
           <span className="text-ink-tertiary">use ← → keys</span>
         </div>
 
-        {/* Export to PowerPoint lives at the end of Preview. */}
-        <ExportButton
-          companyName={companyName}
-          sections={sections}
-          sectionsPending={sectionsPending}
-          presentationMode={presentationMode}
-        />
+        {/* Exports live at the end of Preview: PowerPoint download + Google Slides. */}
+        <div className="flex flex-wrap items-center gap-3">
+          <ExportButton
+            companyName={companyName}
+            sections={sections}
+            sectionsPending={sectionsPending}
+            presentationMode={presentationMode}
+          />
+          <SlidesButton
+            companyName={companyName}
+            sections={sections}
+            sectionsPending={sectionsPending}
+            presentationMode={presentationMode}
+          />
+        </div>
       </div>
     </div>
   );

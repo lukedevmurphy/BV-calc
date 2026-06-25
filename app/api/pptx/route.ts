@@ -1,5 +1,5 @@
 import type { SectionOutput } from "@/lib/types";
-import { buildDeck } from "@/lib/pptx/build-deck";
+import { deckBuffer } from "@/lib/pptx/build-deck";
 
 // PptxGenJS needs Node APIs; never run this on the Edge runtime.
 export const runtime = "nodejs";
@@ -27,12 +27,9 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   // Shared orchestration (slide-fit + ordering) — same code path the
-  // verification (scripts/check-pptx.ts) exercises in-process.
+  // verification (scripts/check-pptx.ts) and the Slides export exercise.
   const mode = body.presentationMode === "client" ? "client" : "draft";
-  const pptx = buildDeck(body.companyName, body.sections, mode);
-
-  // nodebuffer (never writeFile — Vercel's filesystem is read-only).
-  const buffer = (await pptx.write({ outputType: "nodebuffer" })) as Buffer;
+  const buffer = await deckBuffer(body.companyName, body.sections, mode);
   const filename = `proposal-${slugify(body.companyName)}.pptx`;
 
   return new Response(new Uint8Array(buffer), {

@@ -19,6 +19,18 @@ import {
   defineBrandMaster,
 } from "./slide-builders";
 
+/** Build the deck and serialize it to a Buffer — the shared step both export
+ *  routes (/api/pptx download, /api/slides Drive upload) use, so the seam stays
+ *  single-sourced. nodebuffer, never writeFile (Vercel's FS is read-only). */
+export async function deckBuffer(
+  companyName: string,
+  sections: SectionOutput[],
+  presentationMode: "draft" | "client" = "draft",
+): Promise<Buffer> {
+  const pptx = buildDeck(companyName, sections, presentationMode);
+  return (await pptx.write({ outputType: "nodebuffer" })) as Buffer;
+}
+
 export function buildDeck(
   companyName: string,
   sections: SectionOutput[],

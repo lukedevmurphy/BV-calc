@@ -215,6 +215,7 @@ async function main() {
     }
     for (const row of s.table?.rows ?? [])
       assert(slides.includes(String(row[0])), `table cell: "${row[0]}"`);
+    if (s.footnote) assert(slides.includes(s.footnote), `footnote: "${s.footnote.slice(0, 50)}…"`);
     if (s.speakerNotes) {
       assert(notes.includes(s.speakerNotes.slice(0, 60)), `speaker notes for ${s.kind}`);
     }

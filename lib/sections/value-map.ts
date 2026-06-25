@@ -2,12 +2,26 @@ import type { ProposalContext, RankedValue, SectionOutput } from "@/lib/types";
 import {
   DRIVER_ORDER,
   VALUE_DRIVERS,
+  driversForUseCase,
   type DriverId,
 } from "@/lib/value-model/drivers";
 import { perDriverValues } from "@/lib/value-model/driver-rollup";
 import { resolveSubIndustry, sectorDriverLabel } from "@/lib/value-model/sub-industry";
 import { showDraftWarnings } from "@/lib/provenance";
 import { fmtCurrency } from "@/lib/format";
+
+/** The selected use cases that feed a driver, summarized for the value-map's
+ *  narrow left column: list them when ≤5, otherwise the first four + "+N more"
+ *  so the row never squishes. Folded drivers (coding / IT takeout) have no use
+ *  cases — the caller falls back to the strategic objective. */
+function capabilityLine(ctx: ProposalContext, d: DriverId): string {
+  const names = ctx.selectedUseCases
+    .filter((uc) => driversForUseCase(uc).includes(d))
+    .map((uc) => uc.label);
+  if (names.length === 0) return DRIVER_STRATEGY[d].objective;
+  if (names.length <= 5) return names.join(", ");
+  return `${names.slice(0, 4).join(", ")} + ${names.length - 4} more use cases`;
+}
 
 /**
  * Sector-typical strategic framing per driver — ILLUSTRATIVE. A real enrichment
@@ -40,10 +54,15 @@ export function valueMapSection(ctx: ProposalContext): SectionOutput {
   );
   const total = active.reduce((sum, d) => sum + perDriver[d], 0);
 
+  // Each row reads left→right: the company goal (capability) + the use cases
+  // that deliver it, a share-scaled bar, then the value driver quantified on the
+  // right. The driver name moves to the value caption so the LEFT carries the
+  // strategy and the RIGHT carries the number.
   const rankedValue: RankedValue = {
     rows: active.map((d) => ({
-      label: sectorDriverLabel(subId, d, VALUE_DRIVERS[d].short),
-      chain: [DRIVER_STRATEGY[d].goal],
+      label: DRIVER_STRATEGY[d].goal,
+      chain: [capabilityLine(ctx, d)],
+      valueNote: sectorDriverLabel(subId, d, VALUE_DRIVERS[d].short),
       value: perDriver[d],
       share: total > 0 ? perDriver[d] / total : 0,
     })),
@@ -71,14 +90,13 @@ export function valueMapSection(ctx: ProposalContext): SectionOutput {
     kind: "value_map",
     title: "Value Map",
     subtitle,
-    // Draft mode carries the illustrative-goals caveat as a single bullet; client
-    // mode drops it so the ranked exhibit reads full-width.
-    bullets: showDraftWarnings(ctx.assumptions)
-      ? [
-          "Goals are illustrative / sector-typical — confirm against the company's stated strategy and latest 10-K/10-Q before presenting",
-        ]
-      : undefined,
     rankedValue,
+    // The illustrative-goals caveat is demoted from a left-column bullet (which
+    // squished the exhibit into half-width) to a quiet footnote, so the ranked
+    // exhibit reads full-width. Draft only; client mode drops it.
+    footnote: showDraftWarnings(ctx.assumptions)
+      ? "Goals are illustrative / sector-typical — confirm against the company's stated strategy and latest 10-K/10-Q before presenting."
+      : undefined,
     speakerNotes:
       `${active.length} value drivers map to the company's strategic goals — ${fmtCurrency(total)} total annual value at Year ${finalYear}. ` +
       "Each driver traces from a company goal, through the strategic objective it serves, to a quantified value driver, so the case is " +

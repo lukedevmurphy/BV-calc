@@ -43,6 +43,7 @@ import {
   RANKED_TOTAL_H,
   STRIP_H,
   STRIP_PAD,
+  FOOTNOTE_H,
   CHART_MIN,
   TABLE_PT,
   BULLET_PT,
@@ -290,7 +291,11 @@ export function addSectionSlide(
   // body, so the budget math keeps everything collision-free.
   const valueFig =
     s.kind === "executive_summary" ? s.rangedFigures?.annualValueFinalYear : undefined;
-  const bodyBottom = valueFig ? CONTENT_BOTTOM - STRIP_H - STRIP_PAD : CONTENT_BOTTOM;
+  // A footnote (e.g. the Value Map's "confirm vs 10-K" caveat) is pinned at the
+  // very bottom; reserve its height so the body never collides with it.
+  const footnoteH = s.footnote ? FOOTNOTE_H : 0;
+  const bodyBottom =
+    (valueFig ? CONTENT_BOTTOM - STRIP_H - STRIP_PAD : CONTENT_BOTTOM) - footnoteH;
 
   // Hero stat — one big number alone, with up to two supporting stats inline.
   if (s.heroStat) {
@@ -299,10 +304,10 @@ export function addSectionSlide(
     const heroRuns =
       rangeStart >= 0
         ? [
-            { text: hero.value.slice(0, rangeStart), options: { fontSize: 30 * scale, fontFace: SERIF, color: CLAY_DEEP, bold: true } },
-            { text: hero.value.slice(rangeStart), options: { fontSize: 15 * scale, fontFace: SERIF, color: SLATE, bold: false } },
+            { text: hero.value.slice(0, rangeStart), options: { fontSize: 38 * scale, fontFace: SERIF, color: CLAY_DEEP, bold: true } },
+            { text: hero.value.slice(rangeStart), options: { fontSize: 17 * scale, fontFace: SERIF, color: SLATE, bold: false } },
           ]
-        : [{ text: hero.value, options: { fontSize: 30 * scale, fontFace: SERIF, color: CLAY_DEEP, bold: true } }];
+        : [{ text: hero.value, options: { fontSize: 38 * scale, fontFace: SERIF, color: CLAY_DEEP, bold: true } }];
     const heroW = 4.6;
     slide.addText(
       [
@@ -319,8 +324,8 @@ export function addSectionSlide(
       const sx = MARGIN + heroW + 0.3 + i * (supW + 0.3);
       slide.addText(
         [
-          { text: stat.value, options: { fontSize: 14 * scale, fontFace: SERIF, color: INK, bold: true } },
-          { text: "\n" + stat.label.toUpperCase(), options: { fontSize: 7, fontFace: SANS, color: SLATE, charSpacing: 1.5 } },
+          { text: stat.value, options: { fontSize: 17 * scale, fontFace: SERIF, color: INK, bold: true } },
+          { text: "\n" + stat.label.toUpperCase(), options: { fontSize: 7.5, fontFace: SANS, color: SLATE, charSpacing: 1.5 } },
         ],
         { x: sx, y: y + 0.16, w: supW, h: HERO_BLOCK_H - 0.16, valign: "top", wrap: true, fit: "shrink" },
       );
@@ -487,6 +492,22 @@ export function addSectionSlide(
     addValueStrip(slide, valueFig, CONTENT_BOTTOM - STRIP_H, STRIP_H);
   }
 
+  if (s.footnote) {
+    slide.addText(s.footnote, {
+      x: MARGIN,
+      y: CONTENT_BOTTOM - FOOTNOTE_H + 0.06,
+      w: CONTENT_W,
+      h: FOOTNOTE_H - 0.06,
+      fontSize: 8,
+      italic: true,
+      fontFace: SANS,
+      color: SLATE2,
+      valign: "top",
+      wrap: true,
+      fit: "shrink",
+    });
+  }
+
   const notes = [
     s.speakerNotes ?? "",
     s.assumptionsUsed?.length
@@ -578,17 +599,17 @@ function addValueStrip(
     line: { color: LINE, width: 0.75 },
   });
 
-  const blockW = 2.35;
+  const blockW = 2.45;
   slide.addText(
     [
-      { text: fmtCurrency(fig.low), options: { fontSize: 19, fontFace: SERIF, color: SLATE, breakLine: true } },
+      { text: fmtCurrency(fig.low), options: { fontSize: 22, fontFace: SERIF, color: SLATE, breakLine: true } },
       { text: "CONSERVATIVE", options: { fontSize: 7.5, fontFace: SANS, color: SLATE2, charSpacing: 2 } },
     ],
     { x: MARGIN + 0.3, y: y + 0.18, w: blockW, h: h - 0.36, valign: "middle", fit: "shrink" },
   );
   slide.addText(
     [
-      { text: fmtCurrency(fig.high), options: { fontSize: 19, fontFace: SERIF, color: INK, breakLine: true, align: "right" } },
+      { text: fmtCurrency(fig.high), options: { fontSize: 22, fontFace: SERIF, color: INK, breakLine: true, align: "right" } },
       { text: "UPSIDE", options: { fontSize: 7.5, fontFace: SANS, color: SLATE2, charSpacing: 2, align: "right" } },
     ],
     { x: PAGE_W - MARGIN - blockW - 0.3, y: y + 0.18, w: blockW, h: h - 0.36, valign: "middle", fit: "shrink", align: "right" },
@@ -600,8 +621,8 @@ function addValueStrip(
     x: barX,
     y: y + 0.16,
     w: barW,
-    h: 0.34,
-    fontSize: 13,
+    h: 0.36,
+    fontSize: 15,
     fontFace: SERIF,
     color: CLAY_DEEP,
     align: "center",
@@ -675,26 +696,34 @@ function addRankedValue(
     }
     // left chain (label + first chain link), right-aligned toward the bar
     const chainRuns: { text: string; options: Record<string, unknown> }[] = [
-      { text: row.label, options: { fontSize: 11.5 * scale, fontFace: SANS, color: INK, bold: true } },
+      { text: row.label, options: { fontSize: 12.5 * scale, fontFace: SANS, color: INK, bold: true } },
     ];
     if (row.chain?.[0]) {
-      chainRuns.push({ text: "\n" + row.chain[0], options: { fontSize: 8.5 * scale, fontFace: SANS, color: SLATE2, bold: false } });
+      chainRuns.push({ text: "\n" + row.chain[0], options: { fontSize: 9 * scale, fontFace: SANS, color: SLATE2, bold: false } });
     }
     slide.addText(chainRuns, { x, y: ry, w: LEFT_W, h: RANKED_ROW_H, align: "right", valign: "middle", wrap: true, fit: "shrink" });
-    // the big number, right-anchored
-    slide.addText(fmt(row.value), {
-      x: valX,
-      y: ry,
-      w: VAL_W,
-      h: RANKED_ROW_H,
-      align: "right",
-      valign: "middle",
-      fontFace: SERIF,
-      color: CLAY_DEEP,
-      fontSize: 16 * scale,
-      bold: true,
-      fit: "shrink",
-    });
+    // the big number, right-anchored, with the value-driver name beneath it
+    slide.addText(
+      row.valueNote
+        ? [
+            { text: fmt(row.value), options: { fontSize: 20 * scale, fontFace: SERIF, color: CLAY_DEEP, bold: true, breakLine: true } },
+            { text: row.valueNote.toUpperCase(), options: { fontSize: 7 * scale, fontFace: SANS, color: SLATE2, charSpacing: 1 } },
+          ]
+        : fmt(row.value),
+      {
+        x: valX,
+        y: ry,
+        w: VAL_W,
+        h: RANKED_ROW_H,
+        align: "right",
+        valign: "middle",
+        fontFace: SERIF,
+        color: CLAY_DEEP,
+        fontSize: 20 * scale,
+        bold: true,
+        fit: "shrink",
+      },
+    );
   });
 
   // pinned total beneath a hairline rule

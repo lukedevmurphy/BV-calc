@@ -366,6 +366,9 @@ export interface RankedValueRow {
    *  ["Increase engineering throughput", "Claude Code"]). 0–2 entries; the
    *  renderers show only the first. */
   chain?: string[];
+  /** Tiny uppercase caption shown beside the right-anchored value (e.g. the
+   *  value-driver name "Productivity"), so the big number is labelled. */
+  valueNote?: string;
   /** Base value in dollars — drives BOTH the displayed figure and the bar length. */
   value: number;
   /** 0..1 share of the exhibit total. PRECOMPUTED in the module so web and pptx
@@ -405,6 +408,10 @@ export interface SectionOutput {
   /** The single most important number on the slide. When set, rendered large &
    *  alone (replacing the lead stat card); its `range` is shown quietly inline. */
   heroStat?: { label: string; value: string; range?: Ranged };
+  /** Small italic caveat/source line pinned at the slide's bottom edge (a deck
+   *  footnote). Used to demote "confirm vs 10-K" style caveats off the main
+   *  exhibit. Rendered in BOTH consumers; its height is reserved in slide-fit. */
+  footnote?: string;
   /** Goes into pptx notes; hidden in web preview by default. */
   speakerNotes?: string;
   /** Named economic outputs other sections can reference. */

@@ -29,22 +29,28 @@ export const VIS_W = CONTENT_W - LEFT_COL_W - COL_GAP;
 export const HEADLINE_PT = 27;
 export const LEDE_PT = 12.5;
 export const BULLET_PT = 11.5;
-export const STAT_VALUE_PT = 12.5;
+// Callout-number sizes — bumped for at-a-glance reading (the value is the point
+// of the deck). The card / hero / ranked heights below grow in lockstep so the
+// fit estimate, the render and check-pptx never disagree.
+export const STAT_VALUE_PT = 18;
 export const TABLE_PT = 10;
 
 // ── Fixed block sizes ───────────────────────────────────────────────────────
-export const CARD_H = 0.98; // stat card height
+export const CARD_H = 1.1; // stat card height (grows with STAT_VALUE_PT)
 export const STAT_ROW_EXTRA = 0.22; // gap below the stats row
-export const HERO_BLOCK_H = 0.95; // hero stat block (big number + label + inline supporting stats)
-export const STRIP_H = 1.12; // exec-summary value strip
+export const HERO_BLOCK_H = 1.05; // hero stat block (big number + label + inline supporting stats)
+export const STRIP_H = 1.16; // exec-summary value strip
 export const STRIP_PAD = 0.18; // gap above the value strip
 export const CHART_MIN = 1.4; // a chart needs at least this much height or it's dropped
 export const CELL_PAD_H = 0.14;
 
 // ── Ranked-value exhibit (fixed height: known row count) ─────────────────────
-export const RANKED_ROW_H = 0.52; // one bar row (label/chain + bar + value)
+export const RANKED_ROW_H = 0.56; // one bar row (label/chain + bar + value)
 export const RANKED_ROW_GAP = 0.1; // gap between bar rows
 export const RANKED_TOTAL_H = 0.34; // pinned total + rule beneath the bars
+
+// ── Footnote (a quiet caveat/source line pinned at the slide bottom) ──────────
+export const FOOTNOTE_H = 0.32; // reserved height when a section carries a footnote
 
 /** Readable floor for compaction — body fonts never scale below this. At 0.8,
  *  the 11.5pt bullet → 9.2pt and the 10pt table → 8pt: tight but legible. */
@@ -146,7 +152,9 @@ const hasChart = (s: SectionOutput): boolean =>
 export function bodyAvailable(s: SectionOutput): number {
   const isExec = s.kind === "executive_summary";
   const top = headerBottom(s) + statsRowH(s);
-  const bottom = isExec ? CONTENT_BOTTOM - STRIP_H - STRIP_PAD : CONTENT_BOTTOM;
+  const footnote = s.footnote ? FOOTNOTE_H : 0;
+  const bottom =
+    (isExec ? CONTENT_BOTTOM - STRIP_H - STRIP_PAD : CONTENT_BOTTOM) - footnote;
   return bottom - top;
 }
 

@@ -269,13 +269,13 @@ function ValueStrip({ fig }: { fig: Ranged }) {
   return (
     <div className="mx-12 mb-3 flex items-stretch gap-6 rounded-xl border border-line bg-white px-7 py-4">
       <div className="flex flex-col justify-center">
-        <div className="font-serif text-2xl leading-none text-ink-secondary">{fmtCurrency(fig.low)}</div>
+        <div className="font-serif text-3xl font-semibold leading-none text-ink-secondary">{fmtCurrency(fig.low)}</div>
         <div className="mt-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-ink-tertiary">
           Conservative
         </div>
       </div>
       <div className="flex flex-1 flex-col items-center justify-center">
-        <div className="font-serif text-lg text-accent">
+        <div className="font-serif text-xl font-semibold text-accent">
           {fmtCurrency(fig.base)} · annual value, base case
         </div>
         <div className="mt-2.5 flex w-full max-w-md overflow-hidden rounded-full">
@@ -285,7 +285,7 @@ function ValueStrip({ fig }: { fig: Ranged }) {
         </div>
       </div>
       <div className="flex flex-col items-end justify-center">
-        <div className="font-serif text-2xl leading-none text-ink">{fmtCurrency(fig.high)}</div>
+        <div className="font-serif text-3xl font-semibold leading-none text-ink">{fmtCurrency(fig.high)}</div>
         <div className="mt-1.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-ink-tertiary">
           Upside
         </div>

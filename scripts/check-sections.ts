@@ -172,8 +172,11 @@ console.log(
 const propSec = byKind.proposal;
 assert(propSec, "proposal section registered");
 const propRows = propSec.table?.rows ?? [];
+// The value map now carries the company GOAL as the row label and the value-
+// driver name in `valueNote`; reconcile the proposal (keyed by driver name)
+// against that caption.
 const vmByLabel = new Map(
-  (vmSec.rankedValue?.rows ?? []).map((r) => [r.label, fmtCurrency(r.value)]),
+  (vmSec.rankedValue?.rows ?? []).map((r) => [r.valueNote ?? r.label, fmtCurrency(r.value)]),
 );
 assert(
   propRows.length > 0 && propRows.length === (vmSec.rankedValue?.rows.length ?? -1),
@@ -523,8 +526,8 @@ assert(
   "client mode shows no ⚠ warning bullets",
 );
 assert(
-  !(clientByKind.value_map.bullets ?? []).some((b) => b.toLowerCase().includes("illustrative")),
-  "client mode drops the value_map illustrative-goals caveat",
+  !(clientByKind.value_map.footnote ?? "").toLowerCase().includes("illustrative"),
+  "client mode drops the value_map illustrative-goals caveat (footnote)",
 );
 console.log("presentation mode: client suppresses illustrative flag + ⚠ caveats; draft shows them ✓");
 
@@ -611,7 +614,7 @@ const withCustom = computeAllSections({
 // now appear as a bar in the value map's ranked exhibit.
 const vmCustomRows = withCustom.find((s) => s.kind === "value_map")?.rankedValue?.rows ?? [];
 assert(
-  vmCustomRows.some((r) => /risk|compliance/i.test(r.label)),
+  vmCustomRows.some((r) => /risk|compliance/i.test(r.valueNote ?? r.label)),
   "custom use case (risk/compliance) appears in the value map as its driver",
 );
 console.log("custom use case: own driver mapping flows into the value map ✓");

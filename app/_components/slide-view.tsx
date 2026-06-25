@@ -115,19 +115,19 @@ export default function SlideView({
       {/* Hero stat — one big number alone, with at most two supporting stats
           inline beside it. Demotes the old "up to 6 equal cards" overload. */}
       {section.heroStat ? (
-        <div className="mt-5 flex flex-wrap items-end gap-x-10 gap-y-3">
+        <div className="mt-5 flex flex-wrap items-end gap-x-12 gap-y-3">
           <div>
-            <div className="font-serif text-3xl font-semibold leading-none text-accent">
+            <div className="font-serif text-5xl font-bold leading-none text-accent">
               <ExecutiveStatValue value={section.heroStat.value} />
             </div>
-            <div className="mt-1.5 text-[11px] font-medium uppercase tracking-wide text-ink-tertiary">
+            <div className="mt-2 text-[11px] font-semibold uppercase tracking-wide text-ink-tertiary">
               {section.heroStat.label}
             </div>
           </div>
           {section.stats?.map((s) => (
             <div key={s.label}>
-              <div className="font-serif text-base font-semibold text-ink">{s.value}</div>
-              <div className="mt-0.5 text-[10px] font-medium uppercase tracking-wide text-ink-tertiary">
+              <div className="font-serif text-xl font-bold text-ink">{s.value}</div>
+              <div className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-ink-tertiary">
                 {s.label}
               </div>
             </div>
@@ -152,16 +152,16 @@ export default function SlideView({
             {section.stats.map((s) => (
               <div
                 key={s.label}
-                className={`rounded-lg border border-line px-3 py-2 ${fixedLayout ? "bg-surface" : "bg-canvas"}`}
+                className={`rounded-lg border border-line px-3.5 py-2.5 ${fixedLayout ? "bg-surface" : "bg-canvas"}`}
               >
-                <div className="font-serif text-base leading-snug text-accent">
+                <div className="font-serif text-2xl leading-tight text-accent">
                   {section.kind === "executive_summary" ? (
                     <ExecutiveStatValue value={s.value} />
                   ) : (
-                    <span className="font-semibold">{s.value}</span>
+                    <span className="font-bold">{s.value}</span>
                   )}
                 </div>
-                <div className="mt-0.5 text-[10px] font-medium uppercase tracking-wide text-ink-tertiary">
+                <div className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-ink-tertiary">
                   {s.label}
                 </div>
               </div>
@@ -209,17 +209,25 @@ export default function SlideView({
           ))}
         </div>
       )}
+
+      {/* Footnote — a quiet caveat/source line pinned at the slide's bottom edge
+          (mirrors the pptx footnote). The flex-1 body above pushes it down. */}
+      {section.footnote && (
+        <p className="mt-3 border-t border-line pt-2 text-[11px] italic leading-snug text-ink-tertiary">
+          {section.footnote}
+        </p>
+      )}
     </div>
   );
 }
 
 function ExecutiveStatValue({ value }: { value: string }) {
   const rangeStart = value.indexOf(" (");
-  if (rangeStart < 0) return <span className="font-semibold">{value}</span>;
+  if (rangeStart < 0) return <span className="font-bold">{value}</span>;
   return (
     <>
-      <span className="font-semibold">{value.slice(0, rangeStart)}</span>
-      <span className="font-normal text-ink-secondary">{value.slice(rangeStart)}</span>
+      <span className="font-bold">{value.slice(0, rangeStart)}</span>
+      <span className="text-[0.5em] font-normal text-ink-secondary">{value.slice(rangeStart)}</span>
     </>
   );
 }

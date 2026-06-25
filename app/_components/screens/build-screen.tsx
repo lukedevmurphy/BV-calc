@@ -2,6 +2,7 @@
 
 import type { SectionConfigEntry, SectionOutput } from "@/lib/types";
 import SectionList from "../section-list";
+import { PageHeader, btnPrimary, btnSecondary } from "../ui";
 
 interface Props {
   sections: SectionOutput[];
@@ -22,38 +23,36 @@ export default function BuildScreen({
 }: Props) {
   const enabled = sections.filter((s) => s.enabled).length;
   return (
-    <div className="mx-auto max-w-7xl px-6 py-6">
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="font-serif text-2xl font-semibold tracking-tight">Build</h1>
-          <p className="mt-1 text-sm text-ink-secondary">
-            Toggle, reorder and review sections · {enabled} of {sections.length} enabled · all
-            economics shown as conservative / base / optimistic ranges.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onBack}
-            className="rounded-lg border border-line-strong bg-surface px-4 py-2 text-sm font-medium hover:bg-muted"
-          >
-            ← Back: Inputs
-          </button>
-          <button
-            onClick={onNext}
-            className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:opacity-90"
-          >
-            Next: Preview →
-          </button>
-        </div>
-      </div>
+    <div className="mx-auto max-w-7xl px-6 py-8">
+      <PageHeader
+        className="mb-6"
+        kicker="Step 02 · Build"
+        title="Compose the deck"
+        lede={
+          <>
+            Toggle, reorder and review sections ·{" "}
+            <span className="font-semibold text-ink">
+              {enabled} of {sections.length} enabled
+            </span>{" "}
+            · all economics shown as conservative / base / optimistic ranges.
+          </>
+        }
+        action={
+          <div className="flex items-center gap-2">
+            <button onClick={onBack} className={btnSecondary}>
+              ← Back: Inputs
+            </button>
+            <button onClick={onNext} className={btnPrimary}>
+              Next: Preview →
+            </button>
+          </div>
+        }
+      />
 
       <SectionList sections={sections} config={config} onConfigChange={onConfigChange} />
 
-      <div className="mt-6 flex justify-end">
-        <button
-          onClick={onNext}
-          className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white hover:opacity-90"
-        >
+      <div className="mt-7 flex justify-end">
+        <button onClick={onNext} className={btnPrimary}>
           Next: Preview →
         </button>
       </div>

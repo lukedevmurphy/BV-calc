@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { SectionOutput } from "@/lib/types";
+import { btnPrimary } from "./ui";
 
 interface Props {
   companyName: string;
@@ -56,7 +57,7 @@ export default function ExportButton({
       <button
         onClick={exportPptx}
         disabled={busy || sectionsPending || sections.length === 0}
-        className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-white shadow-card transition-opacity hover:opacity-90 disabled:opacity-50"
+        className={btnPrimary}
       >
         {busy
           ? "Exporting…"
@@ -64,7 +65,7 @@ export default function ExportButton({
             ? "Updating preview…"
             : "Export to PowerPoint"}
       </button>
-      {error && <span className="text-sm text-red-600">{error}</span>}
+      {error && <span className="text-sm text-red-700">{error}</span>}
     </div>
   );
 }

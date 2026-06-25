@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import type { SectionOutput } from "@/lib/types";
+import { btnSecondary } from "./ui";
 
 interface Props {
   companyName: string;
@@ -56,10 +57,7 @@ export default function SlidesButton({
 
   if (needsConnect) {
     return (
-      <button
-        onClick={() => signIn("google")}
-        className="rounded-lg border border-line-strong bg-surface px-4 py-2 text-sm font-medium hover:bg-muted"
-      >
+      <button onClick={() => signIn("google")} className={btnSecondary}>
         Connect Google Drive to export →
       </button>
     );
@@ -70,11 +68,11 @@ export default function SlidesButton({
       <button
         onClick={exportSlides}
         disabled={busy || sectionsPending || sections.length === 0}
-        className="rounded-lg border border-line-strong bg-surface px-4 py-2 text-sm font-medium transition-opacity hover:bg-muted disabled:opacity-50"
+        className={btnSecondary}
       >
         {busy ? "Opening in Google Slides…" : "Export to Google Slides"}
       </button>
-      {error && <span className="text-sm text-red-600">{error}</span>}
+      {error && <span className="text-sm text-red-700">{error}</span>}
     </div>
   );
 }

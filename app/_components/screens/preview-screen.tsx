@@ -10,6 +10,7 @@ import SlideView from "../slide-view";
 import ExportButton from "../export-button";
 import SlidesButton from "../slides-button";
 import ScaledSlide from "../scaled-slide";
+import { Kicker, btnSecondary } from "../ui";
 
 interface Props {
   /** All computed sections (build order); Preview filters + re-sequences. */
@@ -112,14 +113,11 @@ export default function PreviewScreen({
   if (!current || !hasSections) {
     return (
       <div className="mx-auto max-w-2xl px-6 py-16">
-        <div className="rounded-xl border border-line bg-surface p-8 text-center shadow-card">
+        <div className="rounded-2xl border border-line bg-surface p-8 text-center shadow-card">
           <p className="text-sm text-ink-secondary">
             No sections enabled — go back to Build and enable at least one section.
           </p>
-          <button
-            onClick={onBack}
-            className="mt-5 rounded-lg border border-line-strong bg-canvas px-4 py-2 text-sm font-medium hover:bg-muted"
-          >
+          <button onClick={onBack} className={`${btnSecondary} mt-5`}>
             ← Back: Build
           </button>
         </div>
@@ -136,7 +134,23 @@ export default function PreviewScreen({
         : current.section.title.split("—")[0].trim();
 
   return (
-    <div className="mx-auto max-w-[1120px] px-6 py-5">
+    <div className="mx-auto max-w-[1120px] px-6 py-8">
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+        <div>
+          <Kicker>Step 03 · Preview</Kicker>
+          <h1 className="mt-2.5 font-serif text-[2rem] font-semibold leading-tight tracking-tight text-ink">
+            Presentation preview
+          </h1>
+          <p className="mt-1.5 text-sm leading-relaxed text-ink-secondary">
+            A what-you-see-is-what-you-export view of the deck — every slide exactly
+            as it lands in PowerPoint.
+          </p>
+        </div>
+        <span className="rounded-full border border-line bg-surface px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-tertiary">
+          {confidentialLabel(presentationMode)}
+        </span>
+      </div>
+
       <div className="relative">
         {/* 16:9 slide frame — fills the stage like a slide being presented */}
         <div className="w-full overflow-hidden rounded-2xl border border-line bg-canvas shadow-card">
@@ -178,29 +192,29 @@ export default function PreviewScreen({
         </button>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <button
-          onClick={onBack}
-          className="rounded-lg border border-line-strong bg-surface px-4 py-2 text-sm font-medium hover:bg-muted"
-        >
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+        <button onClick={onBack} className={btnSecondary}>
           ← Back: Build
         </button>
 
         <div className="flex items-center gap-3 text-xs text-ink-secondary">
-          <span>
-            Slide {clampedI + 1} / {slides.length} · {label}
+          <span className="tabular-nums">
+            Slide <span className="font-semibold text-ink">{clampedI + 1}</span> /{" "}
+            {slides.length} · {label}
           </span>
-          <span className="hidden items-center gap-1 sm:flex">
+          <span className="hidden items-center gap-1.5 sm:flex">
             {slides.map((s, idx) => (
               <button
                 key={idx}
                 onClick={() => setI(idx)}
                 aria-label={`Go to slide ${idx + 1}`}
-                className={`h-1.5 w-1.5 rounded-full ${idx === clampedI ? "bg-accent" : "bg-line-strong"}`}
+                className={`h-1.5 rounded-full transition-all ${
+                  idx === clampedI ? "w-4 bg-accent" : "w-1.5 bg-line-strong hover:bg-accent-bright"
+                }`}
               />
             ))}
           </span>
-          <span className="text-ink-tertiary">use ← → keys</span>
+          <span className="hidden text-ink-tertiary md:inline">use ← → keys</span>
         </div>
 
         {/* Exports live at the end of Preview: PowerPoint download + Google Slides. */}

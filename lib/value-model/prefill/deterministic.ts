@@ -45,16 +45,26 @@ export class DeterministicValuePrefillProvider implements ValuePrefillProvider {
     // UI/section changes, per the ValuePrefillProvider contract.
     const { priors } = resolveSubIndustry(company.industry);
 
+    // Top-down revenue-growth lift: baseline from the company's growth rate (or a
+    // default), lifted ~20% relative — both editable. The directional value is
+    // topline × (lifted − baseline) × realization, split across the use cases.
+    const baselineGrowth =
+      typeof company.revenueGrowthRate === "number" && company.revenueGrowthRate > 0
+        ? company.revenueGrowthRate
+        : 0.08;
+    const liftedGrowth = baselineGrowth * 1.2;
+
     return Promise.resolve({
       topline,
       toplineSource,
+      topDownGrowthBaseline: baselineGrowth,
+      topDownGrowthLifted: liftedGrowth,
+      topDownUseCaseWeights: {},
       addressableShare: priors.addressableShare,
       upliftPct: priors.upliftPct,
       upliftSource: priors.upliftSource,
       realizationFactor: priors.realizationFactor,
-      // "Engineering / coding" is intentionally omitted — coding value is the
-      // explicit coding-efficiency driver, so a functional pool here would
-      // double-count it.
+      // DEPRECATED — use cases now drive the top-down breakdown; kept for back-compat.
       topDownFunctions: [
         "Sales & marketing",
         "Employee productivity",

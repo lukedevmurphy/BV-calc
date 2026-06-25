@@ -18,7 +18,7 @@ import {
 import { resolveSubIndustry } from "@/lib/value-model/sub-industry";
 import { scenarioAppendixSlides } from "@/lib/sections/scenario";
 import { fmtCurrency } from "@/lib/format";
-import type { CompanyProfile, Ranged, ValueApproach } from "@/lib/types";
+import type { CompanyProfile, Ranged, UseCase, ValueApproach } from "@/lib/types";
 
 const demoCompany: CompanyProfile = {
   name: "Crestline Asset Management",
@@ -305,7 +305,7 @@ console.log(
 const topDownDeck = computeAllSections({
   company: demoCompany,
   assumptions: { ...DEFAULT_ASSUMPTIONS, valueApproach: "top_down" },
-  selectedUseCases: SEED_USE_CASES.slice(0, 4), // must be ignored by the pipeline
+  selectedUseCases: SEED_USE_CASES.slice(0, 4), // now CONSUMED — top-down is use-case-driven
   valueModel: DEFAULT_VALUE_MODEL,
   sectionConfig: defaultSectionConfig(),
 });
@@ -326,11 +326,25 @@ assert.strictEqual(
   0,
   "top-down value-only mode does not inherit bottom-up implementation cost",
 );
+// Top-down now USES use cases (the whole point): the persona slide renders and
+// the business-value table breaks the envelope across the selected use cases.
 assert(
-  topDownDeck.find((section) => section.kind === "current_state")?.title.includes("Value Pools"),
-  "top-down current state uses functional pools",
+  topDownDeck.some((section) => section.kind === "use_case_persona"),
+  "top-down now renders the use-case persona section",
 );
-console.log("top-down story: no workflow dependency + optional direct cost ✓");
+const tdBvRows = topDownDeck.find((s) => s.kind === "business_value")?.table?.rows ?? [];
+const firstTdUc = SEED_USE_CASES.slice(0, 4)[0].label;
+assert(
+  tdBvRows.some((r) => String(r[0]) === firstTdUc),
+  "top-down business value breaks down across the selected use cases",
+);
+// Tie-out still holds in top-down: financial_rollup P&L total == business_value base.
+const tdBase = topDownDeck.find((s) => s.kind === "business_value")!.rangedFigures!.annualValueFinalYear.base;
+const tdFrTotal = (topDownDeck.find((s) => s.kind === "financial_rollup")?.stats ?? []).find((s) =>
+  s.label.startsWith("= Total P&L impact"),
+);
+assert(tdFrTotal?.value === fmtCurrency(tdBase), "top-down financial rollup ties to business value base");
+console.log("top-down story: use-case-driven + ties out + optional direct cost ✓");
 
 const directTopDownCost = 2_500_000;
 const topDownWithCost = computeAllSections({
@@ -514,5 +528,31 @@ assert.strictEqual(migrated.schemaVersion, CURRENT_PROPOSAL_SCHEMA_VERSION);
 assert.strictEqual(migrated.revision, 0, "legacy proposal starts at revision zero");
 assert(migrated.sectionConfig.some((c) => c.kind === "cost"));
 console.log("proposal migration: unversioned payload upgraded + missing section restored ✓");
+
+// ── Custom use cases: a user-created use case carries its own driver mapping and
+//    flows end-to-end (round-trips losslessly, rolls to its chosen driver). ────
+const customUc: UseCase = {
+  id: "custom-test-1",
+  label: "Contract review (custom)",
+  industry: "Custom",
+  hoursSavedPerInstance: { low: 0.5, base: 1, high: 2 },
+  instancesPerMonthPerUser: { low: 2, base: 4, high: 8 },
+  drivers: ["risk_compliance"],
+  custom: true,
+  topDownTier: "high",
+};
+assert.deepStrictEqual(JSON.parse(JSON.stringify(customUc)), customUc, "custom use case JSON round-trip");
+const withCustom = computeAllSections({
+  company: demoCompany,
+  assumptions: DEFAULT_ASSUMPTIONS,
+  selectedUseCases: [...SEED_USE_CASES.slice(0, 2), customUc],
+  sectionConfig: defaultSectionConfig(),
+});
+const vmRows = withCustom.find((s) => s.kind === "value_map")?.table?.rows ?? [];
+assert(
+  vmRows.some((r) => String(r[2]).includes("Contract review")),
+  "custom use case appears in the value map under its chosen driver (risk/compliance)",
+);
+console.log("custom use case: own driver mapping flows into the value map ✓");
 
 console.log("Section contract holds across all 16. ✓");

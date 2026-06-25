@@ -212,8 +212,8 @@ export function computeAllSections(inputs: ProposalInputs): SectionOutput[] {
   const ctx: ProposalContext = {
     company: inputs.company,
     assumptions: inputs.assumptions,
-    selectedUseCases:
-      inputs.assumptions.valueApproach === "top_down" ? [] : inputs.selectedUseCases,
+    // Use cases now drive BOTH approaches (top-down sizes them as a % of revenue).
+    selectedUseCases: inputs.selectedUseCases,
     valueModel: inputs.valueModel ?? DEFAULT_VALUE_MODEL,
     priorSections,
   };

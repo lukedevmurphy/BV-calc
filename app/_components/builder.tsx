@@ -7,6 +7,7 @@ import type {
   ProposalPayload,
   ScenarioAssumptions,
   SectionConfigEntry,
+  UseCase,
   ValueModelInputs,
 } from "@/lib/types";
 import { codingForCompany, DEFAULT_ASSUMPTIONS, DEFAULT_VALUE_MODEL } from "@/lib/data/defaults";
@@ -51,6 +52,7 @@ export interface BuilderInitialState {
   company: CompanyProfile;
   assumptions: ScenarioAssumptions;
   useCaseIds: string[];
+  customUseCases?: UseCase[];
   valueModel?: ValueModelInputs;
   sectionConfig: SectionConfigEntry[];
 }
@@ -69,6 +71,9 @@ export default function Builder({
   );
   const [useCaseIds, setUseCaseIds] = useState<string[]>(
     initial?.useCaseIds ?? DEFAULT_USE_CASE_IDS,
+  );
+  const [customUseCases, setCustomUseCases] = useState<UseCase[]>(
+    initial?.customUseCases ?? [],
   );
   const [valueModel, setValueModel] = useState<ValueModelInputs>(
     initial?.valueModel ?? DEFAULT_VALUE_MODEL,
@@ -90,9 +95,10 @@ export default function Builder({
     deferredAssumptions !== assumptions || deferredValueModel !== valueModel;
 
   const approach = assumptions.valueApproach ?? "bottom_up";
+  // Use cases now drive BOTH approaches; custom ones resolve alongside the catalog.
   const effectiveUseCases = useMemo(
-    () => (approach === "top_down" ? [] : resolveUseCases(useCaseIds)),
-    [approach, useCaseIds],
+    () => resolveUseCases(useCaseIds, customUseCases),
+    [useCaseIds, customUseCases],
   );
 
   const sections = useMemo(
@@ -166,7 +172,7 @@ export default function Builder({
     const canonicalSections = computeAllSections({
       company: confirmedCompany,
       assumptions,
-      selectedUseCases: approach === "top_down" ? [] : resolveUseCases(useCaseIds),
+      selectedUseCases: resolveUseCases(useCaseIds, customUseCases),
       valueModel,
       sectionConfig,
     });
@@ -176,6 +182,7 @@ export default function Builder({
       company: confirmedCompany,
       assumptions,
       selectedUseCaseIds: useCaseIds,
+      customUseCases,
       valueModel,
       sectionConfig: normalizeSectionConfig(sectionConfig),
       sections: canonicalSections,
@@ -216,6 +223,8 @@ export default function Builder({
           company={company}
           useCaseIds={useCaseIds}
           onUseCaseIds={setUseCaseIds}
+          customUseCases={customUseCases}
+          onCustomUseCases={setCustomUseCases}
           assumptions={assumptions}
           onAssumptions={setAssumptions}
           valueModel={valueModel}

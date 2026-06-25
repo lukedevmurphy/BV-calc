@@ -296,8 +296,8 @@ export function useCasesByIndustry(industry: string): UseCase[] {
   return SEED_USE_CASES.filter((u) => u.industry === industry);
 }
 
-export function resolveUseCases(ids: string[]): UseCase[] {
+export function resolveUseCases(ids: string[], custom: UseCase[] = []): UseCase[] {
   return ids
-    .map((id) => SEED_USE_CASES.find((u) => u.id === id))
+    .map((id) => custom.find((u) => u.id === id) ?? SEED_USE_CASES.find((u) => u.id === id))
     .filter((u): u is UseCase => u !== undefined);
 }

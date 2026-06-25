@@ -252,13 +252,18 @@ const DEFAULT_TOPLINE_BASE = 180_000_000; // 1,000 × ~$180k loaded annual cost
 export const DEFAULT_VALUE_MODEL: ValueModelInputs = {
   topline: DEFAULT_TOPLINE_BASE,
   toplineSource: UNCITED,
+  // Top-down is now use-case-driven: AI lifts the revenue-growth rate, and the
+  // resulting value is broken across the selected use cases by tier. Default
+  // ~8% → ~9.6% (a 20% relative lift). addressableShare / upliftPct are retained
+  // only as a legacy fallback for pre-v5 payloads.
+  topDownGrowthBaseline: 0.08,
+  topDownGrowthLifted: 0.096,
+  topDownUseCaseWeights: {},
   addressableShare: DEFAULT_ADDRESSABLE_SHARE,
   upliftPct: DEFAULT_UPLIFT_PCT,
   upliftSource: UNCITED,
   realizationFactor: DEFAULT_REALIZATION_FACTOR,
-  // "Engineering / coding" is intentionally NOT a top-down function pool — coding
-  // value is modeled explicitly by the coding-efficiency driver (in both
-  // approaches), so listing it here too would double-count it.
+  // DEPRECATED — use cases now drive the top-down breakdown; kept for back-compat.
   topDownFunctions: [
     "Sales & marketing",
     "Employee productivity",

@@ -2,7 +2,7 @@
 // invariants. Run with `npx tsx scripts/check-engine.ts`.
 
 import assert from "node:assert";
-import { DEFAULT_ASSUMPTIONS } from "@/lib/data/defaults";
+import { DEFAULT_ASSUMPTIONS, DEFAULT_VALUE_MODEL } from "@/lib/data/defaults";
 import { SEED_USE_CASES } from "@/lib/data/use-cases";
 import {
   annualTokenCost,
@@ -15,6 +15,7 @@ import {
 } from "@/lib/economics/engine";
 import { codingValue } from "@/lib/economics/coding";
 import { itTakeoutValueAtYear } from "@/lib/economics/it-takeout";
+import { topDownMatureValue, topDownPerUseCase } from "@/lib/economics/top-down";
 import { netVsCost, ratioVsCost, ratioPlausible } from "@/lib/economics/ranged";
 import { fmtCurrency, fmtRange } from "@/lib/format";
 
@@ -154,5 +155,16 @@ assert(Math.abs(itY3.takeout.base - itY3.gross * 0.7) < 1, "IT takeout realized 
 const itOff = itTakeoutValueAtYear({ ...itT, enabled: false }, 3);
 assert(itOff.gross === 0 && itOff.takeout.base === 0, "disabled IT takeout is zero");
 console.log(`IT takeout Y3: gross ${fmtCurrency(itY3.gross)} → realized ${fmtCurrency(itY3.takeout.base)} ✓`);
+
+// ── Top-down use-case splitter: totals-preserving + empty → [] ────────────────
+const tdUcs = SEED_USE_CASES.slice(0, 4);
+const tdSplit = topDownPerUseCase(DEFAULT_VALUE_MODEL, tdUcs);
+const tdSum = tdSplit.reduce((s, x) => s + x.value, 0);
+assert(
+  Math.abs(tdSum - topDownMatureValue(DEFAULT_VALUE_MODEL)) < 1,
+  "topDownPerUseCase sums to the directional envelope",
+);
+assert(topDownPerUseCase(DEFAULT_VALUE_MODEL, []).length === 0, "topDownPerUseCase empty selection → []");
+console.log(`top-down split: ${tdSplit.length} use cases sum to ${fmtCurrency(tdSum)} (== envelope) ✓`);
 
 console.log("\nAll engine invariants hold. ✓");

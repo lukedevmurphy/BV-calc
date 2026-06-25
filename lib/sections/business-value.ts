@@ -16,7 +16,11 @@ import { interpolateRamp } from "@/lib/economics/ramp";
 import { bandAroundBase } from "@/lib/economics/ranged";
 import { codingFigures } from "@/lib/economics/coding";
 import { itTakeoutFigures } from "@/lib/economics/it-takeout";
-import { annualTopDownValue, topDownMatureValue } from "@/lib/economics/top-down";
+import {
+  annualTopDownValue,
+  topDownMatureValue,
+  topDownPerUseCase,
+} from "@/lib/economics/top-down";
 import { savedHoursBasisFor } from "@/lib/data/hours-defaults";
 import { APPROACH_BAND_HALF_WIDTH_PCT } from "@/lib/value-model/constants";
 import {
@@ -30,7 +34,6 @@ import {
   DRIVER_ORDER,
   OUTCOMES,
   rollupUseCasesToDrivers,
-  allocateByWeights,
   routeToOutcomes,
   type DriverId,
 } from "@/lib/value-model/drivers";
@@ -226,7 +229,11 @@ function buildBottomUp(
   // Roll use-case value UP the tree to the value drivers (each use case's value
   // split equally across the drivers it feeds — totals preserved).
   const perDriver = rollupUseCasesToDrivers(
-    byUseCase.map(({ useCase, value }) => ({ id: useCase.id, value: value.base })),
+    byUseCase.map(({ useCase, value }) => ({
+      id: useCase.id,
+      value: value.base,
+      drivers: useCase.drivers,
+    })),
   );
   const tree = driverArtifacts(subId, perDriver, ctx, finalYear);
 
@@ -309,31 +316,40 @@ function buildBottomUp(
 // ── top_down — whole company ─────────────────────────────────────────────────
 
 function buildTopDown(ctx: ProposalContext, finalYear: number): ApproachResult {
-  const { valueModel: vm, company } = ctx;
-  const source = vm.upliftSource?.trim() || "uncited — user to verify";
+  const { valueModel: vm, company, selectedUseCases } = ctx;
   const toplineSource = vm.toplineSource?.trim() || "uncited — user to verify";
-  // Sector vocabulary: same math, sector-specific driver labels.
+  // Sector vocabulary: sector-specific top-line label.
   const sub = resolveSubIndustry(company.industry);
   const v = sub.topDown;
 
   const matureBase = topDownMatureValue(vm);
+  const baselinePct = Math.round((vm.topDownGrowthBaseline ?? 0) * 100);
+  const liftedPct = Math.round(
+    (vm.topDownGrowthLifted ?? vm.topDownGrowthBaseline ?? 0) * 100,
+  );
 
-  // Allocate the whole-company total across the value drivers by the sector's
-  // driver weighting (totals preserved), then route to outcomes.
-  const perDriver = allocateByWeights(matureBase, subIndustryDrivers(sub.id).driverWeights);
+  // Break the directional envelope across the selected use cases by value tier,
+  // then roll to drivers (totals preserved; carries custom mappings).
+  const perUseCase = topDownPerUseCase(vm, selectedUseCases);
+  const perDriver = rollupUseCasesToDrivers(perUseCase);
   const tree = driverArtifacts(sub.id, perDriver, ctx, finalYear);
 
-  const functions = vm.topDownFunctions.length
-    ? vm.topDownFunctions
-    : ["Enterprise productivity"];
-  const perFunction = matureBase / functions.length;
+  const pctOfRev = (val: number) => (vm.topline > 0 ? fmtPercent(val / vm.topline) : "—");
+  const ucRows: (string | number)[][] = perUseCase.length
+    ? [...perUseCase]
+        .sort((a, b) => b.value - a.value)
+        .map((p) => {
+          const uc = selectedUseCases.find((u) => u.id === p.id);
+          return [uc?.label ?? p.id, `${fmtCurrency(p.value)} (${pctOfRev(p.value)})`];
+        })
+    : [["Use cases to validate", "—"]];
+
   const table: TableData = {
-    columns: ["Directional value pool", "Annual value"],
+    columns: ["Top-down basis", "Value / share of revenue"],
     rows: [
       [v.toplineRowLabel, fmtCurrency(vm.topline)],
-      [v.addressableRowLabel, fmtPercent(vm.addressableShare.base)],
-      [v.upliftRowLabel, fmtPercent(vm.upliftPct.base)],
-      ...functions.map((label) => [label, fmtCurrency(perFunction)]),
+      ["AI revenue-growth lift", `${baselinePct}% → ${liftedPct}%`],
+      ...ucRows,
       ["Total directional value", fmtCurrency(matureBase)],
     ],
   };
@@ -342,34 +358,32 @@ function buildTopDown(ctx: ProposalContext, finalYear: number): ApproachResult {
   const flag = illustrativeFlag(company);
 
   return {
-    subtitle: `Top-down from ${v.toplineRowLabel.toLowerCase()} × ${v.addressableRowLabel.toLowerCase()} × ${v.upliftRowLabel.toLowerCase()} — fast, cited, widest band`,
+    subtitle: `Top-down SWAG: AI lifts ${v.toplineRowLabel.toLowerCase()} growth ${baselinePct}% → ${liftedPct}%, broken across the selected use cases`,
     bullets: [
-      `Annual value ≈ ${v.toplineRowLabel.toLowerCase()} × ${v.addressableRowLabel.toLowerCase()} × ${v.upliftRowLabel.toLowerCase()} × realization factor`,
-      `Directional value is allocated across ${functions.join(", ")} — functional pools, not use cases`,
+      `Directional value ≈ ${v.toplineRowLabel.toLowerCase()} × (AI-lifted growth ${liftedPct}% − baseline ${baselinePct}%) × realization`,
+      `Broken down across the selected use cases by value tier — higher-value workflows take a larger slice`,
       `${v.toplineRowLabel} ${fmtCurrency(vm.topline)} — source: ${toplineSource}`,
-      `${v.upliftRowLabel} ${fmtPercent(vm.upliftPct.base)} — source: ${source}`,
-      `Widest confidence band of the two approaches — a fast, whole-company estimate to be refined by going deeper`,
+      `Low-data first-pass estimate (widest band); refine with a bottom-up build in the next conversation`,
       ...(flag ? [flag] : []),
     ],
     extraStats: [
-      { label: "Benchmark uplift", value: fmtRangeTriple(vm.upliftPct, fmtPercent) },
-      { label: "Addressable share", value: fmtPercent(vm.addressableShare.base) },
+      { label: "Revenue-growth lift", value: `${baselinePct}% → ${liftedPct}%` },
+      { label: "Realization", value: fmtPercent(vm.realizationFactor.base) },
       ...tree.extraStats,
     ],
     table,
     charts: [tree.chart],
     speakerNotes:
-      `This is the fastest altitude: one top-line figure scaled by a cited benchmark uplift and a realization haircut. ` +
-      `The credibility here IS the citation — lead with the source, and flag explicitly when a percentage is uncited so ` +
-      `the client knows what still needs verifying. Drag the slider deeper to replace the benchmark with the client's own volumes. ` +
+      `Top-down is the low-data SWAG for the first meeting: from public financials, estimate how much AI lifts the company's ` +
+      `revenue-growth rate (${baselinePct}% → ${liftedPct}%), value it against the topline, and break it across the use cases by ` +
+      `value tier. Each use case is intentionally "almost blank" here — the detail comes in the bottom-up follow-up. ` +
       tree.note,
     assumptionsUsed: [
       "valueApproach (top_down)",
-      "topline",
-      "addressableShare",
-      `upliftPct (source: ${source})`,
+      "topline (source above)",
+      "topDownGrowthBaseline / topDownGrowthLifted (revenue-growth lift)",
       "realizationFactor",
-      "topDownFunctions (directional allocation)",
+      "selected use cases + value tiers (topDownUseCaseWeights)",
       "adoptionBreadth (Year-1 time-shape)",
       `horizonYears (${finalYear})`,
     ],

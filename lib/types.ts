@@ -5,6 +5,10 @@
 // POST body, Neon jsonb column).
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Type-only import (erased at runtime — drivers.ts imports nothing, so no cycle)
+// so a UseCase can carry its own financial mapping.
+import type { DriverId } from "@/lib/value-model/drivers";
+
 /** Economic figures are never scalars — every monetary/quantity figure carries
  *  a low/base/high band. */
 export interface Ranged {
@@ -193,8 +197,17 @@ export interface ValueModelInputs {
    *  source — never a fabricated citation. */
   upliftSource?: string;
   realizationFactor: Ranged; // 0..1 discount on the theoretical uplift
-  /** High-level functions named in the top-down value thesis. These allocate
-   * the directional value equally; they are not workflow/use-case inputs. */
+  /** Top-down (use-case-driven SWAG): the company's current annual revenue
+   *  growth rate, and the AI-lifted rate. The directional value is
+   *  topline × (lifted − baseline) × realizationFactor, broken down across the
+   *  selected use cases by tier. Seeded from company.revenueGrowthRate. */
+  topDownGrowthBaseline?: number;
+  topDownGrowthLifted?: number;
+  /** Per-use-case allocation weights (keyed by id) for splitting the top-down
+   *  envelope. Absent/blank → derived from each use case's tier (equal default). */
+  topDownUseCaseWeights?: Record<string, number>;
+  /** DEPRECATED (kept for back-compat / migration): the old functional value
+   *  pools. Use cases now drive the top-down breakdown. */
   topDownFunctions: string[];
   /** Optional direct AE-entered annual cost SWAG by year. Kept separate from
    * bottom-up token-cost overrides so switching methods never leaks costs. */
@@ -259,6 +272,14 @@ export interface UseCase {
   /** Where this use case / agent template comes from, for "more info" links
    *  (e.g. the Anthropic financial-services agent catalog). */
   source?: { label: string; url: string };
+  /** Financial mapping — which value driver(s) this use case feeds. When present
+   *  it OVERRIDES the catalog USE_CASE_DRIVERS lookup (set by custom use cases). */
+  drivers?: DriverId[];
+  /** True for user-created use cases (vs the seeded catalog). */
+  custom?: boolean;
+  /** Top-down allocation weight tier — how big a slice of the directional
+   *  envelope this use case gets. Default "med". */
+  topDownTier?: "high" | "med" | "low";
 }
 
 // ── SectionOutput — the keystone object every module returns ────────────────
@@ -404,6 +425,9 @@ export interface ProposalPayload {
   company: CompanyProfile;
   assumptions: ScenarioAssumptions;
   selectedUseCaseIds: string[];
+  /** User-created use cases (full definitions). selectedUseCaseIds may reference
+   *  these or the seed catalog; resolveUseCases searches custom first. */
+  customUseCases?: UseCase[];
   /** Inputs for the top_down value approach. Optional so pre-feature saved
    *  payloads still rehydrate (builder falls back to default). */
   valueModel?: ValueModelInputs;

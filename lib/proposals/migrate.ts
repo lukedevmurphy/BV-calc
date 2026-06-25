@@ -2,9 +2,10 @@ import type { ProposalPayload, SectionConfigEntry } from "@/lib/types";
 import { normalizeSectionConfig } from "@/lib/sections/index";
 import { DEFAULT_CODING, DEFAULT_IT_TAKEOUT, DEFAULT_VALUE_MODEL } from "@/lib/data/defaults";
 
-// v3: coding-efficiency driver (assumptions.coding) + topline single-actual.
-// v4: IT cost takeout driver (assumptions.itTakeout). All backfilled on load.
-export const CURRENT_PROPOSAL_SCHEMA_VERSION = 4;
+// v3: coding-efficiency driver + topline single-actual. v4: IT cost takeout.
+// v5: custom use cases + use-case-driven top-down (growth-rate inputs). All
+// backfilled from defaults on load.
+export const CURRENT_PROPOSAL_SCHEMA_VERSION = 5;
 
 type LegacyProposalPayload = Omit<ProposalPayload, "schemaVersion" | "revision"> & {
   schemaVersion?: number;
@@ -42,6 +43,7 @@ export function migrateProposalPayload(input: unknown): ProposalPayload {
     selectedUseCaseIds: legacy.selectedUseCaseIds.filter(
       (id): id is string => typeof id === "string",
     ),
+    customUseCases: Array.isArray(legacy.customUseCases) ? legacy.customUseCases : [],
     sectionConfig: normalizeSectionConfig(legacy.sectionConfig),
     assumptions: {
       ...legacy.assumptions,

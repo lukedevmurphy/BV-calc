@@ -1,6 +1,11 @@
 "use client";
 
-import type { CompanyProfile, ScenarioAssumptions, ValueModelInputs } from "@/lib/types";
+import type {
+  CompanyProfile,
+  ScenarioAssumptions,
+  UseCase,
+  ValueModelInputs,
+} from "@/lib/types";
 import type { SubIndustry } from "@/lib/value-model/sub-industry";
 import { isIllustrativeProfile } from "@/lib/provenance";
 import UseCasePicker from "../use-case-picker";
@@ -13,6 +18,8 @@ interface Props {
   company: CompanyProfile;
   useCaseIds: string[];
   onUseCaseIds: (ids: string[]) => void;
+  customUseCases: UseCase[];
+  onCustomUseCases: (ucs: UseCase[]) => void;
   assumptions: ScenarioAssumptions;
   onAssumptions: (a: ScenarioAssumptions) => void;
   valueModel: ValueModelInputs;
@@ -28,6 +35,26 @@ export default function InputsScreen(props: Props) {
   const patch = (value: Partial<ScenarioAssumptions>) => onAssumptions({ ...assumptions, ...value });
   const illustrative = isIllustrativeProfile(company);
 
+  const setWeight = (id: string, weight: number) =>
+    props.onValueModel({
+      ...props.valueModel,
+      topDownUseCaseWeights: { ...(props.valueModel.topDownUseCaseWeights ?? {}), [id]: weight },
+    });
+
+  const picker = (
+    <UseCasePicker
+      selectedIds={props.useCaseIds}
+      onChange={props.onUseCaseIds}
+      customUseCases={props.customUseCases}
+      onCustomChange={props.onCustomUseCases}
+      approach={approach}
+      weights={props.valueModel.topDownUseCaseWeights}
+      onWeight={setWeight}
+      initialIndustry={props.subIndustry.useCaseIndustry}
+      rankedIds={props.subIndustry.rankedUseCaseIds}
+    />
+  );
+
   return (
     <div className="mx-auto max-w-7xl px-6 py-6">
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
@@ -40,7 +67,7 @@ export default function InputsScreen(props: Props) {
           </h1>
           <p className="mt-1 text-sm text-ink-secondary">
             {approach === "top_down"
-              ? "Use company-level figures and functional value pools. No use cases are used anywhere in this proposal."
+              ? "A low-data SWAG from public financials — set the revenue-growth lift, then pick the use cases it breaks down across (by value tier)."
               : "Select the workflows and quantify the operating basis behind the business case."}
           </p>
         </div>
@@ -50,15 +77,20 @@ export default function InputsScreen(props: Props) {
       </div>
 
       {approach === "top_down" ? (
-        <ValueModelPanel
-          valueModel={props.valueModel}
-          subIndustry={props.subIndustry}
-          onValueModelChange={props.onValueModel}
-        />
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,400px)]">
+          <ValueModelPanel
+            valueModel={props.valueModel}
+            subIndustry={props.subIndustry}
+            onValueModelChange={props.onValueModel}
+          />
+          <section className="rounded-xl border border-line-strong bg-surface p-5 shadow-card">
+            {picker}
+          </section>
+        </div>
       ) : (
         <div className="grid gap-6 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
           <section className="rounded-xl border border-line-strong bg-surface p-5 shadow-card">
-            <UseCasePicker selectedIds={props.useCaseIds} onChange={props.onUseCaseIds} initialIndustry={props.subIndustry.useCaseIndustry} rankedIds={props.subIndustry.rankedUseCaseIds} />
+            {picker}
           </section>
           <div className="space-y-6">
             <section className="rounded-xl border border-line-strong bg-surface p-5 shadow-card">
@@ -85,7 +117,7 @@ export default function InputsScreen(props: Props) {
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line-strong bg-surface px-5 py-4 shadow-card">
         <p className="text-sm text-ink-secondary">
-          <span className="font-semibold text-ink">{approach === "top_down" ? props.valueModel.topDownFunctions.length : props.useCaseIds.length} value inputs selected</span>
+          <span className="font-semibold text-ink">{props.useCaseIds.length} use cases selected</span>
           {illustrative && <span> · illustrative company data—verify before presenting</span>}
         </p>
         <button onClick={onNext} className="rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-white hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2">Next: Build →</button>

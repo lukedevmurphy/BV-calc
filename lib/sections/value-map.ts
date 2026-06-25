@@ -34,7 +34,7 @@ const DRIVER_STRATEGY: Record<DriverId, { goal: string; objective: string; pool?
 
 function useCasesForDriver(ctx: ProposalContext, driver: DriverId): string {
   const labels = ctx.selectedUseCases
-    .filter((uc) => driversForUseCase(uc.id).includes(driver))
+    .filter((uc) => driversForUseCase(uc).includes(driver))
     .map((uc) => uc.label);
   if (labels.length === 0) return "";
   if (labels.length <= 2) return labels.join("; ");

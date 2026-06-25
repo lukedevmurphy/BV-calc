@@ -12,15 +12,13 @@
 
 import type { ProposalContext } from "@/lib/types";
 import {
-  allocateByWeights,
   rollupUseCasesToDrivers,
   routeToOutcomes,
   type DriverId,
   type OutcomeId,
 } from "./drivers";
-import { resolveSubIndustry, subIndustryDrivers } from "./sub-industry";
 import { annualValueByUseCase } from "@/lib/economics/engine";
-import { topDownMatureValue } from "@/lib/economics/top-down";
+import { topDownPerUseCase } from "@/lib/economics/top-down";
 import { codingFigures } from "@/lib/economics/coding";
 import { itTakeoutFigures } from "@/lib/economics/it-takeout";
 
@@ -34,15 +32,17 @@ function capacityShare(ctx: ProposalContext): number {
 function useCaseDrivers(ctx: ProposalContext): Record<DriverId, number> {
   const a = ctx.assumptions;
   if ((a.valueApproach ?? "bottom_up") === "top_down") {
-    const sub = resolveSubIndustry(ctx.company.industry);
-    return allocateByWeights(
-      topDownMatureValue(ctx.valueModel),
-      subIndustryDrivers(sub.id).driverWeights,
-    );
+    // Top-down: break the directional envelope across the selected use cases by
+    // tier, then roll to drivers (carries each use case's custom mapping).
+    return rollupUseCasesToDrivers(topDownPerUseCase(ctx.valueModel, ctx.selectedUseCases));
   }
   const byUseCase = annualValueByUseCase(a, ctx.selectedUseCases, a.horizonYears);
   return rollupUseCasesToDrivers(
-    byUseCase.map(({ useCase, value }) => ({ id: useCase.id, value: value.base })),
+    byUseCase.map(({ useCase, value }) => ({
+      id: useCase.id,
+      value: value.base,
+      drivers: useCase.drivers,
+    })),
   );
 }
 

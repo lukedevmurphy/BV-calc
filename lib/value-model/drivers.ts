@@ -168,9 +168,11 @@ export const USE_CASE_DRIVERS: Record<string, DriverId[]> = {
   "fa-statement-auditor": ["productivity", "risk_compliance"],
 };
 
-/** Drivers a use case feeds — always ≥1 (falls back to productivity). */
-export function driversForUseCase(useCaseId: string): DriverId[] {
-  const d = USE_CASE_DRIVERS[useCaseId];
+/** Drivers a use case feeds — always ≥1. A use case's own `drivers` (set by
+ *  custom use cases) wins; else the catalog map; else productivity. */
+export function driversForUseCase(uc: { id: string; drivers?: DriverId[] }): DriverId[] {
+  if (uc.drivers && uc.drivers.length > 0) return uc.drivers;
+  const d = USE_CASE_DRIVERS[uc.id];
   return d && d.length > 0 ? d : ["productivity"];
 }
 
@@ -185,12 +187,12 @@ export function emptyDriverMap(): Record<DriverId, number> {
  * the same overall total (the engine's number is preserved exactly).
  */
 export function rollupUseCasesToDrivers(
-  perUseCase: { id: string; value: number }[],
+  perUseCase: { id: string; value: number; drivers?: DriverId[] }[],
 ): Record<DriverId, number> {
   const acc = emptyDriverMap();
-  for (const { id, value } of perUseCase) {
-    const drivers = driversForUseCase(id);
-    const share = value / drivers.length;
+  for (const uc of perUseCase) {
+    const drivers = driversForUseCase(uc);
+    const share = uc.value / drivers.length;
     for (const d of drivers) acc[d] += share;
   }
   return acc;

@@ -150,7 +150,10 @@ export default function SlideView({
             }
           >
             {section.stats.map((s) => (
-              <div key={s.label} className="rounded-lg border border-line bg-canvas px-3 py-2">
+              <div
+                key={s.label}
+                className={`rounded-lg border border-line px-3 py-2 ${fixedLayout ? "bg-surface" : "bg-canvas"}`}
+              >
                 <div className="font-serif text-base leading-snug text-accent">
                   {section.kind === "executive_summary" ? (
                     <ExecutiveStatValue value={s.value} />

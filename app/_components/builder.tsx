@@ -26,6 +26,7 @@ import SaveButton from "./save-button";
 import CompanyStep from "./company-step";
 import SavedCasesList from "./saved-cases-list";
 import FlowNav, { type Screen } from "./flow-nav";
+import { SignOutButton } from "@/app/admin/auth-button";
 
 const InputsScreen = dynamic(() => import("./screens/inputs-screen"), {
   loading: ScreenLoading,
@@ -153,6 +154,9 @@ export default function Builder({
   if (!company || editingCompany) {
     return (
       <div className="px-6 py-12">
+        <div className="mx-auto mb-6 flex max-w-5xl justify-end">
+          <SignOutButton />
+        </div>
         <CompanyStep
           initial={company ?? undefined}
           initialApproach={company ? approach : undefined}

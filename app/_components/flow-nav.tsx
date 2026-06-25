@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { fmtCurrency } from "@/lib/format";
+import { SignOutButton } from "@/app/admin/auth-button";
 
 export type Screen = "inputs" | "build" | "preview" | "settings";
 
@@ -104,6 +105,7 @@ export default function FlowNav({
             </svg>
           </button>
           {saveSlot}
+          <SignOutButton />
         </div>
       </div>
       <div className="bg-ink text-surface">

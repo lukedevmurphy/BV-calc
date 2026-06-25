@@ -45,12 +45,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // Request the Drive scope so the app can create the Google Slides export
       // file. `drive.file` is narrow (only files this app creates) and
       // non-sensitive, so it needs no Google verification review.
-      // access_type=offline + prompt=consent force a refresh_token grant.
+      // prompt="select_account consent": always show the Google ACCOUNT CHOOSER
+      // (so a signed-out user can pick a different account / "Use another
+      // account" instead of being silently re-logged in) AND force the consent
+      // screen; with access_type=offline that mints the refresh_token we need to
+      // keep calling Drive after the access token expires.
       authorization: {
         params: {
           scope: `openid email profile ${DRIVE_SCOPE}`,
           access_type: "offline",
-          prompt: "consent",
+          prompt: "select_account consent",
         },
       },
     }),
